@@ -192,7 +192,8 @@ for( i in 1:nrow( HbS.priors )) {
         lakes = lakaf_sf
       ),
       color.scheme = color.scheme,
-      popmask = popmask
+      popmask = popmask,
+      prednames = c("mean", "sd", "iqr" ) # Choose three from mean, q25, q50, q75, sd, iqr
   )
   ggsave( plots$unmasked, file = sprintf( "%s-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
@@ -206,11 +207,6 @@ for( i in 1:nrow( HbS.priors )) {
 
 message( "++ Great success!  Enjoy your plots." )
 
-
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/HbS_Fig1.Rdata"))
 message("End HbS_Fig1.R")
 #END
-
-
-
-

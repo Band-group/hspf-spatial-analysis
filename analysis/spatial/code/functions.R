@@ -61,7 +61,7 @@ generate_diagnostic_plot <- function(
       t5 = "HbS | Predicted IQR"
       #t6 = "HbS | Predicted coefficient of variation"
     ),
-    prednames = list("MEAN","SD","Q25","Q75","IQR"),
+    prednames = c("mean", "sd", "iqr" ),
     mainnames = list("PR mean","PR sd","PR 25th pct","PR 75th pct","IQR"),
     popmask
 ) {
@@ -104,18 +104,16 @@ generate_diagnostic_plot <- function(
   #A.pred.transect <- inla.spde.make.A( mesh = modelfit$mesh, loc=transect_xy)
   
   out<-list()
-  for (j in c( 'mean', 'sd', 'q25', 'q75', 'iqr' )) {
+  for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
     pred_val[!w] <- round( predictions[[j]],9)
     out[[j]] <- setValues(mask, pred_val)
     # writeRaster(out[[j]], paste0("output/tif/prevalence_","nocov","/",prednames[[j]],'.tif'), overwrite=TRUE)
   }
   b <- brick(out)
-  names(b) <- prednames
   
   b <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- b*popmask
-  names(bmask) <- names(b)
   
   # make plots of each map thing, popmasked and not
   pall <- stackplots(b, features, titles, color.scheme )
@@ -127,8 +125,9 @@ generate_diagnostic_plot <- function(
     tibble::tibble(
       type = "piel",
       mean = raster::extract(HbSPiel,xyt),
-      Q25 = NA,
-      Q75 = NA,
+      q25 = NA,
+      q50 = NA,
+      q75 = NA,
       n=xytc$N, s=xytc$S,
       prev = s/n,
       dataset=xytc$Dataset,
@@ -136,9 +135,10 @@ generate_diagnostic_plot <- function(
     ),
     tibble::tibble(
       type = "ours",
-      mean = raster::extract(b[['MEAN']],xyt),
-      Q25 = raster::extract(b[['Q25']],xyt),
-      Q75 = raster::extract(b[['Q75']],xyt),
+      mean = raster::extract(b[['mean']],xyt),
+      q25 = raster::extract(b[['q25']],xyt),
+      q50 = raster::extract(b[['q50']],xyt),
+      q75 = raster::extract(b[['q75']],xyt),
       n=xytc$N, s=xytc$S,
       prev = s/n,
       dataset=xytc$Dataset,
@@ -159,7 +159,7 @@ generate_diagnostic_plot <- function(
   
   p2 <- (
     ggplot(data = xytdf[xytdf$type=='ours',], mapping = aes(x = prev, y = mean))+ 
-      geom_pointrange(mapping = aes(ymin = Q25, ymax = Q75),alpha=0.25) +
+      geom_pointrange(mapping = aes(ymin = q25, ymax = q75),alpha=0.25) +
       #facet_wrap( ~type )+ 
       theme_minimal()+ geom_abline( intercept=0, slope = 1, colour = 'grey10', lwd=1, linetype="dashed")+ 
       geom_smooth( method = 'lm',colour='red3')
@@ -181,7 +181,7 @@ generate_diagnostic_plot <- function(
   transect_comparison = tibble(
     type = "transect",
     piel = raster::extract(HbSPiel,transect_xy),
-    ours = raster::extract(b[['MEAN']],transect_xy)
+    ours = raster::extract(b[['mean']],transect_xy)
   )
   aggregated_mask = aggregate(mask, fact = 5 )
   grid_val <- getValues(mask)
@@ -192,7 +192,7 @@ generate_diagnostic_plot <- function(
   grid_comparison = tibble(
     type = "grid",
     piel = raster::extract(HbSPiel, grid_xy ),
-    ours = raster::extract(b[['MEAN']], grid_xy )
+    ours = raster::extract(b[['mean']], grid_xy )
   )
   p3 <- (
     ggplot(
@@ -228,9 +228,15 @@ generate_diagnostic_plot <- function(
   )
   
   #plots
-  diagnose.plot <- cowplot::plot_grid(pall$mean,pall$sd,pall$iqr,p1,p2,p3,
-                                      labels = letters[1:6],
-                                      label_size = 22,ncol = 3,align = c("none"))
+  #diagnose.plot <- cowplot::plot_grid(pall$mean,pall$sd,pall$iqr,p1,p2,p3,
+  diagnose.plot <- cowplot::plot_grid(
+    pall[[prednames[1] ]], pall[[ prednames[2] ]], pall[[ prednames[3] ]],
+    p1, p2, p3,
+    labels = letters[1:6],
+    label_size = 22,
+    ncol = 3,
+    align = c("none")
+)
 
   diagnose.plot.mask <- cowplot::plot_grid(pallmask$mean,pallmask$sd,pallmask$iqr,p1,p2,p3,
                                            labels = letters[1:6],
@@ -238,7 +244,9 @@ generate_diagnostic_plot <- function(
   return( list(
     unmasked = diagnose.plot,
     masked = diagnose.plot.mask,
-    in.sample.summary = in.sample.summary
+    in.sample.summary = in.sample.summary,
+    xytdf = xytdf,
+    comparison = bind_rows( grid_comparison, comparison )
   ))
 }
 
@@ -250,7 +258,7 @@ stackplots <- function(
   # list of plot titles
 ) {
   p <- HbSdf <- list()
-  for (j in 1:nlayers(mystack)){
+  for (j in names(mystack)){
     HbSdf[[j]] <- as.data.frame(mystack[[j]], xy=TRUE) %>% na.omit()
     HbSdf[[j]] <- data.frame(HbSdf[[j]])
     colnames(HbSdf[[j]]) <- c("x","y","value")
@@ -275,7 +283,7 @@ stackplots <- function(
       # Add legend only when j=2
       ggthemes::theme_few(14)+HbSplottheme
     )
-      if (j==1) {
+    if (j == names(mystack)[1]) {
         p[[j]] <- p[[j]] + theme(legend.position = c(0.2,0.25),
               legend.key.width = unit(0.1,'cm'),
               #legend.title = "Estimated S allele frequency",
@@ -286,9 +294,7 @@ stackplots <- function(
       }
           
   }
-  pall <-list( mean = p[[1]], sd = p[[2]], q25 = p[[3]], q75 = p[[4]], iqr = p[[5]])
-
-  return(pall)
+  return(p)
 }
 
 greyredyellowpal<- function(num_red_shades,num_gray_shades,num_yellow_shades){
@@ -779,6 +785,7 @@ predict_inla_binomial_model <- function(
   pred_sd <- apply(mypred, 1, function(x) sd(x, na.rm=TRUE))
   #sdmean <- pred_sd/pred_mean# coefficient of variation (CV)
   pred_25pct <- apply(mypred, 1, function(x) quantile(x, probs=c(0.25), na.rm=TRUE))
+  pred_50pct <- apply(mypred, 1, function(x) quantile(x, probs=c(0.5), na.rm=TRUE))
   pred_75pct <- apply(mypred, 1, function(x) quantile(x, probs=c(0.75), na.rm=TRUE))
   IQR <- pred_75pct - pred_25pct
   return(list(
@@ -786,6 +793,7 @@ predict_inla_binomial_model <- function(
     mean = pred_mean,
     sd = pred_sd,
     q25 = pred_25pct,
+    q50 = pred_50pct,
     q75 = pred_75pct,
     iqr = IQR
   )) ;
