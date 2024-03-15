@@ -230,10 +230,11 @@ generate_diagnostic_plot <- function(
   #plots
   diagnose.plot <- cowplot::plot_grid(pall$mean,pall$sd,pall$iqr,p1,p2,p3,
                                       labels = letters[1:6],
-                                      label_size = 22,ncol = 3,align = c("hv"))
+                                      label_size = 22,ncol = 3,align = c("none"))
+
   diagnose.plot.mask <- cowplot::plot_grid(pallmask$mean,pallmask$sd,pallmask$iqr,p1,p2,p3,
                                            labels = letters[1:6],
-                                           label_size = 22,ncol = 3,align = c("hv"))
+                                           label_size = 22,ncol = 3,align = c("none"))
   return( list(
     unmasked = diagnose.plot,
     masked = diagnose.plot.mask,
@@ -468,6 +469,15 @@ load.continent.shapes <- function( filename, continent = "Africa" ) {
   myarea <- rgeos::gBuffer(myarea, width = 0)
   return( myarea )
 }
+load.continent.shapes.terra <- function( filename, continent = "Africa" ) {
+  #focus on our study area
+  myarea <- raster::shapefile( filename )
+  myarea <- myarea[myarea$CONTINENT == continent,]
+  myarea <- terra::union(myarea)
+  myarea <- terra::buffer(myarea, width = 0)
+  return( myarea )
+}
+
 load.and.crop.map <- function( filename, area ) {
   result <- raster::raster()
   result <- raster::mask(raster::crop(result, raster::extent( area )), area )

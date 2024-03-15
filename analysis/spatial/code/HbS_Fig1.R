@@ -6,8 +6,8 @@ if(length(new.packages)) install.packages("INLA", repos=c(getOption("repos"), IN
 library(INLA)
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
-                      "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","dplyr",
-                      "elevatr","terra","INLAspacetime","fmesher","fields","readr")
+                      "RColorBrewer","ggthemes", "ggmap", "dplyr",
+                      "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
@@ -79,7 +79,7 @@ popmask[popmask > 0.05] <- 1 #orignal threshold: 0.05
 #load naturalearth boundaries and robin projection
 #load(paste0("geodata/naturalearthdata.Rdata"))
 
-myarea <- load.continent.shapes(
+myarea <- load.continent.shapes.terra(
   "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp",
   "Africa"
 )
@@ -200,7 +200,7 @@ for( i in 1:nrow( HbS.priors )) {
   plots$in.sample.summary$name = prior$name
   in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
 
-    message( "++ Models ordered by rmse are:" )
+  message( "++ Models ordered by rmse are:" )
   print( in.sample.summary %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' ) %>% arrange( rmse ) )
 }
 
