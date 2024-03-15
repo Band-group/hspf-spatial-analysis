@@ -2,7 +2,7 @@
 #INLA used to fit Bayesian models
 list.of.packages <- c("INLA")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
+if(length(new.packages)) install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)
 library(INLA)
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
@@ -63,7 +63,7 @@ print( HbS.priors )
 nn <- 500 # nb.HbS samples per pixel for HbS maps (HbS_Plots.R)
 
 #load functions
-source('functions.R')
+source('code/functions.R')
 
 #load data for prediction 
 #load pop raster for popmasking
