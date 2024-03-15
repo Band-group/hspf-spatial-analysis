@@ -1,0 +1,686 @@
+<!doctype html>
+
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>WebGPU HsPf simulation</title>
+	<script src="https://cdn.jsdelivr.net/npm/geotiff"></script>
+	<script src="./beta.js"></script>
+	<style>
+		.map_container {
+			padding: 20px ;
+			margin-bottom: 20px ;
+			margin-top: 20px ;
+			border: 10px solid black ;
+			border-radius: 20px ;
+			width: max-content ;
+		}
+		.map_container > canvas {
+			border: 2px solid rgb( 125, 64, 64 ) ;
+		}
+	</style>
+</head>
+<body>
+	<section id="hi">
+	</section>
+	<script type="module">
+		function computeStrides( dimensions ) {
+			let result = {...dimensions} ;
+			let stride = 1 ;
+			for( let i = dimensions.length; i > 0; --i ) {
+				result[i-1] = stride ;
+				stride *= dimensions[i-1] ;
+			}
+			return result ;
+		}
+	
+		class GridData {
+			constructor( dimensions, data = null ) {
+				this.m_dimensions = dimensions ;
+				if( dimensions.length < 2 ) {
+					throw new Error( "GridData::constructor(): dimensions must be at least length 2." ) ;
+				}
+				let size = dimensions.reduce( (a,b) => a*b) ;
+				this.m_data = new Float32Array( size ) ;
+				if( data ) {
+					if( data.length != size ) {
+						throw new Error( "GridData::constructor(): data (size " + data.length + ") must match dimensioned size, " + size + "." ) ;
+					}
+					this.m_data.set( data.slice( 0, size ) ) ;
+				} else {
+					this.m_data.fill( NaN ) ;
+				}
+				this.m_strides = computeStrides( this.m_dimensions ) ;
+			}
+
+			get dimensions() {
+				return m_dimensions ;
+			}
+
+			index( coords ) {
+				if( coords.length != this.m_dimensions.length ) {
+					throw new Error( "arguments.length (" + coords.length + ") != m_dimensions.length (" + this.m_dimensions.length + ")" ) ;
+				}
+				let self = this ;
+				return coords[coords.length-1] + coords.slice(0,coords.length-1).map( (elt,i) => elt * self.m_dimensions[i+1] ).reduce( (a,b) => a+b ) ;
+			}
+
+			at( coords ) {
+				let index = this.index( coords ) ;
+				return this.m_data[index] ;
+			}
+
+			set( coords, value ) {
+				let index = this.index( coords ) ;
+				return this.m_data[index] = value ;
+			}
+
+			fill( value ) {
+				this.m_data.fill( value ) ;
+			}
+
+			scale( value ) {
+				for( let i = 0; i < this.m_data.length; ++i ) {
+					this.m_data[i] *= value ;
+				}
+			}
+
+			get data() {
+				return this.m_data ;
+			}
+
+			get size() {
+				return this.m_data.length ;
+			}
+
+			get height() {
+				return this.m_dimensions[0] ;
+			}
+	
+			get width() {
+				return this.m_dimensions[1] ;
+			}
+
+	
+			// pad the first two dimensions so that they are a multiple of `padding`
+			// Also ensures the data is surrounded by `padding` entries filled with `value`
+			// around each side, in these two dimensions.
+			pad(
+				padding,
+				value = 0.0
+			) {
+				const current_dimensions = this.m_dimensions ;
+				let new_dimensions = [...this.m_dimensions] ;
+				new_dimensions[0] = Math.ceil((new_dimensions[0]+(2*padding))/padding) * padding ;
+				new_dimensions[1] = Math.ceil((new_dimensions[1]+(2*padding))/padding) * padding ;
+				let new_size = new_dimensions.reduce( (a,b) => a*b) ;
+				let new_data = new Float32Array( new_size ) ;
+				new_data.fill( value ) ;
+				let new_strides = computeStrides( new_dimensions ) ;
+	
+				for( let i = 0 ; i < current_dimensions[0]; ++i ) {
+					new_data.subarray(
+						((i+padding) * new_strides[0]) + padding*new_strides[1],
+						((i+padding) * new_strides[0]) + padding*new_strides[1] + this.m_strides[0]
+					).set(
+						this.m_data.slice(
+							i * this.m_strides[0],
+							(i+1) * this.m_strides[0]
+						)
+					) ;
+				}
+				this.m_dimensions = new_dimensions ;
+				this.m_data = new_data ;
+				this.m_strides = new_strides ;
+			}
+
+			toDeviceBuffer( device, usage = (GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST) ) {
+				let result = device.createBuffer({ size: this.m_data.byteLength, usage: usage }) ;
+				device.queue.writeBuffer( result, 0, this.m_data ) ;
+				return result ;
+			}
+		} ;
+
+		function testGridData() {
+			let x = new Float32Array( 16 ) ;
+			x[ 0] = 0 ;  x[ 1] = 1 ;  x[ 2] = 2 ;  x[ 3] = 3 ;
+			x[ 4] = 4 ;  x[ 5] = 5 ;  x[ 6] = 6 ;  x[ 7] = 7 ;
+			x[ 8] = 8 ;  x[ 9] = 9 ;  x[10] = 10 ; x[11] = 11 ;
+			x[12] = 12 ; x[13] = 13 ; x[14] = 14 ; x[15] = 15 ;
+			console.log(x) ;
+			let g = new GridData( [ 4, 4 ], x ) ;
+			console.log( "BEFORE", g) ;
+			g.pad(3) ;
+			console.log( "AFTER", g) ;
+		}
+
+		class Tiff {
+			static async load( url ) {
+				var tiff = (await GeoTIFF.fromUrl( url )) ;
+				var image = (await tiff.getImage()) ;
+				var data = (await image.readRasters())[0] ;
+				return new Tiff( url, tiff, image, data ) ;
+			}
+
+			constructor( url, tiff, image, data ) {
+				this.url = url ;
+				this.tiff = tiff ;
+				this.image = image ;
+				this.m_data = data ;
+			}
+			get details() {
+				return {
+					width: this.image.getWidth(),
+					height: this.image.getHeight(),
+					tileWidth: this.image.getTileWidth(),
+					tileHeight: this.image.getTileHeight(),
+					samplesPerPixel: this.image.getSamplesPerPixel()
+				} ;
+			}
+			get data() {
+				return this.m_data ;
+			}
+			get width() {
+				return this.details.width ;
+			}
+			get height() {
+				return this.details.height ;
+			}
+			get max() {
+				return this.m_data.reduce( (a,b) => Math.max(a,b)) ;
+			}
+			get min() {
+				return this.m_data.reduce( (a,b) => Math.min(a,b)) ;
+			}
+		}
+
+		class TiffDisplay {
+			constructor( device ) {
+				this.device = device ;
+				this.canvasFormat = navigator.gpu.getPreferredCanvasFormat() ;
+
+				this.vertices = new Float32Array([
+					//   X,    Y,
+					-1, -1, // Triangle 1 (Blue)
+					 1, -1,
+					 1,  1,
+					-1, -1, // Triangle 2 (Red)
+					 1,  1,
+					-1,  1,
+				]);
+				this.vertexBuffer = device.createBuffer({
+					label: "Cell vertices",
+					size: this.vertices.byteLength,
+					usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+				});
+				this.device.queue.writeBuffer( this.vertexBuffer, /*bufferOffset=*/0, this.vertices);
+				this.vertexBufferLayout = {
+					arrayStride: 8,
+					attributes: [{
+						format: "float32x2",
+						offset: 0,
+						shaderLocation: 0, // Position, see vertex shader
+					}],
+				};
+				this.shaders = device.createShaderModule({
+					label: "Cell shader",
+					code: `
+						struct VertexInput {
+							@location(0) pos: vec2f,
+							@builtin(instance_index) instance: u32,
+						};
+
+						struct VertexOutput {
+							@builtin(position) pos: vec4f,
+							@location(0) cell: vec2f
+						};
+						@group(0) @binding(0) var<uniform> grid: vec2f;
+						@group(0) @binding(1) var<storage> HbS: array<f32>;
+
+						@vertex
+						fn vertexMain( input: VertexInput ) -> VertexOutput {
+							let index = f32(input.instance) ;
+							let cell = vec2f(
+								index % grid.x,
+								floor( index / grid.x )
+							);
+							let cellOffset = cell / grid * 2;
+							let gridPos = (input.pos + 1) / grid - 1 + cellOffset;
+							var output: VertexOutput ;
+							output.pos = vec4f(gridPos, 0, 1) ;
+							output.cell = cell ;
+							return output ;
+						}
+						@fragment
+						fn fragmentMain(
+							@location(0) cell: vec2f
+						) -> @location(0) vec4f {
+							let a = HbS[i32(cell.x + (grid.y-cell.y-1)*grid.x)] ;
+							if( a == -1 ) {
+								return vec4f(0.05, 0.05, 0.2, 0.5);
+							} else if( a > 0.05 && u32(a * 400.0) % 25 == 0 ){
+								return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
+							} else {
+								return vec4f(a, a, a, 1); // (Red, Green, Blue, Alpha)
+							}
+						}
+					`
+				});
+				this.pipeline = this.device.createRenderPipeline({
+					label: "Cell pipeline",
+					layout: 'auto',
+					vertex: {
+						module: this.shaders,
+						entryPoint: "vertexMain",
+						buffers: [this.vertexBufferLayout]
+					},
+					fragment: {
+						module: this.shaders,
+						entryPoint: "fragmentMain",
+						targets: [{
+							format: this.canvasFormat
+						}]
+					}
+				});
+			}
+
+			draw( tiff, context ) {
+				context.configure({
+					device: this.device,
+					format: this.canvasFormat
+				});
+
+				const mapgrid = new Float32Array([tiff.width, tiff.height])
+				const mapgridBuffer = this.device.createBuffer({
+					label: "Map grid",
+					size: mapgrid.byteLength,
+					usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+				});
+				this.device.queue.writeBuffer( mapgridBuffer, 0, mapgrid ) ;
+
+				const mapBuffer = {
+					buffer: this.device.createBuffer({
+						label: "tiff",
+						size: tiff.data.byteLength,
+						usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+					}),
+					layout: {
+						arrayStride: 4,
+						attributes: [{
+							format: "float32x1",
+							offset: 0,
+							shaderLocation: 0, // Position, see fragment shader
+						}]
+					}
+				} ;
+				this.device.queue.writeBuffer(
+					mapBuffer.buffer,
+					0,
+					tiff.data
+				);
+
+				const bindGroup = this.device.createBindGroup({
+					label: "HbS map bind group",
+					layout: this.pipeline.getBindGroupLayout(0),
+					entries: [{
+						binding: 0,
+						resource: { buffer: mapgridBuffer }
+					},{
+						binding: 1,
+						resource: { buffer: mapBuffer.buffer }
+					}],
+				});
+				const encoder = this.device.createCommandEncoder();
+				const pass = encoder.beginRenderPass({
+					colorAttachments: [{
+						view: context.getCurrentTexture().createView(),
+						loadOp: "clear",
+						storeOp: "store",
+						clearValue: { r: 0, g: 0, b: 0.4, a: 1 }, // New line
+					}]
+				}) ;
+				pass.setPipeline(this.pipeline);
+				pass.setVertexBuffer(0, this.vertexBuffer);
+				pass.setBindGroup(0, bindGroup);
+				pass.draw( this.vertices.length / 2, mapgrid[0] * mapgrid[1] ); // 6 vertices
+				pass.end() ;
+				this.device.queue.submit([encoder.finish()]);
+			}
+		} ;
+
+		class HsPfSim {
+			constructor( device, hs, outerPadding ) {
+				this.device = device ;
+				this.hs = hs ;
+				this.outerPadding = outerPadding ;
+				this.pfsa = new GridData( [ this.hs.height, this.hs.width ] ) ;
+				this.fitness = new GridData(
+					[ 2, 4 ],
+					// A 1.0  0.3162278          0.1
+					// S 0.1  
+					[
+					//       --               -+              +-     ++
+					/* A */ 1.0,  Math.sqrt(0.9),  Math.sqrt(0.9),  0.9,
+					/* S */ 0.1,  Math.sqrt(0.1),  Math.sqrt(0.1),  1.0
+					]
+				) ;
+				this.cellWidthInKm = 60 ; // km, approx, fix this.
+				this.maxDistanceInCells = 50 ;
+				this.nbhdConcentration = 10 ;
+				console.log( "FITNESS", this.fitness ) ;
+				this.pfsa.data.forEach(
+					function( value, i ) {
+						this.data[i] = Number.isNaN( hs.data[i] ) ? NaN : 0.1 ;
+					},
+					this.pfsa
+				);
+				let maxDistanceInKm = this.cellWidthInKm * this.maxDistanceInCells ;
+				const nbhdWidth = this.maxDistanceInCells*2 + 1 ;
+				this.nbhd = new GridData(
+					[ nbhdWidth*nbhdWidth, 3 ]
+				) ;
+				let totalWeight = 0.0 ;
+				let maxWeight = 0.0 ;
+				{
+					let index = 0 ;
+					for( let i = 0; i < nbhdWidth; ++i ) {
+						for( let j = 0; j < nbhdWidth; ++j ) {
+							let dx = i-this.maxDistanceInCells ;
+							let dy = j-this.maxDistanceInCells ;
+							let distance = Math.max( 1.0, Math.sqrt( dx*dx + dy*dy ) * this.cellWidthInKm ) ;
+							let weight = 0 ;
+							if( distance < maxDistanceInKm ) {
+								weight = betaPDF( distance / maxDistanceInKm, 1, this.nbhdConcentration ) ;
+								this.nbhd.set( [index,0], dy ) ; // vertical coord.
+								this.nbhd.set( [index,1], dx ) ; // horizontal coord.
+								this.nbhd.set( [index,2], weight ) ;
+								++index ;
+							}
+	//						this.nbhd.set( [i*nbhdWidth+j,2], 1.0 ) ;
+							totalWeight += weight ;
+							maxWeight = Math.max( maxWeight, weight ) ;
+						}
+					}
+					this.nbhd.m_dimensions = [ index, 3 ] ;
+					this.nbhd.m_data = this.nbhd.m_data.slice( 0, 3*index ) ;
+				}
+				console.log( "NBHD", this.nbhd ) ;
+				const nbhdSize = this.nbhd.height ;
+				this.workgroupSize = [16,16,1] ;
+				this.dispatchCount = [
+					Math.ceil((this.hs.height - 2*this.outerPadding)/this.workgroupSize[0]),
+					Math.ceil((this.hs.width - 2*this.outerPadding)/this.workgroupSize[1]),
+					1
+				] ;
+				//this.dispatchCount = [ 1, 1, 1 ] ;
+				this.compute = this.device.createShaderModule({
+					label: "Simulation",
+					code: `
+						struct Geometry {
+							dim: vec2<u32>,
+							pad: vec2<u32>
+						} ;
+						struct NbhdPoint {
+							// easiest to use f32 here
+							// since we will pass in a buffer of these.
+							dx: f32,
+							dy: f32,
+							weight: f32
+						} ;
+
+						// background data and parameters
+						@group(0) @binding(0) var<uniform> dim: vec2<u32> ;
+						@group(0) @binding(1) var<uniform> fitness: array< vec4f, 2 > ;
+						@group(0) @binding(2) var<storage> nbhd: array<NbhdPoint, ${nbhdSize}> ;
+						@group(0) @binding(3) var<storage> HbS: array<f32> ;
+
+						// simulation data, will be updated
+						@group(1) @binding(0) var<storage, read_write> pfsa: array<f32> ;
+						@group(1) @binding(1) var<storage, read_write> pfsanew: array<f32> ;
+
+						@compute
+						@workgroup_size(${this.workgroupSize})
+						fn step(
+							@builtin(global_invocation_id) id: vec3<u32>,
+							@builtin(local_invocation_id) local_id: vec3<u32>
+						) {
+							// Use the global id to compute the pixel location.
+							// 
+							let celly = id[0] + ${this.outerPadding} ;
+							let cellx = id[1] + ${this.outerPadding} ;
+							let cellidx = celly * dim[1] + cellx ;
+							let n = u32(${nbhdSize}) ;
+							var value: f32 = 0.0 ;
+							var denominator: f32 = 0.0 ;
+							var totalWeight: f32 = 0.0 ;
+							for( var i: u32 = 0; i < n; i++ ) {
+								let x = u32(nbhd[i].dx + f32(cellx)) ;
+								let y = u32(nbhd[i].dy + f32(celly)) ;
+								let idx = y*dim[1] + x ;
+								let pfalt = pfsa[idx] ;
+								let pfref = 1 - pfalt ;
+								let fs = HbS[idx] ; 
+								let s = fs*fs + 2*fs*(1-fs) ;
+								let a = 1 - s ;
+								if( fs >= 0 ) {
+									totalWeight += nbhd[i].weight ;
+									if(false) {
+										denominator += nbhd[i].weight * (
+											(pfref * a * 1.0)
+											+ (pfref * s * 0.1)
+											+ (pfalt * a * 0.8)
+											+ (pfalt * s * 1.0)
+										) ;
+										value += nbhd[i].weight * (
+											(pfalt * a * 0.8)
+											+ (pfalt * s * 1.0)
+										) ;
+									} else {
+//										this.fitness = new GridData(
+//											[ 2, 4 ],
+//											// A 1.0  0.3162278          0.1
+//											// S 0.1  
+//											[
+//											//       --               -+              +-     ++
+//											/* A */ 1.0,  Math.sqrt(0.9),  Math.sqrt(0.9),  0.9,
+//											/* S */ 0.1,  Math.sqrt(0.1),  Math.sqrt(0.1),  1.0
+//											]
+//										) ;
+
+				denominator += nbhd[i].weight * (
+											(pfref * a * fitness[0][0])
+											+ (pfref * s * fitness[1][0])
+											+ (pfalt * a * fitness[0][3])
+											+ (pfalt * s * fitness[1][3])
+										) ;
+										value += nbhd[i].weight * (
+											(pfalt * a * fitness[0][3])
+											+ (pfalt * s * fitness[1][3])
+										) ;
+									}
+								}
+								// plot of circle.
+								//if( local_id[0] == 0 && local_id[1] == 0 ) {
+								//	pfsanew[ idx ] = f32(x % 16)/16.0 ;
+								//}
+							}
+							denominator /= totalWeight ;
+							value /= totalWeight ;
+							// checkerboard
+							// pfsanew[ cellidx ] = f32(((cellx/16) + (celly/16)) % 2) ;
+							let s = HbS[cellidx] ;
+							if( s == -1 ) {
+								pfsanew[ cellidx ] = -1 ;
+							} else {
+								pfsanew[ cellidx ] = value / denominator ;
+							}
+							// pfsanew[ cellidx ] = f32(local_id[0]) / ${this.workgroupSize[0]} ; //((f32(cellx) % 160) / 160.0) ; 
+							//pfsanew[ cellidx ] = fitness[(celly/16)%2][(cellx/16)%4] ;
+							//pfsanew[ cellidx ] = fitness[1][(cellx/16)%4] ;
+						}
+					`
+				});
+				this.layouts = {
+					background: device.createBindGroupLayout({
+						entries: [
+							{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
+							{ binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
+							{ binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
+							{ binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}
+						],
+					}),
+					pfsa: device.createBindGroupLayout(
+						{
+							entries: [
+								{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }},
+								{ binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}
+							]
+						}
+					)
+				} ;
+				this.pipelineLayout = device.createPipelineLayout({
+					bindGroupLayouts: [
+						this.layouts.background,
+						this.layouts.pfsa
+					]
+				}) ;
+
+				this.pipeline = this.device.createComputePipeline({
+					label: "HsPf simulation",
+					layout: this.pipelineLayout,
+					compute: {
+						module: this.compute,
+						entryPoint: "step"
+					}
+				});
+
+				this.buffers = {
+					dim: device.createBuffer( { label: "dim", size: 8, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST } ),
+					fitness: this.fitness.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ),
+					nbhd: this.nbhd.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ),
+					HbS: this.hs.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST),
+					pfsaA: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
+					pfsaB: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
+					pfsaResult: device.createBuffer( { label: "pfsaRead", size: this.pfsa.data.byteLength, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST })
+				} ;
+				device.queue.writeBuffer( this.buffers.dim, 0, new Uint32Array([hs.height, hs.width]) ) ;
+
+				this.bindGroups = {
+					background: device.createBindGroup({
+						layout: this.layouts.background,
+						entries: [
+							{ binding: 0, resource: { buffer: this.buffers.dim }},
+							{ binding: 1, resource: { buffer: this.buffers.fitness }},
+							{ binding: 2, resource: { buffer: this.buffers.nbhd }},
+							{ binding: 3, resource: { buffer: this.buffers.HbS }}
+						]
+					}),
+					// pfsa has a flip/flop pattern to avoid
+					// overwriting the iteration we are sampling from
+					pfsa: [
+						device.createBindGroup({
+							layout: this.layouts.pfsa,
+							entries: [
+								{ binding: 0, resource: { buffer: this.buffers.pfsaA }},
+								{ binding: 1, resource: { buffer: this.buffers.pfsaB }}
+							]
+						}),
+						device.createBindGroup({
+							layout: this.layouts.pfsa,
+							entries: [
+								{ binding: 0, resource: { buffer: this.buffers.pfsaB }},
+								{ binding: 1, resource: { buffer: this.buffers.pfsaA }}
+							]
+						}),
+					]
+				} ;
+				this.m_iteration = 0 ;
+			}
+
+			async step() {
+				const iteration = this.m_iteration ;
+				const encoder = this.device.createCommandEncoder();
+				const pass = encoder.beginComputePass({ label: "HsPf step" }) ;
+				pass.setPipeline(this.pipeline);
+				pass.setBindGroup(0, this.bindGroups.background);
+				pass.setBindGroup(1, this.bindGroups.pfsa[iteration % 2]);
+				pass.dispatchWorkgroups(...this.dispatchCount);
+				pass.end() ;
+
+				encoder.copyBufferToBuffer( ((iteration % 2) == 1) ? this.buffers.pfsaA : this.buffers.pfsaB, 0, this.buffers.pfsaResult, 0, this.pfsa.data.byteLength );
+				this.device.queue.submit([encoder.finish()]);
+
+				await this.buffers.pfsaResult.mapAsync( GPUMapMode.READ ) ;
+				this.pfsa.data.set( new Float32Array( this.buffers.pfsaResult.getMappedRange() )) ;
+				this.buffers.pfsaResult.unmap() ;
+				return this.m_iteration++ ;
+			}
+		} ;
+
+		//let tiff = await Tiff.load( "https://www.chg.ox.ac.uk/~gav/projects/tmp/MEAN.tif" ) ;
+		let tiffs = await Promise.all(
+			[
+//				"https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif",
+				"https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif",
+//				"https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier-prevalence.tif",
+//				"https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/201201_Global_Sickle_Haemoglobin_HbS_Allele_Frequency_2010_Africa_597x758.tif"
+			].map(
+				elt => Tiff.load( elt )
+			)
+		) ;
+
+		if (!navigator.gpu) {
+			throw new Error("WebGPU not supported on this browser.");
+		}
+		let adapter = await navigator.gpu.requestAdapter() ;
+		if (!adapter) {
+			throw new Error("No appropriate GPUAdapter found.");
+		}
+		let device = await adapter.requestDevice() ;
+		let display = new TiffDisplay( device ) ;
+
+		let data = tiffs.map( elt => new GridData([ elt.height, elt.width ], elt.data )) ;
+		console.log( "DATA", data ) ;
+		data.forEach( function( grid ) {
+			grid.data.forEach( function( value, i ) {
+				if( value < 0 || isNaN( value )) {
+					grid.data[i] = -1 ;
+				}
+			})
+		}) ;
+		let outerPadding = 64 ;
+		data.forEach( elt => elt.pad( outerPadding, -1 )) ;
+		let hspf = new HsPfSim( device, data[0], outerPadding ) ;
+		data.unshift( hspf.pfsa ) ;
+
+		data.forEach(
+			function(elt, index) {
+				const canvas = document.createElement( 'canvas' ) ;
+				const container = document.createElement( 'div' ) ;
+				container.classList.add('map_container');
+				container.classList.add('c' + (index+1) );
+				canvas.setAttribute( "width", elt.width ) ;
+				canvas.setAttribute( "height", elt.height ) ;
+				display.draw( elt, canvas.getContext("webgpu") ) ;
+				container.appendChild( canvas ) ;
+				document.querySelector("section").appendChild( container ) ;
+			}
+		) ;
+
+		{
+			const canvas = document.querySelector( '.c1 > canvas' ) ;
+			let context = canvas.getContext("webgpu") ;
+			console.log( "CANVAS", canvas ) ;
+			for( let i = 0; i < 250; ++i ) {
+				await hspf.step() ;
+				display.draw( hspf.pfsa, context ) ;
+				if( i % 25 == 0 ) {
+					console.log( "ITERATION", i, hspf.pfsa.data.reduce( (a,b) => Math.max(a,b) ), hspf.pfsa ) ;
+				}
+			}
+		}
+	</script>
+	<script type="module">
+	</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>WebGPU HsPf Simulation</title>
+	<style>
+		.map_container {
+			padding: 10px ;
+			margin-bottom: 20px ;
+			margin-top: 20px ;
+			margin-left: 10px ;
+			/*border: 10px solid black ;*/
+			/*border-radius: 20px ;*/
+			width: max-content ;
+		}
+		.map_container > canvas {
+			border: 2px solid rgb( 125, 64, 64 ) ;
+		}
+		body {
+			font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+		}
+		body > h1 {
+			position: fixed ;
+			left: 20px ;
+			width: 350px ;
+			text-align: center ;
+			font-family: 'Palatino', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
+		}
+		nav {
+			position: fixed ;
+			left: 20px ;
+			top: 80px ;
+			width: 350px ;
+		}
+		section {
+			position: relative ;
+			left: 400px ;
+			z-index: 100 ;
+		}
+
+		tr {
+			text-align: center ;
+		}
+		.control, .hud {
+			background: rgb( 255, 255, 255, 0.5 ) ;
+		}
+		.controls h1, .control h2 {
+			font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
+			padding: 0px ;
+			border-bottom: 4px solid black ;
+		}
+		.controls h1 {
+			display: block ;
+			font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
+			border-bottom: 1px solid black ;
+		}
+		.control, .hud {
+			margin-top: 20px ;
+			display: block ;
+			border: 1px solid black ;
+			border-radius: 20px ;
+			padding: 20px ;
+		}
+		.control input {
+			width: 80px ;
+		}
+		input {
+			text-align: center ;
+		}
+		.rowheader {
+			text-align: right ;
+			font-family:'Courier New', Courier, monospace ;
+			font-size: 14pt ;
+		}
+		input[type=number]::-webkit-inner-spin-button,
+		input[type=number]::-webkit-outer-spin-button {
+			opacity: 1;
+		}
+	</style>
+</head>
+<body>
+	<h1>The Hs-<em>Pf</em> video game</h1>
+	<nav>
+	</nav>
+	<section>
+	</section>
+	<script type="module" src="src/main.ts">
+	</script>
+</body>
+</html>
