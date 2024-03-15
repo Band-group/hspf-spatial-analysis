@@ -67,7 +67,7 @@ source('functions.R')
 
 #load data for prediction 
 #load pop raster for popmasking
-popmask <- raster(paste0("input/pop100m.tif"))
+popmask <- raster(paste0("geodata/pop100m.tif"))
 # here we can define various thresholds for the mask
 # threshold unit in inhabitants per km2
 popmask[popmask <= 0.05] <- NA #orignal threshold: 0.05
@@ -78,22 +78,22 @@ popmask[popmask > 0.05] <- 1 #orignal threshold: 0.05
 #Response and covariate extraction and data preparation for R-INLA model
 
 #load naturalearth boundaries and robin projection
-#load(paste0("input/naturalearthdata.Rdata"))
+#load(paste0("geodata/naturalearthdata.Rdata"))
 
 myarea <- load.continent.shapes(
-  "input/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp",
+  "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp",
   "Africa"
 )
-africa = load.entry.from.Rdata( "input/naturalearthdata.Rdata", "africa" )
-rivaf_sf = load.entry.from.Rdata( "input/naturalearthdata.Rdata", "rivaf_sf" )
-lakaf_sf = load.entry.from.Rdata( "input/naturalearthdata.Rdata", "lakaf_sf" )
+africa = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa" )
+rivaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "rivaf_sf" )
+lakaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "lakaf_sf" )
 africa_sf = sf::st_as_sf(africa) 
 
 
 #get covariate data to identify lat/lon of pixel we want to make predictions in
 
 pred_locs = get_prediction_locations(
-  path = "input/",
+  path = "geodata/",
   myarea,
   masked_features = list( lakes = lakaf_sf )
 )
@@ -163,7 +163,7 @@ for( i in 1:nrow( HbS.priors )) {
 }
 
 #load Piel's map, needed for visualisatio
-HbSPiel <- raster("input/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif")
+HbSPiel <- raster("geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif")
 
 verbose = TRUE
 
