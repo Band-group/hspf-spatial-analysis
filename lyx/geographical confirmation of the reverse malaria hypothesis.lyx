@@ -896,7 +896,7 @@ centering
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename ../overleaf/2024-02-08 HBSpatial Gavin and Andre/images/Fig1.pdf
+	filename figures/Fig1.pdf
 
 \end_inset
 
@@ -1295,7 +1295,7 @@ centering
 
  
 \begin_inset Graphics
-	filename ../overleaf/2024-02-08 HBSpatial Gavin and Andre/images/Fig2pfsa1.pdf
+	filename figures/Fig2pfsa1.pdf
 	scale 110
 	clip
 
