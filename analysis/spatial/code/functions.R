@@ -14,11 +14,11 @@ mkdir_recursive = function( path ) {
 }
 
 get_prediction_locations = function(
-    path = "input/",
+    path = "geodata/",
     study_area,
     masked_features = list() # e.g. lakes
 ) {
-  alt <- geodata::elevation_global(res=10,path=path)
+  alt <- geodata::elevation_global( res=10, path=path )
   alt <- raster::raster(alt)
   alt <- raster::mask(raster::crop(alt,extent(study_area)), study_area)
   mask <- aggregate(alt, fact=2)#to ease computation we aggregate covariate
@@ -62,7 +62,8 @@ generate_diagnostic_plot <- function(
       #t6 = "HbS | Predicted coefficient of variation"
     ),
     prednames = list("MEAN","SD","Q25","Q75","IQR"),
-    mainnames = list("PR mean","PR sd","PR 25th pct","PR 75th pct","IQR")
+    mainnames = list("PR mean","PR sd","PR 25th pct","PR 75th pct","IQR"),
+    popmask
 ) {
   library(dplyr)
   library(ggplot2)

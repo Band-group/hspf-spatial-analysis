@@ -73,7 +73,6 @@ popmask <- raster(paste0("geodata/pop100m.tif"))
 popmask[popmask <= 0.05] <- NA #orignal threshold: 0.05
 popmask[popmask > 0.05] <- 1 #orignal threshold: 0.05
 
-
 ############################################################xyt####################
 #Response and covariate extraction and data preparation for R-INLA model
 
@@ -192,7 +191,8 @@ for( i in 1:nrow( HbS.priors )) {
         rivers = rivaf_sf,
         lakes = lakaf_sf
       ),
-      color.scheme = color.scheme
+      color.scheme = color.scheme,
+      popmask = popmask
   )
   ggsave( plots$unmasked, file = sprintf( "%s-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
