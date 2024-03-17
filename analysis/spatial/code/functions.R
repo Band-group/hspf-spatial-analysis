@@ -1,3 +1,22 @@
+library( ggplot2 ) # Needed for theme()
+
+install.prerequisites <- function() {
+  #install packages
+  #INLA used to fit Bayesian models
+  list.of.packages <- c("INLA")
+  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+  if(length(new.packages)) install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)
+  library(INLA)
+  #basic packages and parallel computing packages (add more if needed)
+  list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
+                        "RColorBrewer","ggthemes", "ggmap", "dplyr",
+                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
+  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+  if(length(new.packages)) install.packages(new.packages)
+  lapply(list.of.packages, library, character.only = TRUE)
+  sf::sf_use_s2(FALSE) 
+}
+
 #functions
 load.entry.from.Rdata <- function( filename, what ) {
   env = new.env()
@@ -13,12 +32,30 @@ mkdir_recursive = function( path ) {
   dir.create( path, recursive = TRUE )
 }
 
+check.excluded <- function( data, continents ) {
+  # This excludes points we potentially want:
+  #extpoly <- myarea[pt,]
+  # This doesn't:
+  extpoly <- continents[data,]
+  
+  #keep data in study area
+  #check points outside land areas
+  excluded <- data[is.na(over(data,geometry(extpoly))), ]
+  included <- data[!is.na(over(data,geometry(extpoly))), ]
+  return( list(
+    included = included,
+    excluded = excluded,
+    extpoly = extpoly
+  ))
+  #  plot(mycheck,col='red',pch='+',cex=3)
+  #  plot(extpoly,add=TRUE)
+}
+
 get_prediction_locations = function(
-    path = "geodata/",
+    alt,
     study_area,
     masked_features = list() # e.g. lakes
 ) {
-  alt <- geodata::elevation_global( res=10, path=path )
   alt <- raster::raster(alt)
   alt <- raster::mask(raster::crop(alt,extent(study_area)), study_area)
   mask <- aggregate(alt, fact=2)#to ease computation we aggregate covariate
@@ -39,6 +76,7 @@ get_prediction_locations = function(
 }
 
 generate_diagnostic_plot <- function(
+    xyt,
     modelfit,
     predictions,
     prediction_locations,
@@ -299,12 +337,11 @@ stackplots <- function(
 
 greyredyellowpal<- function(num_red_shades,num_gray_shades,num_yellow_shades){
   gray_palette <- gray.colors(num_gray_shades, start = 0.8, end = 0.2)
-  red_palette <- rev(colorRampPalette(c("red1", "red4"))(num_red_shades))
+  red_palette <- rev(colorRampPalette(c("red1", "tomato4"))(num_red_shades))
   yellow_palette <- rev(colorRampPalette(c("yellow1", "orange3"))(num_yellow_shades))
   palette <- c(gray_palette, red_palette,yellow_palette)
   return( palette )
 }
-
 
 HbSplottheme <- theme(axis.title.x=element_blank(),
                  axis.text.x=element_blank(),
@@ -312,6 +349,7 @@ HbSplottheme <- theme(axis.title.x=element_blank(),
                  axis.title.y=element_blank(),
                  axis.text.y=element_blank(),
                  axis.ticks.y=element_blank(),
+                 panel.border = element_blank()
                  #legend.position="bottom")
 )
 
