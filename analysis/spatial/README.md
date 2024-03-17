@@ -2,7 +2,7 @@ This contains code and data for the spatial analysis.
 
 ## Changelog
 
-**17/03/2024**
+**17/03/2024** GB:
 
 Moved the model-fitting code into `code/HbS_model_fit.R`, and the model diagnostic code into `code/HbS_model_diagnostics.R`.  Also added a pf regression diagnostic plot into the latter.  A few code tweaks have been made to make this work.
 
