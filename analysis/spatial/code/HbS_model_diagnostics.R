@@ -3,10 +3,6 @@ library( ggplot2 )
 source( 'code/functions.R' )
 source( 'code/priors.R' )
 
-echo <- function( text, ... ) {
-	message( sprintf( text, ... ))
-}
-
 echo( "++ Welcome to insample_diagnosis.R" )
 echo( "++ Loading packages..." )
 install.prerequisites()

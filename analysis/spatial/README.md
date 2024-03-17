@@ -1,7 +1,20 @@
 This contains code and data for the spatial analysis.
 
-**Note** you must create a `geodata/` folder (excluded from github)
-with the prerequisite large geographical data files in.  This includes:
+## Changelog
+
+** Update 17/03/2024 **
+
+Moved the model-fitting code into `code/HbS_model_fit.R`, and the model diagnostic code into `code/HbS_model_diagnostics.R`.  Also added a pf regression diagnostic plot into the latter.  A few code tweaks have been made to make this work.
+
+## Prerequisites
+
+### R prerequisites
+
+The function `install.prerequisites()` from `code/functions.R` will attempt to identify and install all the needed R library prerequisites. Good luck!
+
+### Data prerequisites
+
+Before starting you must create a `geodata/` folder (excluded from github) with the prerequisite large geographical data files in.  This includes:
 
 - MAP malaria atlas data: `2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif` (162 Mb)
 - (2012 version: `201201_Global_Sickle_Haemoglobin_HbS_Allele_Frequency_2010.tif`)

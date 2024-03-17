@@ -6,7 +6,7 @@ priors <- function() {
 	)
 
 	result = rbind(
-		tibble(
+		tibble::tibble(
 			name = sprintf( "fixed-r0=%.1f-sigma0=%.1f", rangesigma$r0, rangesigma$sigma0 ),
 			use_PC_prior = TRUE,       #using PC priors for HbS spatial parameters
 			Prange = NA,          #if NA means that range0 is fixed
@@ -20,7 +20,7 @@ priors <- function() {
 			intercept.prec = 0.00001, #default 0.0
 			covariates = NA
 		),
-		tibble(
+		tibble::tibble(
 			name = sprintf( "variable%03d", 1:4 ),
 			use_PC_prior = TRUE,       #using PC priors for HbS spatial parameters
 			#P(range < HbSr0)= HbSPrange
