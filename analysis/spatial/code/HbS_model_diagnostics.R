@@ -142,7 +142,7 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
   in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
-  readr::write_csv( plots$in.sample.summary, file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub ))
+  readr::write_csv( in.sample.summary, file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub ))
 
   message( "++ Models ordered by rmse are:" )
   print( in.sample.summary %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' ) %>% arrange( rmse ) )
