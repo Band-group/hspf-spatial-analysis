@@ -23,7 +23,7 @@ install.prerequisites <- function() {
                         "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
-  lapply(list.of.packages, library, character.only = TRUE)
+  lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
   sf::sf_use_s2(FALSE) 
 }
 
@@ -39,7 +39,7 @@ load.entry.from.Rdata <- function( filename, what ) {
 }
 
 mkdir_recursive = function( path ) {
-  dir.create( path, recursive = TRUE )
+  dir.create( path, recursive = TRUE, showWarnings = FALSE )
 }
 
 check.excluded <- function( data, continents ) {

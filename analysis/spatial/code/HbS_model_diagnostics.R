@@ -88,14 +88,13 @@ color.scheme = tibble(
 )
 print( color.scheme )
 
-echo( "++ Ok, making diagnostic plots..." )
-dir.create( "output/HbSsensitivity/pdf")
+echo( "++ Ok, making diagnostic plots in %s...", "output/HbSsensitivity/diagnostics" )
+dir.create( "output/HbSsensitivity/diagnostics")
 in.sample.summary = tibble()
 HbS.priors = priors()
 for( i in 1:nrow( HbS.priors )) {
   prior = HbS.priors[i,]
   message( sprintf( "++ Creating diagnostic plot for prior %s...", prior$name ))
-  stub = sprintf( "output/HbSsensitivity/pdf/%s", prior$name )
   modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
   predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
   posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
@@ -137,12 +136,13 @@ for( i in 1:nrow( HbS.priors )) {
 
   )
 
+  stub = sprintf( "output/HbSsensitivity/diagnostics/%s", prior$name )
   ggsave( plots$unmasked, file = sprintf( "%s-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
-  readr::write_csv( plots$in.sample.summary, file = sprintf( "%s-diagnostics.csv", stub ))
   plots$in.sample.summary$name = prior$name
   in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
+  readr::write_csv( plots$in.sample.summary, file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub ))
 
   message( "++ Models ordered by rmse are:" )
   print( in.sample.summary %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' ) %>% arrange( rmse ) )

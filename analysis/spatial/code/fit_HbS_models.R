@@ -12,11 +12,6 @@ source( 'code/priors.R' ) # Moved here so there is one definition
 HbS.priors = priors()
 print( HbS.priors )
 
-mkdir_recursive( "output/HbSsensitivity/fits" )
-
-echo( "++ Writing priors to %s...", "output/HbSsensitivity/fits/priors.csv" )
-readr::write_csv( HbS.priors, "output/HbSsensitivity/fits/priors.csv" )
-
 #set number of posterior samples
 nn <- 500 # nb.HbS samples per pixel for HbS maps (HbS_Plots.R)
 
@@ -53,6 +48,9 @@ xyt <- pt[extpoly, ]
 
 ########################################################
 # Model fitting
+mkdir_recursive(
+  sprintf( "output/HbSsensitivity/fits" )
+)
 
 verbose = TRUE
 for( i in 1:nrow( HbS.priors )) {
