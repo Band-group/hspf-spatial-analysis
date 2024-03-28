@@ -54,6 +54,7 @@ pf = dbGetQuery( db, "SELECT * FROM by_site" )
 pf = (
 	pf
 	%>% mutate(
+    Pfsa1_N = (`Pfsa1:ref` + `Pfsa1:nonref`),
 		Pfsa1_freq = (`Pfsa1:nonref`)/(`Pfsa1:ref` + `Pfsa1:nonref`),
 		Pfsa1_lower = qbeta( p = 0.025, shape1 = `Pfsa1:nonref`+1, shape2 = `Pfsa1:ref`+1),
 		Pfsa1_upper = qbeta( p = 0.025, shape1 = `Pfsa1:nonref`+1, shape2 = `Pfsa1:ref`+1)
@@ -116,24 +117,25 @@ for( i in 1:nrow( HbS.priors )) {
   )
 
   pf_location_predictions = predict_inla_binomial_model(
-	posterior.samples,
-	modelfit$mesh,
-	pf,
-	nn
+    posterior.samples,
+    modelfit$mesh,
+    pf,
+    nn
   )
 
   pf@data$HbS_mean = pf_location_predictions$mean
+  pf@data$S_mean = 2*pf@data$HbS_mean*(1-pf@data$HbS_mean) + pf@data$HbS_mean*pf@data$HbS_mean ;
 
   plots$pf = (
-	ggplot( data = pf@data, aes( x = HbS_mean, y = Pfsa1_freq, colour = source ) )
-	+ geom_segment( aes( x = HbS_mean, xend = HbS_mean, y = Pfsa1_lower, yend = Pfsa1_upper ))
-	+ geom_point()
-	+ geom_smooth( method = 'lm' )
-	+ facet_wrap( ~country, scales = "free" )
-	+ xlab( "HbS frequency (mean)")
-	+ ylab( "Pfsa1+ frequency and 95% CI")
-	+ theme_minimal()
-
+    ggplot( data = pf@data, aes( x = HbS_mean, y = Pfsa1_freq, colour = source ) )
+    + geom_segment( aes( x = S_mean, xend = S_mean, y = Pfsa1_lower, yend = Pfsa1_upper ))
+    + geom_point( aes( size = Pfsa1_N ))
+    + scale_size_binned()
+    + geom_smooth( method = 'glm', method.args = list( family="binomial") )
+    + facet_wrap( ~country, scales = "free" )
+    + xlab( "HbS frequency (mean)")
+    + ylab( "Pfsa1+ frequency and 95% CI")
+    + theme_minimal()
   )
 
   stub = sprintf( "output/HbSsensitivity/diagnostics/%s", prior$name )
@@ -142,10 +144,23 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
   in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
-  readr::write_csv( in.sample.summary, file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub ))
+  readr::write_csv(
+    (
+      in.sample.summary
+      %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
+      %>% arrange( rmse )
+    ),
+    file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub )
+  )
 
   message( "++ Models ordered by rmse are:" )
-  print( in.sample.summary %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' ) %>% arrange( rmse ) )
+  print(
+    (
+      in.sample.summary
+      %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
+      %>% arrange( rmse )
+    )
+  )
 }
 
 message( "++ Great success!  Enjoy your plots." )
