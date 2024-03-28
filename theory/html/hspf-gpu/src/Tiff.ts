@@ -68,7 +68,7 @@ export default class Tiff {
 		console.log( "toPixelCoords", pt, bb ) ;
 		return {
 			x: ((pt.longitude - bb.p0.longitude) / bbWidth) * this.width,
-			y: ((pt.latitude - bb.p0.latitude) / bbHeight) * this.height
+			y: this.height - (((pt.latitude - bb.p0.latitude) / bbHeight) * this.height )
 		}
 	}
   }

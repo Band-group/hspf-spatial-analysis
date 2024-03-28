@@ -74,13 +74,13 @@ class Simulation {
 				[
 					{
 						name: "rift valley 1",
-						p0: toPixelCoords({ longitude: 37, latitude: -8 }),
-						p1: toPixelCoords({ longitude: 39, latitude: 5 })
+						p1: toPixelCoords({ longitude: 39, latitude: 6 }),
+						p0: toPixelCoords({ longitude: 37, latitude: -7 })
 					},
 					{
 						name: "rift valley 2",
-						p0: toPixelCoords({ longitude: 34, latitude: -8 }),
-						p1: toPixelCoords({ longitude: 36, latitude: 5 })
+						p1: toPixelCoords({ longitude: 37, latitude: 6 }),
+						p0: toPixelCoords({ longitude: 35, latitude: -7 })
 					}
 				]
 			) ;
