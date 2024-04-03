@@ -5,6 +5,10 @@ library( argparse )
 library( tidyverse )
 library(sp)
 
+mkdir_recursive(
+  sprintf( "output/cleaned" )
+)
+
 echo <- function( message, ... ) {
   cat( sprintf( message, ... ))
 }
@@ -36,13 +40,13 @@ parse_arguments = function() {
     '--output',
     type = "character",
     help = "CSV file to write data to",
-    default = "results/cleaned/cleanHbSdata.csv"
+    default = "output/cleaned/cleanHbSdata.csv"
   )
   parser$add_argument(
     '--output_pdf',
     type = "character",
     help = "PDF file to plot to",
-    default = "results/cleaned/HbScleaned.pdf"
+    default = "output/cleaned/HbScleaned.pdf"
   )
   return( parser$parse_args() )
 }
