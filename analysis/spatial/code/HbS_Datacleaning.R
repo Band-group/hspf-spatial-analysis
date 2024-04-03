@@ -18,13 +18,13 @@ parse_arguments = function() {
     '--piel_et_al',
     type = "character",
     help = "CSV file from piel et al data",
-    default = "github/input/HbS_survey.csv"
+    default = "input/HbS_survey.csv"
   )
   parser$add_argument(
     '--extended',
     type = "character",
     help = "CSV file from extended data",
-    default = "github/input/HbSgooglesheet.csv"
+    default = "input/HbSgooglesheet.csv"
   )
   parser$add_argument(
     '--naturalearthdata',
@@ -51,7 +51,7 @@ args = parse_arguments()
 
 #load functions
 echo( "++ Initialisation of HbS_Datacleaning.R")
-source('github/scripts/functions.R')
+source('code/functions.R')
 
 echo( "++ Loading Piel et al survey data from %s...\n", args$piel_et_al )
 piel_et_al = load.piel_et_al_data( args$piel_et_al )
