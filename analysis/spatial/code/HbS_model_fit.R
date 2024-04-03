@@ -91,7 +91,7 @@ for( i in 1:nrow( HbS.priors )) {
   }
 }
 
-message( "++ Great success!  Enjoy your model fits." )
+message( "++ Great success!  HbS model fitted parameters, predictions, and posterior samples completed." )
 
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/fit_HbS_models.Rdata"))
 message("End fit_HbS_models.R")
