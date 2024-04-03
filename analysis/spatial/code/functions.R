@@ -85,6 +85,15 @@ get_prediction_locations = function(
   ))
 }
 
+diagnose.plot <- function(stackobject,prednames,p1,p2,p3){
+  cowplot::plot_grid(stackobject[[prednames[1] ]], stackobject[[ prednames[2] ]], stackobject[[ prednames[3] ]],
+                     p1, p2, p3,
+                     labels = letters[1:6],
+                     label_size = 22,
+                     ncol = 3,
+                     align = c("none")
+  )
+}
 generate_diagnostic_plot <- function(
     xyt,
     modelfit,
@@ -162,6 +171,7 @@ generate_diagnostic_plot <- function(
   b <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- b*popmask
+  names(bmask) <- names(b)
   
   # make plots of each map thing, popmasked and not
   pall <- stackplots(b, features, titles, color.scheme )
@@ -232,13 +242,13 @@ generate_diagnostic_plot <- function(
     ours = raster::extract(b[['mean']],transect_xy)
   )
   aggregated_mask = aggregate(mask, fact = 5 )
-  grid_val <- getValues(mask)
+  grid_val <- getValues(aggregated_mask)
   w <- is.na(grid_val)
-  grid_xy <- xyFromCell(mask,1:ncell(mask))
+  grid_xy <- xyFromCell(aggregated_mask,1:ncell(aggregated_mask))
   grid_xy <- grid_xy[!w,]
   colnames(grid_xy) <- c('longitude','latitude')
   grid_comparison = tibble(
-    type = "grid",
+    type = "grid (aggregated)",
     piel = raster::extract(HbSPiel, grid_xy ),
     ours = raster::extract(b[['mean']], grid_xy )
   )
@@ -277,20 +287,11 @@ generate_diagnostic_plot <- function(
   
   #plots
   #diagnose.plot <- cowplot::plot_grid(pall$mean,pall$sd,pall$iqr,p1,p2,p3,
-  diagnose.plot <- cowplot::plot_grid(
-    pall[[prednames[1] ]], pall[[ prednames[2] ]], pall[[ prednames[3] ]],
-    p1, p2, p3,
-    labels = letters[1:6],
-    label_size = 22,
-    ncol = 3,
-    align = c("none")
-)
 
-  diagnose.plot.mask <- cowplot::plot_grid(pallmask$mean,pallmask$sd,pallmask$iqr,p1,p2,p3,
-                                           labels = letters[1:6],
-                                           label_size = 22,ncol = 3,align = c("none"))
+  diagnose.plot.unmask <- diagnose.plot(pall,prednames,p1,p2,p3)
+  diagnose.plot.mask <- diagnose.plot(pallmask,prednames,p1,p2,p3)
   return( list(
-    unmasked = diagnose.plot,
+    unmasked = diagnose.plot.unmask,
     masked = diagnose.plot.mask,
     in.sample.summary = in.sample.summary,
     xytdf = xytdf,
