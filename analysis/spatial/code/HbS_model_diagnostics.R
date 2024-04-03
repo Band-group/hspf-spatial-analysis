@@ -112,8 +112,8 @@ for( i in 1:nrow( HbS.priors )) {
         lakes = lakaf_sf
       ),
       color.scheme = color.scheme,
-      popmask = popmask,
-      prednames = c("mean", "sd", "iqr" ) # Choose three from mean, q25, q50, q75, sd, iqr
+      prednames = c("mean", "sd", "iqr" ), # Choose three from mean, q25, q50, q75, sd, iqr
+	  popmask = popmask
   )
 
   pf_location_predictions = predict_inla_binomial_model(
