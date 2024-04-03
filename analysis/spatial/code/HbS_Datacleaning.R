@@ -50,7 +50,7 @@ parse_arguments = function() {
 args = parse_arguments()
 
 #load functions
-echo( "++ Welcome to HbS_Datacleaning.R")
+echo( "++ Initialisation of HbS_Datacleaning.R")
 source('github/scripts/functions.R')
 
 echo( "++ Loading Piel et al survey data from %s...\n", args$piel_et_al )
@@ -178,5 +178,5 @@ echo( "++ Generating sanity-check plot in \"%s\"...\n", args$output_pdf )
   )
 }
 
-echo( "++ Success!  Thanks for using HbS_Datacleaning.R")
+echo( "++ Great success! End of HbS_Datacleaning.R")
 
