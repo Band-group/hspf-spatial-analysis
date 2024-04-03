@@ -166,8 +166,8 @@ echo( "++ Generating sanity-check plot in \"%s\"...\n", args$output_pdf )
   mycountries = africa[ tmp, ]
   excluded <- tmp[ is.na( sp::over( tmp, sp::geometry( mycountries ))), ]
   included <- tmp[ !is.na( sp::over( tmp, sp::geometry( mycountries ))), ]
-  pdf( file = args$output_pdf, width = 12, height = 6 )
-  plot( world, col = 'grey60' )
+  pdf( file = args$output_pdf, width = 18, height = 8)
+  plot( world, col = 'grey85' )
   plot( mycountries, add=TRUE, col = 'grey30' )
   plot( excluded, col='red', pch='+', cex=3, add = TRUE )
   plot( included, col='black', pch=19, cex=1, add=TRUE )
