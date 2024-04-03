@@ -30,7 +30,7 @@ parse_arguments = function() {
     '--naturalearthdata',
     type = "character",
     help = ".Rdata file from natural earth, for sanity check",
-    default = "data/naturalearthdata.Rdata"
+    default = "geodata/naturalearthdata.Rdata"
   )
   parser$add_argument(
     '--output',
