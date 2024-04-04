@@ -179,7 +179,7 @@ for( i in 1:nrow( HbS.priors )) {
   if(i == nrow( HbS.priors ))
   {
   #identify where cpo is highest
-    best_model <- in.sample.summary[1,]$name
+    best_model <- in.sample.summary[1,]$name#first row is best model cause (decreasing by CPO)
     best_id <- in.sample.summary[1,]$id
     prior = HbS.priors[best_id,]
     message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))
@@ -203,12 +203,12 @@ for( i in 1:nrow( HbS.priors )) {
       popmask = popmask
     )
     #make figure 1 (top panels: a,b, and c)
-    fig1.plot(pfpt=pf,xyt=xyt,hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
+    fig1.plot(datasource=best_model,pfpt=pf,xyt=xyt,hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
                           scicopalette = 'turku',savepath = 'output/fig1')
     }
 }
 
-message( "++ Great success! Diagnostic and figure 1 (top panels) plots completed." )
+message("++ Great success! Diagnostic and figure 1 (top panels) plots completed." )
 
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/HbS_Fig1.Rdata"))
 message("End insample_diagnosis.R")
