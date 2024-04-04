@@ -202,13 +202,13 @@ for( i in 1:nrow( HbS.priors )) {
       prednames = c("mean", "sd", "iqr" ), # Choose three from mean, q25, q50, q75, sd, iqr
       popmask = popmask
     )
-    fig1plot <- fig1.plot(hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
+    #make figure 1 (top panels: a,b, and c)
+    fig1.plot(pfpt=pf,xyt=xyt,hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
                           scicopalette = 'turku',savepath = 'output/fig1')
     }
 }
 
-
-message( "++ Great success! Diagnostic plots completed." )
+message( "++ Great success! Diagnostic and figure 1 (top panels) plots completed." )
 
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/HbS_Fig1.Rdata"))
 message("End insample_diagnosis.R")
