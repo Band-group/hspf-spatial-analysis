@@ -891,7 +891,7 @@ predict_values <- function(
 }
 
 #Fig1 (minimum) plot
-fig1.plot <- function(pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
+fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
     # mytheme <- theme(axis.title.x=element_blank(),
     #                  axis.text.x=element_blank(),
     #                  axis.ticks.x=element_blank(),
@@ -977,7 +977,7 @@ fig1.plot <- function(pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath
     ggsave(paste0(savepath,"/fig1c.pdf"),fig1c,width = 8,height = 8)
     ggsave(paste0(savepath,"/fig1c.svg"),fig1c,width = 8,height = 8)
     
-     return(message(paste0('Manuscript figures 1a, 1b, and 1c saved in ', savepath)))
+     return(message(paste0('Manuscript fig.1a,1b,1c (based on ',datasource, ') saved in ', savepath)))
   }
   
 
