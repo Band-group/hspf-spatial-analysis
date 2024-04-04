@@ -295,7 +295,8 @@ generate_diagnostic_plot <- function(
     masked = diagnose.plot.mask,
     in.sample.summary = in.sample.summary,
     xytdf = xytdf,
-    comparison = bind_rows( grid_comparison, comparison )
+    comparison = bind_rows( grid_comparison, comparison ),
+    meanmask = bmask[[prednames[1] ]]
   ))
 }
 
@@ -888,6 +889,39 @@ predict_values <- function(
   
   return(pred)
 }
+
+#Fig1 (minimum) plot
+fig1.plot <- function(hbsraster,border,river,lake,scicopalette,savepath) {
+    HBsdf <- as.data.frame(hbsraster, xy=TRUE) %>% na.omit()
+    HBsdf <-data.frame(HBsdf)
+    names(HBsdf) <- c("x","y","value")
+    mytheme <- theme(axis.title.x=element_blank(),
+                     axis.text.x=element_blank(),
+                     axis.ticks.x=element_blank(),
+                     axis.title.y=element_blank(),
+                     axis.text.y=element_blank(),
+                     axis.ticks.y=element_blank()
+    )
+    fig1c <- ggplot()+ geom_sf(data=border,fill="grey85")+
+      geom_raster(data=HBsdf,aes(x, y,fill=value))+
+      scico::scale_fill_scico(palette = scicopalette,breaks = scales::breaks_extended(10))+ 
+      geom_sf(data=border,fill='NA',col="grey")+
+      geom_sf(data=river,fill='deepskyblue',col="deepskyblue3")+
+      geom_sf(data=lake,fill='deepskyblue',col="deepskyblue3")+
+      ylim(-36,extent(border)[4])+ 
+      guides(fill=guide_legend(title="Predicted mean\nHbS prevalence"))+
+      theme_void(14)+mytheme + theme(legend.position=c(0.15,0.25),
+                                              legend.key.width = unit(1,'cm'),
+                                              #legend.title =element_blank(),
+                                              legend.direction = "vertical",
+                                              plot.title=element_text(hjust=0.5))
+    ggsave(paste0(savepath,"/fig1c.pdf"),fig1c,width = 10,height = 9)
+    ggsave(paste0(savepath,"/fig1c.svg"),fig1c,width = 10,height = 9)
+    
+     return(message(paste0('Figure fig1c saved in ', savepath)))
+  }
+  
+
 #HbS Pop masking################################################################
 process_model <- function(l) {
   #load the output unmasked raster maps obtained from the model
