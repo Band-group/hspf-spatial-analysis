@@ -3,6 +3,7 @@
 list.of.packages <- c("tictoc")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, library, character.only = TRUE)
 
 #start timer to compute time to run session
 tic()
