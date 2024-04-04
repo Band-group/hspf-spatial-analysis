@@ -137,7 +137,6 @@ for( i in 1:nrow( HbS.priors )) {
     + ylab( "Pfsa1+ frequency and 95% CI")
     + theme_minimal()
   )
-
   stub = sprintf( "output/HbSsensitivity/diagnostics/%s", prior$name )
   ggsave( plots$unmasked, file = sprintf( "%s-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
@@ -147,13 +146,15 @@ for( i in 1:nrow( HbS.priors )) {
   plots$in.sample.summary$cpo = sum(log(modelfit$fit$cpo$cpo+1),na.rm=TRUE)
   #extract waic values (in-sample metric)
   plots$in.sample.summary$waic= modelfit$fit$waic$waic
-  in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
+  in.sample.summary <- bind_rows( in.sample.summary, plots$in.sample.summary )
+  in.sample.summary <- in.sample.summary %>% mutate(id = row_number()) %>%
+    select(id, everything())
   readr::write_csv(
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
       #%>% arrange( rmse )
-      %>% arrange( desc( cpo ) )#larger CPO have better out-of-sample predictive power
+      %>% arrange( desc( cpo ) )  #larger CPO have better out-of-sample predictive power
     ),
     file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub )
   )
@@ -168,6 +169,8 @@ for( i in 1:nrow( HbS.priors )) {
     )
   )
 }
+
+#fig1.plot <- function(hbsraster,border=africa_sf,river=rivaf_sf,lake=lakaf_sf)
 
 message( "++ Great success! Diagnostic plots completed." )
 
