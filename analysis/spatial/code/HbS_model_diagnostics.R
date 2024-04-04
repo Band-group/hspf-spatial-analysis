@@ -143,22 +143,28 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
+  #extract cpo values (out-of-sample metric)
+  plots$in.sample.summary$cpo = sum(log(modelfit$fit$cpo$cpo+1),na.rm=TRUE)
+  #extract waic values (in-sample metric)
+  plots$in.sample.summary$waic= modelfit$fit$waic$waic
   in.sample.summary = bind_rows( in.sample.summary, plots$in.sample.summary )
   readr::write_csv(
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
-      %>% arrange( rmse )
+      #%>% arrange( rmse )
+      %>% arrange( desc( cpo ) )#larger CPO have better out-of-sample predictive power
     ),
     file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub )
   )
 
-  message( "++ Models ordered by rmse are:" )
+  message( "++ Models ordered by cpo are:" )
   print(
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
-      %>% arrange( rmse )
+      #%>% arrange( rmse )
+      %>% arrange( desc( cpo ) )#larger CPO have better out-of-sample predictive power
     )
   )
 }
