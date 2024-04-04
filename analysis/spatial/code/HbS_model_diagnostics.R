@@ -1,11 +1,18 @@
 library( RSQLite )
 library( ggplot2 )
+library( scico )
+library( scales)
 source( 'code/functions.R' )
 source( 'code/priors.R' )
 
 echo( "++ Welcome to insample_diagnosis.R" )
 echo( "++ Loading packages..." )
 install.prerequisites()
+
+mkdir_recursive(
+  sprintf( "output/fig1" )
+)
+
 
 echo( "++ Loading population mask from %s...", "geodata/pop100m.tif" )
 #load data for prediction 
@@ -168,9 +175,38 @@ for( i in 1:nrow( HbS.priors )) {
       %>% arrange( desc( cpo ) )#larger CPO have better out-of-sample predictive power
     )
   )
+  #at the end of the procedure makes HbS map for figure 1 based on the best performing model
+  if(i == nrow( HbS.priors ))
+  {
+  #identify where cpo is highest
+    best_model <- in.sample.summary[1,]$name
+    best_id <- in.sample.summary[1,]$id
+    prior = HbS.priors[best_id,]
+    message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))
+    modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
+    predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
+    posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
+    
+    plots = generate_diagnostic_plot(
+      xyt,
+      modelfit,
+      predictions,
+      pred_locs,
+      HbSPiel,
+      features = list(
+        africa = africa_sf,
+        rivers = rivaf_sf,
+        lakes = lakaf_sf
+      ),
+      color.scheme = color.scheme,
+      prednames = c("mean", "sd", "iqr" ), # Choose three from mean, q25, q50, q75, sd, iqr
+      popmask = popmask
+    )
+    fig1plot <- fig1.plot(hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
+                          scicopalette = 'turku',savepath = 'output/fig1')
+    }
 }
 
-#fig1.plot <- function(hbsraster,border=africa_sf,river=rivaf_sf,lake=lakaf_sf)
 
 message( "++ Great success! Diagnostic plots completed." )
 
