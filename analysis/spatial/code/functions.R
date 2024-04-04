@@ -891,17 +891,76 @@ predict_values <- function(
 }
 
 #Fig1 (minimum) plot
-fig1.plot <- function(hbsraster,border,river,lake,scicopalette,savepath) {
+fig1.plot <- function(pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
+    # mytheme <- theme(axis.title.x=element_blank(),
+    #                  axis.text.x=element_blank(),
+    #                  axis.ticks.x=element_blank(),
+    #                  axis.title.y=element_blank(),
+    #                  axis.text.y=element_blank(),
+    #                  axis.ticks.y=element_blank()
+    # )
+    #Fig 1a
+    pfpt$lon <- pfpt@coords[,1]
+    pfpt$lat <- pfpt@coords[,2]
+    pfpt$Pf <- round(pfpt$`Pfsa1:nonref`/pfpt$N,2)
+    pfpt$logN <- log(pfpt$N)
+    pfpt <- st_as_sf(pfpt)
+    pfpt <- pfpt[border,]
+    pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
+    mys <- sqrt(pfpt$N)
+    myquant <- c(1,2,4,16,40)
+    fig1a <- ggplot(pfpt) +
+      geom_sf(data = border, fill = "white", col = 'grey60') +
+      geom_sf(data = pfpt, aes(size = sqrt(N), fill = Pf), color= 'transparent',alpha = 0.4, shape = 21) +
+      scale_size_continuous(range=c(0.05,12),breaks = myquant,
+                            limits = c(0, max(mys)),
+                            name="Sample size (square root)",
+                            guide=guide_legend(title.position = "top")) +
+      scico::scale_fill_scico(name = "Pfsa1+ prevalence",palette = "lipari",
+                              guide = guide_legend(title.position = "top"))+
+      theme_void(14) +
+      theme(legend.box = "vertical",
+            legend.direction = "horizontal",
+            legend.position = c(0.15, 0.18),
+            legend.justification = c(0, 1))+
+      guides(fill = guide_legend(override.aes = list(alpha = 1,size=4)),
+             size = guide_legend(override.aes = list(alpha = 1,color='black')))
+    # Save the modified plot
+    ggsave(file=paste0(savepath,"/fig1a.pdf"),fig1a, width = 8, height = 8)
+    ggsave(file=paste0(savepath,"/fig1a.svg"),fig1a, width = 8, height = 8)
+    
+    #Fig1b
+    wsf <- st_as_sf(xyt)
+    wsf$Prevalence <- wsf$S/wsf$N
+    wsf$Samples <- log(wsf$N)
+    wsf_af <- wsf[border,]
+    myshape <- c("original" = 21, "extended" = 23)
+    fig1b <- ggplot() +
+      geom_sf(data = border, fill = NA, col = 'grey60') +
+      geom_sf(data = wsf_af, aes(size = sqrt(N), fill = Prevalence, shape = Dataset),
+              color='grey35', alpha = 0.85) +
+      scale_size_continuous(range = c(0.25, 14), name = "Sample size (square root)") +
+      scale_fill_scico(name = paste0("HbS prevalence"),palette = scicopalette)+
+      scale_shape_manual(values = myshape, name = "HbS dataset") +
+      theme_void(14) +
+      theme(legend.box = "vertical",
+            legend.direction = "horizontal",
+            legend.position = c(0.15, 0.36),
+            legend.justification = c(0, 1),
+            legend.title = element_text(vjust = 0.5)) +
+      guides(
+        shape = guide_legend(order = 1,title.position="top",override.aes = list(alpha = 1, size = 4,color='grey35')),
+        fill = guide_legend(order = 3,title.position="top",override.aes = list(shape=21,size = 4,alpha=1,color='grey35')),
+        size = guide_legend(order = 2,title.position="top",override.aes = list(fill=NA,alpha=1,color='grey35'))
+      )
+    ggsave(file=paste0(savepath,"/fig1b.pdf"),fig1b,width = 8, height = 8)
+    ggsave(file=paste0(savepath,"/fig1b.svg"),fig1b, width = 8, height = 8)
+    
+    #Fig 1c
     HBsdf <- as.data.frame(hbsraster, xy=TRUE) %>% na.omit()
     HBsdf <-data.frame(HBsdf)
     names(HBsdf) <- c("x","y","value")
-    mytheme <- theme(axis.title.x=element_blank(),
-                     axis.text.x=element_blank(),
-                     axis.ticks.x=element_blank(),
-                     axis.title.y=element_blank(),
-                     axis.text.y=element_blank(),
-                     axis.ticks.y=element_blank()
-    )
+    
     fig1c <- ggplot()+ geom_sf(data=border,fill="grey85")+
       geom_raster(data=HBsdf,aes(x, y,fill=value))+
       scico::scale_fill_scico(palette = scicopalette,breaks = scales::breaks_extended(10))+ 
@@ -910,15 +969,15 @@ fig1.plot <- function(hbsraster,border,river,lake,scicopalette,savepath) {
       geom_sf(data=lake,fill='deepskyblue',col="deepskyblue3")+
       ylim(-36,extent(border)[4])+ 
       guides(fill=guide_legend(title="Predicted mean\nHbS prevalence"))+
-      theme_void(14)+mytheme + theme(legend.position=c(0.15,0.25),
+      theme_void(14) + theme(legend.position=c(0.15,0.25),
                                               legend.key.width = unit(1,'cm'),
                                               #legend.title =element_blank(),
                                               legend.direction = "vertical",
                                               plot.title=element_text(hjust=0.5))
-    ggsave(paste0(savepath,"/fig1c.pdf"),fig1c,width = 10,height = 9)
-    ggsave(paste0(savepath,"/fig1c.svg"),fig1c,width = 10,height = 9)
+    ggsave(paste0(savepath,"/fig1c.pdf"),fig1c,width = 8,height = 8)
+    ggsave(paste0(savepath,"/fig1c.svg"),fig1c,width = 8,height = 8)
     
-     return(message(paste0('Figure fig1c saved in ', savepath)))
+     return(message(paste0('Manuscript figures 1a, 1b, and 1c saved in ', savepath)))
   }
   
 
