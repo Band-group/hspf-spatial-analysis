@@ -462,8 +462,10 @@ runinla.binomial <- function(myformula,stk,spde,n,covariate.prec=0.001,intercept
                      control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
                      control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
                      control.fixed = mycontrol.fixed,
+                     control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                      verbose = FALSE) # can include verbose=TRUE to see the log of the model runs
-    inlafit <- inla.rerun(inlafit)#to improve cpo computation
+    #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
+    inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
     
     return(inlafit)
 }
