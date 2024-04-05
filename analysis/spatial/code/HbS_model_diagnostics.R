@@ -210,5 +210,5 @@ for( i in 1:nrow( HbS.priors )) {
 message("++ Great success! Diagnostic and figure 1 (top panels) plots completed." )
 
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/HbS_Fig1.Rdata"))
-message("End insample_diagnosis.R")
+message("End HbS_model_diagnosis.R")
 #END
