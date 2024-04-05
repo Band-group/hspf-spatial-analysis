@@ -94,11 +94,30 @@ diagnose.plot <- function(stackobject,prednames,p1,p2,p3){
                      align = c("none")
   )
 }
+
+generate_raster_maps <- function(
+   predictions,saveraster=FALSE,saverastername = saverastername,savepath='output/HbSraster/')
+  {
+  library(raster)
+  mask <- predictions$prediction_locations$mask
+  pred_val <- getValues(mask)
+  w <- is.na(pred_val)
+  myraster <- list()
+   for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
+    pred_val[!w] <- round( predictions[[j]],9)
+    myraster[[j]] <- setValues(mask, pred_val)
+    if(saveraster==TRUE){
+    writeRaster(myraster[[j]], paste0(savepath,saverastername,"_",j,'.tif'), overwrite=TRUE)
+    }
+   }
+  message( paste0("++ Raster maps saved as ",savepath,saverastername,"..." ))
+  return(myraster)  
+}
+
 generate_diagnostic_plot <- function(
     xyt,
     modelfit,
     predictions,
-    prediction_locations,
     HbSPiel,
     features = list(
       africa = africa_sf,
@@ -119,30 +138,19 @@ generate_diagnostic_plot <- function(
       #t6 = "HbS | Predicted coefficient of variation"
     ),
     prednames = c("mean", "sd", "iqr" ),
-    mainnames = list("PR mean","PR sd","PR 25th pct","PR 75th pct","IQR"),
-    popmask
+    popmask,
+    saveraster,#indicate if you want (TRUE) to save or not HbS raster maps
+    saverastername = 'HbS'#prefix name of raster maps to be saved
 ) {
   library(dplyr)
   library(ggplot2)
-  
-  mask = prediction_locations$mask
-  NAvalue(mask)=-9999#some raster might have -9999 for NA
-  #mask <- aggregate(mask, fact=2)#to ease computation we aggregate covariate
-  #mask <- mask(mask, river, inverse = T )#not needed here only for visual purpose
-  mask <- mask(mask, lake, inverse = T )
-  pred_val <- getValues(mask)
-  w <- is.na(pred_val)
-  pred_locs <- xyFromCell(mask,1:ncell(mask))
-  pred_locs <- pred_locs[!w,]
-  colnames(pred_locs) <- c('longitude','latitude')
-  
   #predictions on transect across Africa
   # Define the coordinates for the transect (here, a simple straight line)
   transect_sf <- matrix(c(39.3, -14.3, -11, 25), ncol = 2) %>%
     st_linestring() %>%
     st_sfc() %>%
     st_sf() %>%
-    st_set_crs(st_crs(africa_sf))
+    st_set_crs(st_crs(features$africa))
   #transect_sf <- st_intersection(transect_sf, st_as_sf(myarea))
   num_points <- 100 # Number of points to sample
   transect_pt <- st_sample(transect_sf, size = num_points,type='regular',exact=FALSE)
@@ -156,18 +164,8 @@ generate_diagnostic_plot <- function(
   #     coord_sf() +
   #   theme_minimal()
   # 
-  #Mapping between meshes and continuous space
-  A.pred <- inla.spde.make.A( mesh = modelfit$mesh, loc=pred_locs )
-  #A.pred.transect <- inla.spde.make.A( mesh = modelfit$mesh, loc=transect_xy)
-  
-  out<-list()
-  for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
-    pred_val[!w] <- round( predictions[[j]],9)
-    out[[j]] <- setValues(mask, pred_val)
-    # writeRaster(out[[j]], paste0("output/tif/prevalence_","nocov","/",prednames[[j]],'.tif'), overwrite=TRUE)
-  }
-  b <- brick(out)
-  
+  myraster <- generate_raster_maps(predictions,saveraster=saveraster,saverastername = saverastername)
+  b <- brick(myraster)
   b <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- b*popmask
@@ -241,7 +239,7 @@ generate_diagnostic_plot <- function(
     piel = raster::extract(HbSPiel,transect_xy),
     ours = raster::extract(b[['mean']],transect_xy)
   )
-  aggregated_mask = aggregate(mask, fact = 5 )
+  aggregated_mask = aggregate(predictions$prediction_locations$mask, fact = 5 )
   grid_val <- getValues(aggregated_mask)
   w <- is.na(grid_val)
   grid_xy <- xyFromCell(aggregated_mask,1:ncell(aggregated_mask))
@@ -824,7 +822,7 @@ predict_inla_binomial_model <- function(
     nn # number of posterior samples
 ) {
   #Mapping between meshes and continuous space
-  A.pred <- inla.spde.make.A( mesh = mesh, loc = prediction_locations)
+  A.pred <- inla.spde.make.A( mesh = mesh, loc = prediction_locations$locations)
   #get predictive locations based on covariate
   #select layers from covariates based on the selected model
   mypred <- predict_values(
@@ -847,7 +845,8 @@ predict_inla_binomial_model <- function(
     q25 = pred_25pct,
     q50 = pred_50pct,
     q75 = pred_75pct,
-    iqr = IQR
+    iqr = IQR,
+    prediction_locations = prediction_locations
   )) ;
 }
 
