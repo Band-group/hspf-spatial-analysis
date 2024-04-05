@@ -149,7 +149,7 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
-  plots$in.sample.summary %>% mutate(priorid = i)
+  plots$in.sample.summary$priorid <- ifelse(plots$in.sample.summary$type == 'piel', NA, i)
   #extract cpo and waic values (out-of-sample and in-sample metric) for our model (NA if taken from piel)
   plots$in.sample.summary$cpo <- ifelse(plots$in.sample.summary$type == 'piel', NA, sum(log(modelfit$fit$cpo$cpo + 1), na.rm = TRUE))
   plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
@@ -200,8 +200,9 @@ for( i in 1:nrow( HbS.priors )) {
     #make figure 1 (top panels: a,b, and c)
     fig1.plot(datasource=best_model,pfpt=pf,xyt=xyt,hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
                           scicopalette = 'turku',savepath = 'output/fig1')
-    readr::write_csv( ( best_model ),
-      file = "nameHbSbestmodel.csv"
+    #save best model name
+    readr::write_csv( ( as.data.frame( best_model ) ),
+      file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv"
     )
     }
 }
