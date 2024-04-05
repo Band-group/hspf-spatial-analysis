@@ -149,19 +149,16 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
-  #extract cpo values (out-of-sample metric)
-  plots$in.sample.summary$cpo = sum(log(modelfit$fit$cpo$cpo+1),na.rm=TRUE)
-  #extract waic values (in-sample metric)
-  plots$in.sample.summary$waic= modelfit$fit$waic$waic
+  #extract cpo and waic values (out-of-sample and in-sample metric) for our model (NA if taken from piel)
+  plots$in.sample.summary$cpo <- ifelse(plots$in.sample.summary$type == 'piel', NA, sum(log(modelfit$fit$cpo$cpo + 1), na.rm = TRUE))
+  plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
   in.sample.summary <- bind_rows( in.sample.summary, plots$in.sample.summary )
   in.sample.summary <- in.sample.summary %>% mutate(id = row_number()) %>%
-    select(id, everything())
+    arrange( desc( cpo ) ) #ordered by best out-of-sample (cpo)
   readr::write_csv(
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
-      #%>% arrange( rmse )
-      %>% arrange( desc( cpo ) )  #larger CPO have better out-of-sample predictive power
     ),
     file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub )
   )
@@ -171,8 +168,6 @@ for( i in 1:nrow( HbS.priors )) {
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
-      #%>% arrange( rmse )
-      %>% arrange( desc( cpo ) )#larger CPO have better out-of-sample predictive power
     )
   )
   #at the end of the procedure makes HbS map for figure 1 based on the best performing model
