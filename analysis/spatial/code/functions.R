@@ -907,6 +907,10 @@ fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
   if ('Pfsanonref' %in% colnames(pfpt@data)) {
     pfpt$Pf <- round(pfpt$`Pfsanonref`/pfpt$N,2)
   }
+  if(is.null(allele)){
+    legendname <- "Pfsa1+ prevalence"
+  } else {legendname <-paste0(allele,"+ prevalence")
+  }
   pfpt$logN <- log(pfpt$N)
   pfpt <- st_as_sf(pfpt)
   pfpt <- pfpt[border,]
@@ -920,7 +924,7 @@ fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
                           limits = c(0, max(mys)),
                           name="Sample size (square root)",
                           guide=guide_legend(title.position = "top")) +
-    scico::scale_fill_scico(name = "Pfsa1+ prevalence",palette = "lipari",
+    scico::scale_fill_scico(name = legendname,palette = scicopalette,
                             guide = guide_legend(title.position = "top"))+
     theme_void(14) +
     theme(legend.box = "vertical",

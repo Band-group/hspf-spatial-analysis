@@ -1,4 +1,4 @@
-#Pf Model
+#Pf plots
 #Goal: assess the effects of HbS on Pf+
 
 #INLA used to fit Bayesian models
