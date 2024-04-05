@@ -17,22 +17,7 @@ mkdir_recursive( "output/HbSsensitivity/fits" )
 echo( "++ Writing priors to %s...", "output/HbSsensitivity/fits/priors.csv" )
 readr::write_csv( HbS.priors, "output/HbSsensitivity/fits/priors.csv" )
 
-#set number of posterior samples
-nn <- 500 # nb.HbS samples per pixel for HbS maps (HbS_Plots.R)
-
 ############################################################xyt####################
-#Response and covariate extraction and data preparation for R-INLA model
-
-#load naturalearth boundaries and robin projection
-#load(paste0("geodata/naturalearthdata.Rdata"))
-
-myarea <- load.continent.shapes.terra(
-  "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp",
-  "Africa"
-)
-africa = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa" )
-lakaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "lakaf_sf" )
-
 #get covariate data to identify lat/lon of pixel we want to make predictions in
 pred_locs = get_prediction_locations(
   geodata::elevation_global( res=10, path = "geodata/" ),
@@ -59,9 +44,10 @@ for( i in 1:nrow( HbS.priors )) {
   prior = HbS.priors[i,]
   stub = sprintf( "output/HbSsensitivity/fits/%s", prior$name )
   model.filename = sprintf( "%s-modelfit.rds", stub )
-  if( file.exists( model.filename )) {
-    message( sprintf( "++ Model fit \"%s\" exists, skipping", model.filename ))
-  } else {
+  # if this option runs, the fitting process will not erase previous saving
+  # if( file.exists( model.filename )) {
+  #   message( sprintf( "++ Model fit \"%s\" exists, skipping", model.filename ))
+  # } else {
     message( "++ Fitting model with prior:" )
     print(prior)
 
@@ -83,13 +69,15 @@ for( i in 1:nrow( HbS.priors )) {
       pred_locs$locations,
       nn
     )
+    #add prediction locations, mask etc to the object
+    predictions$prediction_locations <- pred_locs
 
     readr::write_csv( prior, file = sprintf( "%s-prior.csv", stub ))      
     saveRDS( modelfit, sprintf( "%s-modelfit.rds", stub ))
     saveRDS( predictions, sprintf( "%s-predictions.rds", stub ))
     saveRDS( posterior.samples, sprintf( "%s-samples.rds", stub ))
   }
-}
+
 
 message( "++ Great success!  HbS model fitted parameters, predictions, and posterior samples completed." )
 
