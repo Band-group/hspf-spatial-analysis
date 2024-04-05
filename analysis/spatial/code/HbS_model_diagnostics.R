@@ -149,18 +149,18 @@ for( i in 1:nrow( HbS.priors )) {
   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
   plots$in.sample.summary$name = prior$name
+  plots$in.sample.summary %>% mutate(priorid = i)
   #extract cpo and waic values (out-of-sample and in-sample metric) for our model (NA if taken from piel)
   plots$in.sample.summary$cpo <- ifelse(plots$in.sample.summary$type == 'piel', NA, sum(log(modelfit$fit$cpo$cpo + 1), na.rm = TRUE))
   plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
   in.sample.summary <- bind_rows( in.sample.summary, plots$in.sample.summary )
-  in.sample.summary <- in.sample.summary %>% mutate(id = row_number()) %>%
-    arrange( desc( cpo ) ) #ordered by best out-of-sample (cpo)
+  in.sample.summary <- in.sample.summary %>% arrange( desc( cpo ) )#ordered by best out-of-sample (cpo)
   readr::write_csv(
     (
       in.sample.summary
       %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
     ),
-    file = sprintf( "output/HbSsensitivity/diagnostics/metrics.csv", stub )
+    file = "output/HbSsensitivity/diagnostics/metrics.csv"
   )
 
   message( "++ Models ordered by cpo are:" )
@@ -175,7 +175,7 @@ for( i in 1:nrow( HbS.priors )) {
   {
   #identify where cpo is highest
     best_model <- in.sample.summary[1,]$name#first row is best model cause (decreasing by CPO)
-    best_id <- in.sample.summary[1,]$id
+    best_id <- in.sample.summary[1,]$priorid
     prior = HbS.priors[best_id,]
     message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))
     modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
@@ -200,6 +200,9 @@ for( i in 1:nrow( HbS.priors )) {
     #make figure 1 (top panels: a,b, and c)
     fig1.plot(datasource=best_model,pfpt=pf,xyt=xyt,hbsraster=plots$meanmask,border=africa_sf,river=rivaf_sf,lake=lakaf_sf,
                           scicopalette = 'turku',savepath = 'output/fig1')
+    readr::write_csv( ( best_model ),
+      file = "nameHbSbestmodel.csv"
+    )
     }
 }
 
