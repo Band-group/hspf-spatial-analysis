@@ -492,9 +492,17 @@ fit_inla_binomial_model <- function(
   );
   if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt@data), dim(A)[1], dim(A)[2] ))
   if( verbose ) message( "++ Creating SPDE object..." )
+  
+  if ('Pfsanonref' %in% colnames(xyt@data)) {
+  Y = round(xyt@data$Pfsanonref,0)
+  N = round(xyt@data$Pfsanonref+xyt@data$Pfsaref,0)
+    } else {
+      Y = round(xyt@data$S,0)
+      N = round(xyt@data$N,0)
+  }
   stk <- makeinlastack.binomial(
-    Y = round(xyt@data$S,0),
-    n = round(xyt@data$N,0),
+    Y = Y,
+    n = N,
     A = A,
     spde = spde
   ) #if covariate [dataframe], add ",covariate=..."
@@ -505,7 +513,7 @@ fit_inla_binomial_model <- function(
     myformula,
     stk,
     spde,
-    n=round(xyt$N,0),
+    n=N,
     intercept.prec = priors$intercept.prec,
     covariate.prec = priors$covariate.prec
   )#by default: [covariate.prec=0.001]; [intercept.prec=0.0]
