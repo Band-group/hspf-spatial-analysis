@@ -164,7 +164,7 @@ generate_diagnostic_plot <- function(
   #     coord_sf() +
   #   theme_minimal()
   # 
-  myraster <- generate_raster_maps(predictions,saveraster=saveraster,saverastername = saverastername)
+  myraster <- generate_raster_maps(predictions=predictions,saveraster=saveraster,saverastername = saverastername)
   b <- brick(myraster)
   b <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
@@ -822,7 +822,7 @@ predict_inla_binomial_model <- function(
     nn # number of posterior samples
 ) {
   #Mapping between meshes and continuous space
-  A.pred <- inla.spde.make.A( mesh = mesh, loc = prediction_locations$locations)
+  A.pred <- inla.spde.make.A( mesh = mesh, loc = prediction_locations)
   #get predictive locations based on covariate
   #select layers from covariates based on the selected model
   mypred <- predict_values(
@@ -845,8 +845,7 @@ predict_inla_binomial_model <- function(
     q25 = pred_25pct,
     q50 = pred_50pct,
     q75 = pred_75pct,
-    iqr = IQR,
-    prediction_locations = prediction_locations
+    iqr = IQR
   )) ;
 }
 
