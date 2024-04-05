@@ -25,7 +25,9 @@ mkdir_recursive(
 mkdir_recursive(
   sprintf( "output/Pf/output/csv" )
 )
-
+mkdir_recursive(
+  sprintf( "output/Pf/output/rdata" )
+)
 #load input data from manuscript outputdata
 # load(paste0(path_input,"/naturalearthdata.Rdata"))
 # load(file=paste0("output/dataprep.Rdata"))
@@ -273,7 +275,7 @@ for (l in 1:length(Pfalleles)){
   
   #save objects for robustness tests
   save(myrangerob,mysigmarob,spderob,A,isetrob,pred,Y,N,xyt,myss,Pfalleles,
-       mydf,file=paste0("output/Pf/output/Pf_regression_robinput","_",Pfalleles[l],".Rdata"))
+       mydf,file=paste0("output/Pf/output/rdata/Pf_regression_robinput","_",Pfalleles[l],".Rdata"))
 }#end loop over Pfsa alleles
 
 message(paste0("\nEND Pf_model_fit.R"))
