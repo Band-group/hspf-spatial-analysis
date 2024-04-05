@@ -18,7 +18,7 @@ myINLAut <- c("INLAutils")
 new.packages <- myINLAut[!(myINLAut %in% installed.packages()[,"Package"])]
 if(length(new.packages)) remotes::install_github("timcdlucas/INLAutils")
 lapply(myINLAut, library, character.only = TRUE)
-
+load(file="output/Pf/input/Pfdata.Rdata")
 ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
 #Fig2 plots
 #Country maps
@@ -31,7 +31,20 @@ xyt <- load.entry.from.Rdata(paste0("output/Pf/output/rdata/Pf_regression_robinp
   fig1a.plot(pfpt=xyt,border=africa_sf,scicopalette='turku',savepath="output/Pf/output/pdf",allele=Pfalleles[l])
   #for figure 2
   #pfpt_robin <- pfpt %>% st_transform(crs = target_crs)
-  pfptsel_af <- sf::st_as_sf(xyt)[afsel_sf,]
+  pfpt <- xyt
+  pfpt$lon <- pfpt@coords[,1]
+  pfpt$lat <- pfpt@coords[,2]
+  if ('Pfsa1:nonref' %in% colnames(pfpt@data)) {
+    pfpt$Pf <- round(pfpt$`Pfsa1:nonref`/pfpt$N,2)
+  }
+  if ('Pfsanonref' %in% colnames(pfpt@data)) {
+    pfpt$Pf <- round(pfpt$`Pfsanonref`/pfpt$N,2)
+  }
+  pfpt$logN <- log(pfpt$N)
+  pfpt <- st_as_sf(pfpt)
+  pfpt_af <- pfpt[africa_sf,]
+  pfpt_af <- pfpt_af %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
+  pfptsel_af <- pfpt_af[afsel_sf,]
   pfptsel_af <- sf::st_join(pfpt_af, afsel_sf)
   pfptsel_af <- pfptsel_af[pfptsel_af$NAME %in% pfcountries,]
   for (tif_file in tif_files) {
