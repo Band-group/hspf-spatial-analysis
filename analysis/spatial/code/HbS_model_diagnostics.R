@@ -64,7 +64,7 @@ pf = (
     Pfsa1_N = (`Pfsa1:ref` + `Pfsa1:nonref`),
 		Pfsa1_freq = (`Pfsa1:nonref`)/(`Pfsa1:ref` + `Pfsa1:nonref`),
 		Pfsa1_lower = qbeta( p = 0.025, shape1 = `Pfsa1:nonref`+1, shape2 = `Pfsa1:ref`+1),
-		Pfsa1_upper = qbeta( p = 0.025, shape1 = `Pfsa1:nonref`+1, shape2 = `Pfsa1:ref`+1)
+		Pfsa1_upper = qbeta( p = 0.975, shape1 = `Pfsa1:nonref`+1, shape2 = `Pfsa1:ref`+1)
 	)
 )
 echo( "++ Ok, %d points loaded...", nrow(pf))
