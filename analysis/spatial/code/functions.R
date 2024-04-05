@@ -897,44 +897,52 @@ predict_values <- function(
 }
 
 #Fig1 (minimum) plot
-fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
-    # mytheme <- theme(axis.title.x=element_blank(),
-    #                  axis.text.x=element_blank(),
-    #                  axis.ticks.x=element_blank(),
-    #                  axis.title.y=element_blank(),
-    #                  axis.text.y=element_blank(),
-    #                  axis.ticks.y=element_blank()
-    # )
-    #Fig 1a
-    pfpt$lon <- pfpt@coords[,1]
-    pfpt$lat <- pfpt@coords[,2]
-    pfpt$Pf <- round(pfpt$`Pfsa1:nonref`/pfpt$N,2)
-    pfpt$logN <- log(pfpt$N)
-    pfpt <- st_as_sf(pfpt)
-    pfpt <- pfpt[border,]
-    pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
-    mys <- sqrt(pfpt$N)
-    myquant <- c(1,2,4,16,40)
-    fig1a <- ggplot(pfpt) +
-      geom_sf(data = border, fill = "white", col = 'grey60') +
-      geom_sf(data = pfpt, aes(size = sqrt(N), fill = Pf), color= 'transparent',alpha = 0.4, shape = 21) +
-      scale_size_continuous(range=c(0.05,12),breaks = myquant,
-                            limits = c(0, max(mys)),
-                            name="Sample size (square root)",
-                            guide=guide_legend(title.position = "top")) +
-      scico::scale_fill_scico(name = "Pfsa1+ prevalence",palette = "lipari",
-                              guide = guide_legend(title.position = "top"))+
-      theme_void(14) +
-      theme(legend.box = "vertical",
-            legend.direction = "horizontal",
-            legend.position = c(0.15, 0.18),
-            legend.justification = c(0, 1))+
-      guides(fill = guide_legend(override.aes = list(alpha = 1,size=4)),
-             size = guide_legend(override.aes = list(alpha = 1,color='black')))
-    # Save the modified plot
-    ggsave(file=paste0(savepath,"/fig1a.pdf"),fig1a, width = 8, height = 8)
-    ggsave(file=paste0(savepath,"/fig1a.svg"),fig1a, width = 8, height = 8)
+fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
+  #Fig 1a
+  pfpt$lon <- pfpt@coords[,1]
+  pfpt$lat <- pfpt@coords[,2]
+  if ('Pfsa1:nonref' %in% colnames(pfpt@data)) {
+  pfpt$Pf <- round(pfpt$`Pfsa1:nonref`/pfpt$N,2)
+  }
+  if ('Pfsanonref' %in% colnames(pfpt@data)) {
+    pfpt$Pf <- round(pfpt$`Pfsanonref`/pfpt$N,2)
+  }
+  pfpt$logN <- log(pfpt$N)
+  pfpt <- st_as_sf(pfpt)
+  pfpt <- pfpt[border,]
+  pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
+  mys <- sqrt(pfpt$N)
+  myquant <- c(1,2,4,16,40)
+  fig1a <- ggplot(pfpt) +
+    geom_sf(data = border, fill = "white", col = 'grey60') +
+    geom_sf(data = pfpt, aes(size = sqrt(N), fill = Pf), color= 'transparent',alpha = 0.4, shape = 21) +
+    scale_size_continuous(range=c(0.05,12),breaks = myquant,
+                          limits = c(0, max(mys)),
+                          name="Sample size (square root)",
+                          guide=guide_legend(title.position = "top")) +
+    scico::scale_fill_scico(name = "Pfsa1+ prevalence",palette = "lipari",
+                            guide = guide_legend(title.position = "top"))+
+    theme_void(14) +
+    theme(legend.box = "vertical",
+          legend.direction = "horizontal",
+          legend.position = c(0.15, 0.18),
+          legend.justification = c(0, 1))+
+    guides(fill = guide_legend(override.aes = list(alpha = 1,size=4)),
+           size = guide_legend(override.aes = list(alpha = 1,color='black')))
+  # Save the modified plot
+  if(is.null(allele)){
+  ggsave(file=paste0(savepath,"/fig1a.pdf"),fig1a, width = 8, height = 8)
+  ggsave(file=paste0(savepath,"/fig1a.svg"),fig1a, width = 8, height = 8)
+  } else {
+    ggsave(file=paste0(savepath,"/",allele,"_fig1a.pdf"),fig1a, width = 8, height = 8)
+    ggsave(file=paste0(savepath,"/",allele,"_fig1a.svg"),fig1a, width = 8, height = 8)
     
+  }
+}
+
+fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
+    #Fig 1a
+    fig1a.plot(pfpt,border,scicopalette,savepath,allele=NULL)
     #Fig1b
     wsf <- st_as_sf(xyt)
     wsf$Prevalence <- wsf$S/wsf$N
@@ -1143,7 +1151,7 @@ convert_scientific_to_numeric <- function(x) {
   }
 }
 #define plot function for manuscript
-plot.hbs <- function(finaloutput,mymodname) {
+plot.hbs <- function(finaloutput,mymodname,savepath) {
   library(ggplot2)
   #keep regions and all
   myoutput <- finaloutput[(finaloutput$model==mymodname | finaloutput$model=='All'),]
@@ -1280,15 +1288,15 @@ plot.hbs <- function(finaloutput,mymodname) {
         geom_line(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region),linewidth=1.5) +
         scale_color_manual(values = region_colors) +  # Assign line colors to regions
         theme(legend.position = "none", text = element_text(family = "serif"))
-      ggsave(paste("output/pdf/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".pdf", sep = ""), plot1c,width=5,height=5)
-      ggsave(paste("output/svg/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".svg", sep = ""), plot1c,width=5,height=5)
+      ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".pdf", sep = ""), plot1c,width=5,height=5)
+      ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".svg", sep = ""), plot1c,width=5,height=5)
     }
   
   # Save the plots
   #save one plot per all countries together
-  ggsave(filename = paste0("output/pdf/HbSeffect",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1a, width = mywidth, height = 5)
-  ggsave(filename = paste0("output/svg/HbSeffect",mymodname,"_",Pfalleles[l],".svg"), plot = plot1a, width = mywidth, height = 5)
-  ggsave(filename = paste0("output/pdf/HbSeffectmultiple",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1b, width = 5, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffect",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1a, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffect",mymodname,"_",Pfalleles[l],".svg"), plot = plot1a, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffectmultiple",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1b, width = 5, height = 5)
   
   # Create the second plot
   plot2 <- ggplot(myoutput, aes(x = obs, y = pred)) + 
@@ -1305,10 +1313,10 @@ plot.hbs <- function(finaloutput,mymodname) {
     plot2 <- plot2 + facet_wrap(~factor(region,levels=rlevels), ncol = length(unique_regions))
   } 
   # Save the plot
-  ggsave(filename = paste0("output/pdf/obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plot2, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plot2, width = mywidth, height = 5)
   library(gridExtra)
   plotall <- grid.arrange(plot1, plot2, ncol=1)
-  ggsave(filename = paste0("output/pdf/HbSeffect_and_obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plotall, width = mywidth, height = 10)
+  ggsave(filename = paste0(savepath, "/HbSeffect_and_obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plotall, width = mywidth, height = 10)
   
   # Plot for all regions only
   # Create a color palette for different regions
@@ -1355,8 +1363,8 @@ plot.hbs <- function(finaloutput,mymodname) {
   } else {
     plot3 <- plot3 + theme(legend.position = "none")
   }
-  ggsave(filename = paste0("output/pdf/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
-  ggsave(filename = paste0("output/svg/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(savepath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(savepath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
 }
 #Pf regression rob
 spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
