@@ -20,14 +20,6 @@ if(length(new.packages)) remotes::install_github("timcdlucas/INLAutils")
 lapply(myINLAut, library, character.only = TRUE)
 
 ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
-
-#load input data from manuscript outputdata
-# load(paste0(path_input,"/naturalearthdata.Rdata"))
-# load(file=paste0("output/dataprep.Rdata"))
-# load(file=paste0("output/HbSmodeloutput.Rdata"))
-# #take it from the test data output
-# load(file=paste0("output/Pfdata.Rdata"))
-
 #Fig2 plots
 #Country maps
 tif_files <- list.files("output/HbSraster/", pattern = "\\.tif$", full.names = TRUE)
@@ -106,10 +98,3 @@ for (mymodn in mymodnames){
 plot.hbs(finaloutput = finaloutput,mymodname = mymodn,savepath="output/Pf/output/pdf")
 }
 }
-
-# Run all plots without having to run INLA (just based on INLA outputs)
-# for (l in 1:4){
-  # finaloutput <- read.csv(paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".csv"))
-  # plot.hbs(finaloutput = finaloutput,mymodname=modname,savepath="output/Pf/output/pdf")
-# }
-
