@@ -107,9 +107,9 @@ for (l in 1:length(Pfalleles)){
   bestHbSmodel <- bestHbSmodel$best_model   
   modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
   #predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", bestHbSmodel ))
-  
-  A = inla.spde.make.A(mesh=modelfit$mesh, loc=as.matrix(xyt@coords));dim(A)#A matrix
-  A.pred <- inla.spde.make.A(mesh=modelfit$mesh, loc=pred_locs)
+  mymesh <- modelfit$mesh
+  A = inla.spde.make.A(mesh=mymesh, loc=as.matrix(xyt@coords));dim(A)#A matrix
+  A.pred <- inla.spde.make.A(mesh=mymesh, loc=pred_locs)
   #for robustness tests
   # Pre-allocate size for spderob and isetrob
   #myrange and mysigmarob are user defined in data preparation
@@ -121,7 +121,7 @@ for (l in 1:length(Pfalleles)){
   for (i in myrangerob) {
     for (j in mysigmarob) {
       spderob[[k]] <- INLA::inla.spde2.pcmatern(
-        mesh = modelfit$mesh, alpha = 2,
+        mesh = mymesh, alpha = 2,
         prior.range = c(i, Prangerob),
         prior.sigma = c(j, Psigmarob))
       isetrob[[k]] <- inla.spde.make.index(name = "spatial.field", spderob[[k]]$n.spde)
@@ -168,7 +168,7 @@ for (l in 1:length(Pfalleles)){
   #save descriptive information to be added in the manuscript
   datadescript <- data.frame(sampsize=nrow(xyt@data),
                              nbcountries=length(unique(xyt$country)),
-                             meshnodes=modelfit$mesh$n,
+                             meshnodes=mymesh$n,
                              Pfavgprev=mean(mydf$Y/mydf$n,na.rm=TRUE),
                              Pfsdprev=sd(mydf$Y/mydf$n,na.rm=TRUE)
   )
@@ -274,7 +274,7 @@ for (l in 1:length(Pfalleles)){
   print(outputlatex2, file=paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".txt"))
   
   #save objects for robustness tests
-  save(myrangerob,mysigmarob,spderob,A,isetrob,pred,Y,N,xyt,myss,Pfalleles,
+  save(myrangerob,mysigmarob,spderob,A,isetrob,pred,Y,N,xyt,myss,Pfalleles,mymesh,
        mydf,file=paste0("output/Pf/output/rdata/Pf_regression_robinput","_",Pfalleles[l],".Rdata"))
 }#end loop over Pfsa alleles
 
