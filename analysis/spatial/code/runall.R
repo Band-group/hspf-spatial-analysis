@@ -67,6 +67,7 @@ source("code/Pf_datacleaning.R",verbose=FALSE)
 source("code/Pf_model_fit.R",verbose=FALSE)#aspatial Pf models
 source("code/Pf_plots.R",verbose=FALSE)#pf plots
 source("code/Pf_model_spatial.R",verbose=FALSE)#spatial Pf models
+source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
 
 #About xxmn with AMD 3975WX 32 cores################
 #End Pf#############################################
