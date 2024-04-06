@@ -1388,11 +1388,13 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
                    Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
                    control.predictor = list(compute = TRUE, A = inla.stack.A(stk.z) ), # compute gives you the marginals of the linear predictor
                    # control.compute = list(config = TRUE, return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                   control.compute = list(return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                   control.compute = list(return.marginals.predictor=TRUE,waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                   control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                    #list(int.strategy = "grid", diff.logdens = 4),#to improve CPO computation
                    verbose = FALSE,num.thread=1#,
                    #control.fixed = list(mean.intercept=-10, prec.intercept=8)
   )
+  inlaspat <- inla.rerun(inlaspat)
   #in case some infinite values are returned by inla
   inlaspat$marginals.fitted.values[[i]][is.infinite(inlaspat$marginals.fitted.values[[i]])] <- 0.0000000001
   predspat <- data.frame(
@@ -1401,6 +1403,8 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
     region = as.factor("All"),
     obs = mydf$Y[i]/mydf$n[i],
     pred = inla.emarginal(inverse.logit, inlaspat$marginals.fitted.values[[i]]),
+    cpo = sum(log(inlaspat$fit$cpo$cpo + 1), na.rm = TRUE),
+    waic = inlaspat$waic$waic,
     intercept=round(inlaspat$summary.fixed[1,1:2],5),
     HbS_hat=data.frame(round(inlaspat$summary.fixed[-1,1:2],5)),
     region_hat=NA,
@@ -1438,12 +1442,14 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
                   family = "binomial", # which family the data comes from
                   Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
                   control.predictor = list(compute = TRUE), # compute gives you the marginals of the linear predictor
-                  # control.compute = list(config = TRUE, return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                  control.compute = list(return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                  control.compute = list(return.marginals.predictor=TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                  control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                   #list(int.strategy = "grid", diff.logdens = 4),#to improve CPO computation
                   verbose = FALSE,num.thread=1#,
                   #control.fixed = list(mean.intercept=-10, prec.intercept=8)
   )
+  inlasin <- INLA::inla.cpo( inlasin )#to improve cpo computation
+
   #summary(inlasin)
   #in case some infinite values are returned by inla
   inlasin$marginals.fitted.values[[i]][is.infinite(inlasin$marginals.fitted.values[[i]])] <- 0.0000000001
@@ -1455,6 +1461,8 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     obs = countrydf$Y[i]/countrydf$n[i],
     #pred = inverse.logit(coeffs[1,1]+coeffs['HbS',1]*countrydf$HbS[i]),
     pred = inla.emarginal(inverse.logit, inlasin$marginals.fitted.values[[i]]),
+    cpo = sum(log(inlasin$fit$cpo$cpo + 1), na.rm = TRUE),
+    waic = inlasin$waic$waic,
     intercept=round(coeffs[1,1:2],5),
     HbS_hat=data.frame(round(coeffs['HbS',1:2],5)),
     region_hat=NA,
@@ -1470,3 +1478,4 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     row.names=NULL)
   return(mypred)
 }
+
