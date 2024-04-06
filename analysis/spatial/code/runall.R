@@ -17,13 +17,14 @@ nn <- 500 #nb. estimated HbS value samples per pixel for HbS maps
 nnpf <- 500 #nb. estimated Pf value samples per pixel for Pf maps
 nnpf <- 500 #nb. estimated Pf value samples per pixel for Pf maps
 
-#pf range and sigma for rob tests
-myrangerob <- c(0.5,1.5,2.5,4,6)
-mysigmarob <- c(0.1,1,5,10,15)
-Prangerob <- 0.1#if 0 means that range0 is fixed
-Psigmarob <- 0.1#if 0 means that sigma0 is fixed
-r0_manuscript <- 2
-sigma0_manuscript <- 10
+#pf range and sigma based on HbS priors (same prior range used)
+HbS.priors = priors()
+myrangerob <- unique(HbS.priors$r0)
+mysigmarob <- unique(HbS.priors$sigma0)
+Prangerob <- NA#if NA means that range0 is fixed
+Psigmarob <- NA#if NA means that sigma0 is fixed
+r0_manuscript <- 10
+sigma0_manuscript <- 1
 ################################################################################
 #Computer resources parameters##################################################
 ################################################################################
