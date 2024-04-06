@@ -12,7 +12,7 @@ for (l in 1:length(Pfalleles)){
 # Use lapply to get a list of file names for each pattern
 predmodels <- lapply(Pfalleles[l], function(p) {
   list.files(
-    path = "output/csv/",
+    path = "output/Pf/output/csv/",
     pattern = paste0("Pfoutput.*", p, ".*\\.csv$"),
     full.names = TRUE
   )
@@ -51,7 +51,10 @@ if ('alt_hat.mean' %in% colnames(predall)) {
       BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
       BSS = {
         1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
-      }* 100 %>% round(., 3)
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
+      
     )} else {
       regionalresults <- predall[predall$model=='regional',] %>% 
         group_by(model,region,pf) %>%
@@ -68,7 +71,9 @@ if ('alt_hat.mean' %in% colnames(predall)) {
       BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
       BSS = {
         1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
-      }* 100 %>% round(., 3)
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
       ) 
     }
  
@@ -91,7 +96,9 @@ if ('alt_hat.mean' %in% colnames(predall)) {
       BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
       BSS = {
         1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
-      }* 100 %>% round(., 3)
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
     )
   
 } else {
@@ -110,7 +117,9 @@ if ('alt_hat.mean' %in% colnames(predall)) {
       BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
       BSS = {
         1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
-      }* 100 %>% round(., 3)
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
     )
 }
 
@@ -121,7 +130,7 @@ results[[l]] <- rbind(regionalresults,countryresults)
 myresult <- do.call(rbind, results)
 # Export to latex and csv
 write.table(x = myresult, 
-            file = "output/predscores.tex", 
+            file = "output/Pf/output/predscores.tex", 
             sep = "&",
             row.names = FALSE,
             col.names = TRUE,
@@ -130,7 +139,7 @@ write.table(x = myresult,
             na = "",
             dec = ".")
 write.csv(x = myresult, 
-            file = "output/predscores.csv", 
+            file = "output/Pf/output/predscores.csv", 
             row.names = FALSE,
             quote = FALSE,
             na = "")
@@ -141,7 +150,7 @@ HbSpos <- myresult[c("model","region","pf","mean_beta_HbS")] %>%
   group_by(pf,model,region) %>%
   summarize(HbSpos = round((sum(mean_beta_HbS > 0)/n()),2))
 HbSposlatex <- xtable::xtable(data.frame(HbSpos))
-print(HbSposlatex, file=paste0("output/csv/HbSpos_allmodels_latex.txt"))
+print(HbSposlatex, file=paste0("output/Pf/output/csv/HbSpos_allmodels_latex.txt"))
 
 
 
@@ -174,7 +183,7 @@ HbSp2 <- ggplot(myresult[myresult$pf==Pfalleles[l],], aes(model, mean_beta_HbS,c
   ggthemes::theme_few(22)+ theme(panel.border=element_rect(linewidth = 0.3))+
   ylab(bquote(hat(beta)[HbS]))+
   xlab("Model")
-ggsave(HbSp2,file=paste0("output/pdf/HbScoef_distribution",Pfalleles[l],".pdf"),width=17,height=4)
+ggsave(HbSp2,file=paste0("output/Pf/output/pdf/HbScoef_distribution",Pfalleles[l],".pdf"),width=17,height=4)
 
 message(paste0("\nEND Pf_predscores.R for ", Pfalleles[l]))
 }
@@ -212,8 +221,8 @@ for (l in 1:length(Pfalleles)){
           panel.grid.minor = element_blank(),
           panel.border = element_blank(),
           panel.background = element_blank())
-  ggsave(file=paste0("output/pdf/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 14,height = 5)
-  ggsave(file=paste0("output/svg/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
+  ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,width = 14,height = 5)
+  ggsave(file=paste0("output/Pf/output/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
   
   
   #plot hbs effects for country models
@@ -242,8 +251,8 @@ hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank())
-ggsave(file=paste0("output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 14,height = 4)
-ggsave(file=paste0("output/svg/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 4)
+ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 14,height = 4)
+ggsave(file=paste0("output/Pf/output/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 4)
   }
 }
 # #plot hbs effects for regional models
