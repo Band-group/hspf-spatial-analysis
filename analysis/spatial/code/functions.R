@@ -1100,7 +1100,7 @@ process_model <- function(l) {
           legend.justification = c(0, 1))  # Legend placement
   ggsave(paste0("output/pdf/fig1HbSmean", allnames[l], "_popmask.pdf"), fig1l,
          dpi = 150, width = 8, height = 8)
-  ggsave(paste0("output/svg/fig1HbSmean", allnames[l], "_popmask.svg"), fig1l,
+  ggsave(paste0("output/pdf/fig1HbSmean", allnames[l], "_popmask.svg"), fig1l,
           width = 8, height = 8)
   
   # #only CI for comparison
@@ -1136,7 +1136,7 @@ process_model <- function(l) {
           legend.justification = c(0, 1))  # Legend placement
   ggsave(paste0("output/pdf/fig1HbSiqr", allnames[l], "_popmask.pdf"), fig1liqr,
          dpi = 150, width = 8, height = 8)
-  ggsave(paste0("output/svg/fig1HbSiqr", allnames[l], "_popmask.svg"), fig1liqr,
+  ggsave(paste0("output/pdf/fig1HbSiqr", allnames[l], "_popmask.svg"), fig1liqr,
          width = 8, height = 8)
 }
 #Pf regression functions
