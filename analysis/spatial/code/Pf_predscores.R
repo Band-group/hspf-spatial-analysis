@@ -222,7 +222,7 @@ for (l in 1:length(Pfalleles)){
           panel.border = element_blank(),
           panel.background = element_blank())
   ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,width = 14,height = 5)
-  ggsave(file=paste0("output/Pf/output/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
+  ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
   
   
   #plot hbs effects for country models
@@ -252,7 +252,7 @@ hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
         panel.border = element_blank(),
         panel.background = element_blank())
 ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 14,height = 4)
-ggsave(file=paste0("output/Pf/output/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 4)
+ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 4)
   }
 }
 # #plot hbs effects for regional models
@@ -265,8 +265,8 @@ ggsave(file=paste0("output/Pf/output/HbShat_",modnames[i],"_", Pfalleles[l],".sv
 #   labs(title = paste0("Estimated HbS effects on ",Pfalleles[l]," (log odd-ratios)")) +
 #   theme_minimal(22) +
 #   theme(legend.position = "none",axis.title=element_blank())
-# ggsave(file=paste0("output/pdf/HbShatregion_",Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 16,height = 7)
-# ggsave(file=paste0("output/svg/HbShatregion_",Pfalleles[l],".svg"),hbshatplot,width = 16,height = 7)
+# ggsave(file=paste0("output/Pf/output/pdf/HbShatregion_",Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 16,height = 7)
+# ggsave(file=paste0("output/Pf/output/pdf/HbShatregion_",Pfalleles[l],".svg"),hbshatplot,width = 16,height = 7)
 # }
 message(paste0("\nEND Pf_predscores.R for all Pf alleles"))
 gc()  
