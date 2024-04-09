@@ -30,6 +30,8 @@ DBI::dbDisconnect(mydb)
 pf_data <- pf_data[pf_data$N>minpf,]
 ################################################################################
 #summary(pf_data)
+#remove data from Verity in some countries (extreme values might be wrong)
+pf_data <- subset(pf_data, !(source == 'Verity_et_al_2021' & (country == 'Tanzania' | country == 'Ghana')))
 ################################################################
 ###################END OPTIONAL#################################
 
