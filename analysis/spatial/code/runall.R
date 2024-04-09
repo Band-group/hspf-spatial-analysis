@@ -15,7 +15,6 @@ source("code/Functions.R",verbose=FALSE)
 minpf <- 5 #minimum number of observations to filter pf data
 nn <- 500 #nb. estimated HbS value samples per pixel for HbS maps
 nnpf <- 500 #nb. estimated Pf value samples per pixel for Pf maps
-nnpf <- 500 #nb. estimated Pf value samples per pixel for Pf maps
 
 #pf range and sigma based on HbS priors (same prior range used)
 HbS.priors = priors()
