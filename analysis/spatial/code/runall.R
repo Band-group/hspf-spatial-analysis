@@ -36,9 +36,17 @@ maxRcores <- 124#124 is the max possible nb cores for R
 #automatic (no user needed below)
 #different code optimization for different machine types
 if(nbcores >= 64){highmem <- TRUE} else {highmem <- FALSE }
-
+################################################################################
+################################################################################
+#West African countries aggregation option 
+#Aggregate Senegal, Gambia, and Guinea since data sample too small
+senegambea <- TRUE#if TRUE, aggregate Senegal, Gambia, and Guinea
+################################################################################
+################################################################################
 #If not defined otherwise, use this theme for all plots
 ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
+################################################################################
+################################################################################
 
 #start timer to compute time to run session
 tic()
