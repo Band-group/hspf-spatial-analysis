@@ -24,6 +24,14 @@ ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
 #Country maps
 tif_files <- list.files("output/HbSraster/", pattern = "\\.tif$", full.names = TRUE)
 pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Gambia","Ghana")
+#Options if we aggregate some West African countries############################
+if(senegambea==TRUE){
+  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Senegambea")
+    africa_sf$NAME <- ifelse(africa_sf$NAME %in% c('Senegal', 'Gambia', 'Guinea'), 'Senegambea', africa_sf$NAME)
+} else {
+  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Gambia","Ghana")
+}
+################################################################################
 afsel_sf <- africa_sf[africa_sf$NAME %in% pfcountries,]
 for (l in 1:length(Pfalleles)){
 xyt <- load.entry.from.Rdata(paste0("output/Pf/output/rdata/Pf_regression_robinput","_",Pfalleles[l],".Rdata"), "xyt" )
