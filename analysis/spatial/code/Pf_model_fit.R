@@ -105,7 +105,7 @@ for (l in 1:length(Pfalleles)){
   #define RINLA objects
   bestHbSmodel <- readr::read_csv(file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv")
   bestHbSmodel <- bestHbSmodel$best_model   
-  modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
+  modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", bestHbSmodel ))
   #predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", bestHbSmodel ))
   mymesh <- modelfit$mesh
   A = inla.spde.make.A(mesh=mymesh, loc=as.matrix(xyt@coords));dim(A)#A matrix
@@ -165,6 +165,12 @@ for (l in 1:length(Pfalleles)){
     ))
   mydf$Region <- as.factor(mydf$Region)
   
+  ##############################################################################
+  #Option: aggregate countries with very few number of observation##############
+  #Here we aggregate Gambia, Senegal, and Guinea
+  if(senegambea==TRUE){
+  levels(mydf$Country)[levels(mydf$Country) %in% c('Senegal', 'Gambia', 'Guinea')] <- 'Senegambea'
+  }
   #save descriptive information to be added in the manuscript
   datadescript <- data.frame(sampsize=nrow(xyt@data),
                              nbcountries=length(unique(xyt$country)),
@@ -237,7 +243,7 @@ for (l in 1:length(Pfalleles)){
   
   ################################################################################
   #Fit single model per country of interest
-  mycountries <- c("Mali", "Tanzania", "DRC", "Gambia","Ghana")#"Ethiopia" not enough obs.
+  mycountries <- c("Mali", "Tanzania", "DRC", "Senegambea")#"Ethiopia" not enough obs.
   finaloutputc <- list()
   modname <- "country"
   for (j in 1:length(mycountries)){
