@@ -8,8 +8,8 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
 
-source("code/priors.R",verbose=FALSE)
-source("code/functions.R",verbose=FALSE)
+source("code/Priors.R",verbose=FALSE)
+source("code/Functions.R",verbose=FALSE)
 
 #parameters
 minpf <- 5 #minimum number of observations to filter pf data
@@ -51,19 +51,9 @@ ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
 #start timer to compute time to run session
 tic()
 
-#load shapefile data
-message( "++ Loading shapefiles" )
-myarea <- load.continent.shapes.terra(
-  "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp",
-  "Africa"
-)
-africa = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa" )
-world_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "world_sf" )
-ocean_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "ocean_sf" )
-continents_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "continents_sf" )
-rivaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "rivaf_sf" )
-lakaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "lakaf_sf" )
-africa_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa_sf" )
+#load shapefile data################################
+source("code/Shapefiles_load.R",verbose=FALSE)
+#End load shapefile data############################
 
 #HbS################################################
 source("code/HbS_model_fit.R",verbose=FALSE)
