@@ -1230,8 +1230,8 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     #                     "Mali" = "#42426f", "Burkina Faso"=  "#377eb8", "Ivory Coast" = "#03b4cc", "Ghana"=  "#03b4cd", "Cameroon" = "#e41a1c",
     #                     "DRC" = "#2E8B57", "Malawi" = "#a65628", "Tanzania" = "#ee5c42", "Kenya" = "#ff7f00","Nigeria"="#2f4f4f","Ethiopia"="#ee5500") 
     #only for mycountries <- c("Mali", "Tanzania", "DRC", "Gambia","Ghana","Ethiopia")
-    region_colors <- c("Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
-    region_ltype <- c("Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
+    region_colors <- c("All" ="grey35", "Senegambea" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
+    region_ltype <- c("All"="solid","Senegambea" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
    } else {#regional or rob models
        region_colors <- c(
          "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
@@ -1247,11 +1247,15 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   
   #define region and country levels for wrap plots
   rlevels <- c("All","West Africa","East Africa")
-  clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
-  
-  plot1 <- ggplot(data = prediction, aes(x = x, y = y,group=region)) + 
-    geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N)), shape = 1, color = "black", alpha = 0.75) + 
+  if(senegambea == TRUE){
+    clevels <- c("All","Senegambea","Mali","DRC","Tanzania")
+  } else {
+    clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
+  }
+  plot1 <- ggplot(data = prediction, aes(x = x, y = y,group=region))+#,fill=region)) + 
+  #  geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) + 
     labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency")) +
+   # scale_fill_manual(values = region_colors) +  # Assign fill colors to regions
     # coord_fixed(ratio = 0.35, xlim = c(0, max(finaloutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) + 
     scale_size_continuous(range = c(1, 5)) +  
     theme(legend.position = "none", text = element_text(family = "serif"))
@@ -1260,32 +1264,41 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   if (mymodname == 'country') {
     #multiple lines together
     plot1b <- plot1 +
-      geom_line(data = prediction, aes(x = x, y = y,color=region,group=region),linewidth=1.5) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_line(data = prediction, aes(x = x, y = y,color=country,group=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
-      geom_line(data = prediction, aes(x = x, y = y,color=region),linewidth=1.5) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_line(data = prediction, aes(x = x, y = y,color=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey", alpha = 0.2) +
       facet_wrap(~factor(country,levels=clevels), ncol = length(unique_regions),scales = 'free')+ 
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors) 
   } else {#regional or rob models
     #multiple lines together
     plot1b <- plot1 +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=region,group=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey",alpha=0.2) +
       facet_wrap(~factor(region,levels=rlevels), ncol = length(unique_regions),scales='free')+
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
 }
     for (k in 1:length(unique_regions)){
       plot1c <- ggplot(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region)) + 
-        geom_point(data = myoutput[myoutput$country==unique_regions[k],], aes(x = HbS, y = Y/N, size = sqrt(N)), shape = 1, color = "black", alpha = 0.75) + 
+        geom_point(data = myoutput[myoutput$country==unique_regions[k],], aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) + 
         labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency"),title = paste(unique_regions[k])) +
+        scale_fill_manual(values = region_colors) +  # Assign fill colors to regions
         # coord_fixed(ratio = 0.35, xlim = c(0, max(finaloutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) + 
         scale_size_continuous(range = c(1, 5)) +  
         geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2,linewidth=NA) +
@@ -1329,16 +1342,16 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = country, fill = country)) +
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), color = country), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, color = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5) +
+      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Country"
   } else {#regional or rob
     #regionoutput <- myoutput[myoutput$region != "All", ]
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = region, fill = region))+
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), color = region), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, color = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) +
+      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Region"
   }
 
