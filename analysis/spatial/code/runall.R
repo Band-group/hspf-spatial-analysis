@@ -71,7 +71,7 @@ source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
 
 #save the process duration in a csv file
 },replications=1)
-write.csv(tm1,"timerunall.csv",row.names = FALSE)
+write.csv(tm1,"output/timerunall.csv",row.names = FALSE)
 
 #stop R when the code ends
 q(save = "no")
