@@ -3,11 +3,14 @@
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("raster","sf","stats", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
                       "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","ggdist","inlabru","mapproj",
-                      "parallelly","parallel","foreach","dplyr","tictoc")
+                      "parallelly","parallel","foreach","dplyr","rbenchmark")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
 
+#compute and save duration of the process
+tm1 <- rbenchmark::benchmark(
+  {
 source("code/Priors.R",verbose=FALSE)
 source("code/Functions.R",verbose=FALSE)
 
@@ -47,9 +50,6 @@ ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
 ################################################################################
 ################################################################################
 
-#start timer to compute time to run session
-tic()
-
 #load shapefile data################################
 source("code/Shapefiles_load.R",verbose=FALSE)
 #End load shapefile data############################
@@ -66,7 +66,12 @@ source("code/Pf_model_fit.R",verbose=FALSE)#aspatial Pf models
 source("code/Pf_plots.R",verbose=FALSE)#pf plots
 source("code/Pf_model_spatial.R",verbose=FALSE)#spatial Pf models
 source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
-#About 190mn with AMD 3975WX 32 cores################
+#About 3h10mn with AMD 3975WX 32 cores################
 #End Pf#############################################
 
-toc()#provide time used to run the code
+#save the process duration in a csv file
+},replications=1)
+write.csv(tm1,"timerunall.csv",row.names = FALSE)
+
+#stop R when the code ends
+q(save = "no")
