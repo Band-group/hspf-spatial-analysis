@@ -1,8 +1,8 @@
 
 #install packages
-source( 'code/functions.R' )
+source( 'code/Functions.R' )
 install.prerequisites()
-source( 'code/priors.R' ) # Moved here so there is one definition
+source( 'code/Priors.R' ) # Moved here so there is one definition
 
 ################################################################################
 #Initialization#################################################################
