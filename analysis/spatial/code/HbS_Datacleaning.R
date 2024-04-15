@@ -3,7 +3,11 @@ message("Start HbS_Datacleaning.R")
 
 library( argparse )
 library( tidyverse )
-library(sp)
+library( sp )
+
+mkdir_recursive(
+  sprintf( "output/cleaned" )
+)
 
 echo <- function( message, ... ) {
   cat( sprintf( message, ... ))
@@ -18,31 +22,31 @@ parse_arguments = function() {
     '--piel_et_al',
     type = "character",
     help = "CSV file from piel et al data",
-    default = "github/input/HbS_survey.csv"
+    default = "input/HbS_survey.csv"
   )
   parser$add_argument(
     '--extended',
     type = "character",
     help = "CSV file from extended data",
-    default = "github/input/HbSgooglesheet.csv"
+    default = "input/HbSgooglesheet.csv"
   )
   parser$add_argument(
     '--naturalearthdata',
     type = "character",
     help = ".Rdata file from natural earth, for sanity check",
-    default = "data/naturalearthdata.Rdata"
+    default = "geodata/naturalearthdata.Rdata"
   )
   parser$add_argument(
     '--output',
     type = "character",
     help = "CSV file to write data to",
-    default = "results/cleaned/cleanHbSdata.csv"
+    default = "output/cleaned/cleanHbSdata.csv"
   )
   parser$add_argument(
     '--output_pdf',
     type = "character",
     help = "PDF file to plot to",
-    default = "results/cleaned/HbScleaned.pdf"
+    default = "output/cleaned/HbScleaned.pdf"
   )
   return( parser$parse_args() )
 }
@@ -50,8 +54,8 @@ parse_arguments = function() {
 args = parse_arguments()
 
 #load functions
-echo( "++ Welcome to HbS_Datacleaning.R")
-source('github/scripts/functions.R')
+echo( "++ Initialisation of HbS_Datacleaning.R")
+source('code/Functions.R')
 
 echo( "++ Loading Piel et al survey data from %s...\n", args$piel_et_al )
 piel_et_al = load.piel_et_al_data( args$piel_et_al )
@@ -162,8 +166,8 @@ echo( "++ Generating sanity-check plot in \"%s\"...\n", args$output_pdf )
   mycountries = africa[ tmp, ]
   excluded <- tmp[ is.na( sp::over( tmp, sp::geometry( mycountries ))), ]
   included <- tmp[ !is.na( sp::over( tmp, sp::geometry( mycountries ))), ]
-  pdf( file = args$output_pdf, width = 12, height = 6 )
-  plot( world, col = 'grey60' )
+  pdf( file = args$output_pdf, width = 18, height = 8)
+  plot( world, col = 'grey85' )
   plot( mycountries, add=TRUE, col = 'grey30' )
   plot( excluded, col='red', pch='+', cex=3, add = TRUE )
   plot( included, col='black', pch=19, cex=1, add=TRUE )
@@ -178,5 +182,5 @@ echo( "++ Generating sanity-check plot in \"%s\"...\n", args$output_pdf )
   )
 }
 
-echo( "++ Success!  Thanks for using HbS_Datacleaning.R")
+echo( "++ Great success! End of HbS_Datacleaning.R")
 

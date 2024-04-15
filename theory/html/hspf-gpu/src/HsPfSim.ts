@@ -156,19 +156,18 @@ export default class HsPfSim {
 
 					// test for overlap with barrier
 					var weight = nbhd[i].weight ;
-
-					
-					//for( var j: u32 = 0; j < parameters[3]; j++ ) {
-					//	if(
-					//		segments_overlap(
-					//			barriers[j].xy, barriers[j].zw,
-					//			vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
-					//		)
-					//	) {
-					//		weight *= 0.1 ;
-					//	}
-					//}
-					
+					/*
+					for( var j: u32 = 0; j < parameters[3]; j++ ) {
+						if(
+							segments_overlap(
+								barriers[j].xy, barriers[j].zw,
+								vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
+							)
+						) {
+							weight *= 0.1 ;
+						}
+					}
+					*/
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
 						denominator += weight * (
@@ -182,7 +181,7 @@ export default class HsPfSim {
 							+ (pfalt * s * fitness[1][3])
 						) ;
 					}
-					// plot of circle.
+					// plot of a simple circle.
 					//if( local_id[0] == 0 && local_id[1] == 0 ) {
 					//	pfsanew[ idx ] = f32(x % 16)/16.0 ;
 					//}
@@ -349,7 +348,7 @@ export default class HsPfSim {
 					if( count > 100 ) {
 						break ;
 					}
-					this.hs.set([this.hs.height - y,x], 1 ) ;
+					this.hs.set([y,x], 1 ) ;
 					count++ ;
 				}
 			}

@@ -85,11 +85,39 @@ get_prediction_locations = function(
   ))
 }
 
+diagnose.plot <- function(stackobject,prednames,p1,p2,p3){
+  cowplot::plot_grid(stackobject[[prednames[1] ]], stackobject[[ prednames[2] ]], stackobject[[ prednames[3] ]],
+                     p1, p2, p3,
+                     labels = letters[1:6],
+                     label_size = 22,
+                     ncol = 3,
+                     align = c("none")
+  )
+}
+
+generate_raster_maps <- function(
+   predictions,saveraster=FALSE,saverastername = saverastername,savepath='output/HbSraster/')
+  {
+  library(raster)
+  mask <- predictions$prediction_locations$mask
+  pred_val <- getValues(mask)
+  w <- is.na(pred_val)
+  myraster <- list()
+   for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
+    pred_val[!w] <- round( predictions[[j]],9)
+    myraster[[j]] <- setValues(mask, pred_val)
+    if(saveraster==TRUE){
+    writeRaster(myraster[[j]], paste0(savepath,saverastername,"_",j,'.tif'), overwrite=TRUE)
+    }
+   }
+  message( paste0("++ Raster maps saved as ",savepath,saverastername,"..." ))
+  return(myraster)  
+}
+
 generate_diagnostic_plot <- function(
     xyt,
     modelfit,
     predictions,
-    prediction_locations,
     HbSPiel,
     features = list(
       africa = africa_sf,
@@ -110,30 +138,19 @@ generate_diagnostic_plot <- function(
       #t6 = "HbS | Predicted coefficient of variation"
     ),
     prednames = c("mean", "sd", "iqr" ),
-    mainnames = list("PR mean","PR sd","PR 25th pct","PR 75th pct","IQR"),
-    popmask
+    popmask,
+    saveraster,#indicate if you want (TRUE) to save or not HbS raster maps
+    saverastername = 'HbS'#prefix name of raster maps to be saved
 ) {
   library(dplyr)
   library(ggplot2)
-  
-  mask = prediction_locations$mask
-  NAvalue(mask)=-9999#some raster might have -9999 for NA
-  #mask <- aggregate(mask, fact=2)#to ease computation we aggregate covariate
-  #mask <- mask(mask, river, inverse = T )#not needed here only for visual purpose
-  mask <- mask(mask, lake, inverse = T )
-  pred_val <- getValues(mask)
-  w <- is.na(pred_val)
-  pred_locs <- xyFromCell(mask,1:ncell(mask))
-  pred_locs <- pred_locs[!w,]
-  colnames(pred_locs) <- c('longitude','latitude')
-  
   #predictions on transect across Africa
   # Define the coordinates for the transect (here, a simple straight line)
   transect_sf <- matrix(c(39.3, -14.3, -11, 25), ncol = 2) %>%
     st_linestring() %>%
     st_sfc() %>%
     st_sf() %>%
-    st_set_crs(st_crs(africa_sf))
+    st_set_crs(st_crs(features$africa))
   #transect_sf <- st_intersection(transect_sf, st_as_sf(myarea))
   num_points <- 100 # Number of points to sample
   transect_pt <- st_sample(transect_sf, size = num_points,type='regular',exact=FALSE)
@@ -147,21 +164,12 @@ generate_diagnostic_plot <- function(
   #     coord_sf() +
   #   theme_minimal()
   # 
-  #Mapping between meshes and continuous space
-  A.pred <- inla.spde.make.A( mesh = modelfit$mesh, loc=pred_locs )
-  #A.pred.transect <- inla.spde.make.A( mesh = modelfit$mesh, loc=transect_xy)
-  
-  out<-list()
-  for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
-    pred_val[!w] <- round( predictions[[j]],9)
-    out[[j]] <- setValues(mask, pred_val)
-    # writeRaster(out[[j]], paste0("output/tif/prevalence_","nocov","/",prednames[[j]],'.tif'), overwrite=TRUE)
-  }
-  b <- brick(out)
-  
+  myraster <- generate_raster_maps(predictions=predictions,saveraster=saveraster,saverastername = saverastername)
+  b <- brick(myraster)
   b <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- b*popmask
+  names(bmask) <- names(b)
   
   # make plots of each map thing, popmasked and not
   pall <- stackplots(b, features, titles, color.scheme )
@@ -231,14 +239,14 @@ generate_diagnostic_plot <- function(
     piel = raster::extract(HbSPiel,transect_xy),
     ours = raster::extract(b[['mean']],transect_xy)
   )
-  aggregated_mask = aggregate(mask, fact = 5 )
-  grid_val <- getValues(mask)
+  aggregated_mask = aggregate(predictions$prediction_locations$mask, fact = 5 )
+  grid_val <- getValues(aggregated_mask)
   w <- is.na(grid_val)
-  grid_xy <- xyFromCell(mask,1:ncell(mask))
+  grid_xy <- xyFromCell(aggregated_mask,1:ncell(aggregated_mask))
   grid_xy <- grid_xy[!w,]
   colnames(grid_xy) <- c('longitude','latitude')
   grid_comparison = tibble(
-    type = "grid",
+    type = "grid (aggregated)",
     piel = raster::extract(HbSPiel, grid_xy ),
     ours = raster::extract(b[['mean']], grid_xy )
   )
@@ -277,24 +285,16 @@ generate_diagnostic_plot <- function(
   
   #plots
   #diagnose.plot <- cowplot::plot_grid(pall$mean,pall$sd,pall$iqr,p1,p2,p3,
-  diagnose.plot <- cowplot::plot_grid(
-    pall[[prednames[1] ]], pall[[ prednames[2] ]], pall[[ prednames[3] ]],
-    p1, p2, p3,
-    labels = letters[1:6],
-    label_size = 22,
-    ncol = 3,
-    align = c("none")
-)
 
-  diagnose.plot.mask <- cowplot::plot_grid(pallmask$mean,pallmask$sd,pallmask$iqr,p1,p2,p3,
-                                           labels = letters[1:6],
-                                           label_size = 22,ncol = 3,align = c("none"))
+  diagnose.plot.unmask <- diagnose.plot(pall,prednames,p1,p2,p3)
+  diagnose.plot.mask <- diagnose.plot(pallmask,prednames,p1,p2,p3)
   return( list(
-    unmasked = diagnose.plot,
+    unmasked = diagnose.plot.unmask,
     masked = diagnose.plot.mask,
     in.sample.summary = in.sample.summary,
     xytdf = xytdf,
-    comparison = bind_rows( grid_comparison, comparison )
+    comparison = bind_rows( grid_comparison, comparison ),
+    meanmask = bmask[[prednames[1] ]]
   ))
 }
 
@@ -461,8 +461,10 @@ runinla.binomial <- function(myformula,stk,spde,n,covariate.prec=0.001,intercept
                      control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
                      control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
                      control.fixed = mycontrol.fixed,
+                     control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                      verbose = FALSE) # can include verbose=TRUE to see the log of the model runs
-    inlafit <- inla.rerun(inlafit)#to improve cpo computation
+    #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
+    inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
     
     return(inlafit)
 }
@@ -490,9 +492,17 @@ fit_inla_binomial_model <- function(
   );
   if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt@data), dim(A)[1], dim(A)[2] ))
   if( verbose ) message( "++ Creating SPDE object..." )
+  
+  if ('Pfsanonref' %in% colnames(xyt@data)) {
+  Y = round(xyt@data$Pfsanonref,0)
+  N = round(xyt@data$Pfsanonref+xyt@data$Pfsaref,0)
+    } else {
+      Y = round(xyt@data$S,0)
+      N = round(xyt@data$N,0)
+  }
   stk <- makeinlastack.binomial(
-    Y = round(xyt@data$S,0),
-    n = round(xyt@data$N,0),
+    Y = Y,
+    n = N,
     A = A,
     spde = spde
   ) #if covariate [dataframe], add ",covariate=..."
@@ -503,7 +513,7 @@ fit_inla_binomial_model <- function(
     myformula,
     stk,
     spde,
-    n=round(xyt$N,0),
+    n=N,
     intercept.prec = priors$intercept.prec,
     covariate.prec = priors$covariate.prec
   )#by default: [covariate.prec=0.001]; [intercept.prec=0.0]
@@ -885,6 +895,110 @@ predict_values <- function(
   
   return(pred)
 }
+
+#Fig1 (minimum) plot
+fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
+  #Fig 1a
+  pfpt$lon <- pfpt@coords[,1]
+  pfpt$lat <- pfpt@coords[,2]
+  if ('Pfsa1:nonref' %in% colnames(pfpt@data)) {
+  pfpt$Pf <- round(pfpt$`Pfsa1:nonref`/pfpt$N,2)
+  }
+  if ('Pfsanonref' %in% colnames(pfpt@data)) {
+    pfpt$Pf <- round(pfpt$`Pfsanonref`/pfpt$N,2)
+  }
+  if(is.null(allele)){
+    legendname <- "Pfsa1+ prevalence"
+  } else {legendname <-paste0(allele,"+ prevalence")
+  }
+  pfpt$logN <- log(pfpt$N)
+  pfpt <- st_as_sf(pfpt)
+  pfpt <- pfpt[border,]
+  pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
+  mys <- sqrt(pfpt$N)
+  myquant <- c(1,2,4,16,40)
+  fig1a <- ggplot(pfpt) +
+    geom_sf(data = border, fill = "white", col = 'grey60') +
+    geom_sf(data = pfpt, aes(size = sqrt(N), fill = Pf), color= 'transparent',alpha = 0.4, shape = 21) +
+    scale_size_continuous(range=c(0.05,12),breaks = myquant,
+                          limits = c(0, max(mys)),
+                          name="Sample size (square root)",
+                          guide=guide_legend(title.position = "top")) +
+    scico::scale_fill_scico(name = legendname,palette = scicopalette,
+                            guide = guide_legend(title.position = "top"))+
+    theme_void(14) +
+    theme(legend.box = "vertical",
+          legend.direction = "horizontal",
+          legend.position = c(0.15, 0.18),
+          legend.justification = c(0, 1))+
+    guides(fill = guide_legend(override.aes = list(alpha = 1,size=4)),
+           size = guide_legend(override.aes = list(alpha = 1,color='black')))
+  # Save the modified plot
+  if(is.null(allele)){
+  ggsave(file=paste0(savepath,"/fig1a.pdf"),fig1a, width = 8, height = 8)
+  ggsave(file=paste0(savepath,"/fig1a.svg"),fig1a, width = 8, height = 8)
+  } else {
+    ggsave(file=paste0(savepath,"/",allele,"_fig1a.pdf"),fig1a, width = 8, height = 8)
+    ggsave(file=paste0(savepath,"/",allele,"_fig1a.svg"),fig1a, width = 8, height = 8)
+    
+  }
+}
+
+fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalette,savepath) {
+    #Fig 1a
+    fig1a.plot(pfpt,border,scicopalette,savepath,allele=NULL)
+    #Fig1b
+    wsf <- st_as_sf(xyt)
+    wsf$Prevalence <- wsf$S/wsf$N
+    wsf$Samples <- log(wsf$N)
+    wsf_af <- wsf[border,]
+    myshape <- c("original" = 21, "extended" = 23)
+    fig1b <- ggplot() +
+      geom_sf(data = border, fill = NA, col = 'grey60') +
+      geom_sf(data = wsf_af, aes(size = sqrt(N), fill = Prevalence, shape = Dataset),
+              color='grey35', alpha = 0.85) +
+      scale_size_continuous(range = c(0.25, 14), name = "Sample size (square root)") +
+      scale_fill_scico(name = paste0("HbS prevalence"),palette = scicopalette)+
+      scale_shape_manual(values = myshape, name = "HbS dataset") +
+      theme_void(14) +
+      theme(legend.box = "vertical",
+            legend.direction = "horizontal",
+            legend.position = c(0.15, 0.36),
+            legend.justification = c(0, 1),
+            legend.title = element_text(vjust = 0.5)) +
+      guides(
+        shape = guide_legend(order = 1,title.position="top",override.aes = list(alpha = 1, size = 4,color='grey35')),
+        fill = guide_legend(order = 3,title.position="top",override.aes = list(shape=21,size = 4,alpha=1,color='grey35')),
+        size = guide_legend(order = 2,title.position="top",override.aes = list(fill=NA,alpha=1,color='grey35'))
+      )
+    ggsave(file=paste0(savepath,"/fig1b.pdf"),fig1b,width = 8, height = 8)
+    ggsave(file=paste0(savepath,"/fig1b.svg"),fig1b, width = 8, height = 8)
+    
+    #Fig 1c
+    HBsdf <- as.data.frame(hbsraster, xy=TRUE) %>% na.omit()
+    HBsdf <-data.frame(HBsdf)
+    names(HBsdf) <- c("x","y","value")
+    
+    fig1c <- ggplot()+ geom_sf(data=border,fill="grey85")+
+      geom_raster(data=HBsdf,aes(x, y,fill=value))+
+      scico::scale_fill_scico(palette = scicopalette,breaks = scales::breaks_extended(10))+ 
+      geom_sf(data=border,fill='NA',col="grey")+
+      geom_sf(data=river,fill='deepskyblue',col="deepskyblue3")+
+      geom_sf(data=lake,fill='deepskyblue',col="deepskyblue3")+
+      ylim(-36,extent(border)[4])+ 
+      guides(fill=guide_legend(title="Predicted mean\nHbS prevalence"))+
+      theme_void(14) + theme(legend.position=c(0.15,0.25),
+                                              legend.key.width = unit(1,'cm'),
+                                              #legend.title =element_blank(),
+                                              legend.direction = "vertical",
+                                              plot.title=element_text(hjust=0.5))
+    ggsave(paste0(savepath,"/fig1c.pdf"),fig1c,width = 8,height = 8)
+    ggsave(paste0(savepath,"/fig1c.svg"),fig1c,width = 8,height = 8)
+    
+     return(message(paste0('Manuscript fig.1a,1b,1c (based on ',datasource, ') saved in ', savepath)))
+  }
+  
+
 #HbS Pop masking################################################################
 process_model <- function(l) {
   #load the output unmasked raster maps obtained from the model
@@ -986,7 +1100,7 @@ process_model <- function(l) {
           legend.justification = c(0, 1))  # Legend placement
   ggsave(paste0("output/pdf/fig1HbSmean", allnames[l], "_popmask.pdf"), fig1l,
          dpi = 150, width = 8, height = 8)
-  ggsave(paste0("output/svg/fig1HbSmean", allnames[l], "_popmask.svg"), fig1l,
+  ggsave(paste0("output/pdf/fig1HbSmean", allnames[l], "_popmask.svg"), fig1l,
           width = 8, height = 8)
   
   # #only CI for comparison
@@ -1022,7 +1136,7 @@ process_model <- function(l) {
           legend.justification = c(0, 1))  # Legend placement
   ggsave(paste0("output/pdf/fig1HbSiqr", allnames[l], "_popmask.pdf"), fig1liqr,
          dpi = 150, width = 8, height = 8)
-  ggsave(paste0("output/svg/fig1HbSiqr", allnames[l], "_popmask.svg"), fig1liqr,
+  ggsave(paste0("output/pdf/fig1HbSiqr", allnames[l], "_popmask.svg"), fig1liqr,
          width = 8, height = 8)
 }
 #Pf regression functions
@@ -1041,7 +1155,7 @@ convert_scientific_to_numeric <- function(x) {
   }
 }
 #define plot function for manuscript
-plot.hbs <- function(finaloutput,mymodname) {
+plot.hbs <- function(finaloutput,mymodname,savepath) {
   library(ggplot2)
   #keep regions and all
   myoutput <- finaloutput[(finaloutput$model==mymodname | finaloutput$model=='All'),]
@@ -1116,8 +1230,8 @@ plot.hbs <- function(finaloutput,mymodname) {
     #                     "Mali" = "#42426f", "Burkina Faso"=  "#377eb8", "Ivory Coast" = "#03b4cc", "Ghana"=  "#03b4cd", "Cameroon" = "#e41a1c",
     #                     "DRC" = "#2E8B57", "Malawi" = "#a65628", "Tanzania" = "#ee5c42", "Kenya" = "#ff7f00","Nigeria"="#2f4f4f","Ethiopia"="#ee5500") 
     #only for mycountries <- c("Mali", "Tanzania", "DRC", "Gambia","Ghana","Ethiopia")
-    region_colors <- c("Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
-    region_ltype <- c("Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
+    region_colors <- c("All" ="grey35", "Senegambea" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
+    region_ltype <- c("All"="solid","Senegambea" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
    } else {#regional or rob models
        region_colors <- c(
          "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
@@ -1133,11 +1247,15 @@ plot.hbs <- function(finaloutput,mymodname) {
   
   #define region and country levels for wrap plots
   rlevels <- c("All","West Africa","East Africa")
-  clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
-  
-  plot1 <- ggplot(data = prediction, aes(x = x, y = y,group=region)) + 
-    geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N)), shape = 1, color = "black", alpha = 0.75) + 
+  if(senegambea == TRUE){
+    clevels <- c("All","Senegambea","Mali","DRC","Tanzania")
+  } else {
+    clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
+  }
+  plot1 <- ggplot(data = prediction, aes(x = x, y = y,group=region))+#,fill=region)) + 
+  #  geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) + 
     labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency")) +
+   # scale_fill_manual(values = region_colors) +  # Assign fill colors to regions
     # coord_fixed(ratio = 0.35, xlim = c(0, max(finaloutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) + 
     scale_size_continuous(range = c(1, 5)) +  
     theme(legend.position = "none", text = element_text(family = "serif"))
@@ -1146,47 +1264,56 @@ plot.hbs <- function(finaloutput,mymodname) {
   if (mymodname == 'country') {
     #multiple lines together
     plot1b <- plot1 +
-      geom_line(data = prediction, aes(x = x, y = y,color=region,group=region),linewidth=1.5) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_line(data = prediction, aes(x = x, y = y,color=country,group=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
-      geom_line(data = prediction, aes(x = x, y = y,color=region),linewidth=1.5) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_line(data = prediction, aes(x = x, y = y,color=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey", alpha = 0.2) +
       facet_wrap(~factor(country,levels=clevels), ncol = length(unique_regions),scales = 'free')+ 
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors) 
   } else {#regional or rob models
     #multiple lines together
     plot1b <- plot1 +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=region,group=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey",alpha=0.2) +
       facet_wrap(~factor(region,levels=rlevels), ncol = length(unique_regions),scales='free')+
+      scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
 }
     for (k in 1:length(unique_regions)){
       plot1c <- ggplot(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region)) + 
-        geom_point(data = myoutput[myoutput$country==unique_regions[k],], aes(x = HbS, y = Y/N, size = sqrt(N)), shape = 1, color = "black", alpha = 0.75) + 
+        geom_point(data = myoutput[myoutput$country==unique_regions[k],], aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) + 
         labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency"),title = paste(unique_regions[k])) +
+        scale_fill_manual(values = region_colors) +  # Assign fill colors to regions
         # coord_fixed(ratio = 0.35, xlim = c(0, max(finaloutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) + 
         scale_size_continuous(range = c(1, 5)) +  
         geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2,linewidth=NA) +
         geom_line(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region),linewidth=1.5) +
         scale_color_manual(values = region_colors) +  # Assign line colors to regions
         theme(legend.position = "none", text = element_text(family = "serif"))
-      ggsave(paste("output/pdf/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".pdf", sep = ""), plot1c,width=5,height=5)
-      ggsave(paste("output/svg/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".svg", sep = ""), plot1c,width=5,height=5)
+      ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".pdf", sep = ""), plot1c,width=5,height=5)
+      ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".svg", sep = ""), plot1c,width=5,height=5)
     }
   
   # Save the plots
   #save one plot per all countries together
-  ggsave(filename = paste0("output/pdf/HbSeffect",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1a, width = mywidth, height = 5)
-  ggsave(filename = paste0("output/svg/HbSeffect",mymodname,"_",Pfalleles[l],".svg"), plot = plot1a, width = mywidth, height = 5)
-  ggsave(filename = paste0("output/pdf/HbSeffectmultiple",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1b, width = 5, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffect",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1a, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffect",mymodname,"_",Pfalleles[l],".svg"), plot = plot1a, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/HbSeffectmultiple",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1b, width = 5, height = 5)
   
   # Create the second plot
   plot2 <- ggplot(myoutput, aes(x = obs, y = pred)) + 
@@ -1203,10 +1330,10 @@ plot.hbs <- function(finaloutput,mymodname) {
     plot2 <- plot2 + facet_wrap(~factor(region,levels=rlevels), ncol = length(unique_regions))
   } 
   # Save the plot
-  ggsave(filename = paste0("output/pdf/obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plot2, width = mywidth, height = 5)
+  ggsave(filename = paste0(savepath, "/obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plot2, width = mywidth, height = 5)
   library(gridExtra)
   plotall <- grid.arrange(plot1, plot2, ncol=1)
-  ggsave(filename = paste0("output/pdf/HbSeffect_and_obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plotall, width = mywidth, height = 10)
+  ggsave(filename = paste0(savepath, "/HbSeffect_and_obspred",mymodname,"_",Pfalleles[l],".pdf"), plot = plotall, width = mywidth, height = 10)
   
   # Plot for all regions only
   # Create a color palette for different regions
@@ -1215,16 +1342,16 @@ plot.hbs <- function(finaloutput,mymodname) {
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = country, fill = country)) +
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), color = country), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, color = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5) +
+      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Country"
   } else {#regional or rob
     #regionoutput <- myoutput[myoutput$region != "All", ]
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = region, fill = region))+
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), color = region), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, color = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) +
+      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Region"
   }
 
@@ -1253,8 +1380,8 @@ plot.hbs <- function(finaloutput,mymodname) {
   } else {
     plot3 <- plot3 + theme(legend.position = "none")
   }
-  ggsave(filename = paste0("output/pdf/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
-  ggsave(filename = paste0("output/svg/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(savepath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(savepath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
 }
 #Pf regression rob
 spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
@@ -1274,11 +1401,13 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
                    Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
                    control.predictor = list(compute = TRUE, A = inla.stack.A(stk.z) ), # compute gives you the marginals of the linear predictor
                    # control.compute = list(config = TRUE, return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                   control.compute = list(return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                   control.compute = list(return.marginals.predictor=TRUE,waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                   control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                    #list(int.strategy = "grid", diff.logdens = 4),#to improve CPO computation
                    verbose = FALSE,num.thread=1#,
                    #control.fixed = list(mean.intercept=-10, prec.intercept=8)
   )
+  inlaspat <- inla.rerun(inlaspat)
   #in case some infinite values are returned by inla
   inlaspat$marginals.fitted.values[[i]][is.infinite(inlaspat$marginals.fitted.values[[i]])] <- 0.0000000001
   predspat <- data.frame(
@@ -1287,6 +1416,8 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
     region = as.factor("All"),
     obs = mydf$Y[i]/mydf$n[i],
     pred = inla.emarginal(inverse.logit, inlaspat$marginals.fitted.values[[i]]),
+    cpo = sum(log(inlaspat$fit$cpo$cpo + 1), na.rm = TRUE),
+    waic = inlaspat$waic$waic,
     intercept=round(inlaspat$summary.fixed[1,1:2],5),
     HbS_hat=data.frame(round(inlaspat$summary.fixed[-1,1:2],5)),
     region_hat=NA,
@@ -1324,12 +1455,14 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
                   family = "binomial", # which family the data comes from
                   Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
                   control.predictor = list(compute = TRUE), # compute gives you the marginals of the linear predictor
-                  # control.compute = list(config = TRUE, return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                  control.compute = list(return.marginals.predictor=TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                  control.compute = list(return.marginals.predictor=TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+                  control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
                   #list(int.strategy = "grid", diff.logdens = 4),#to improve CPO computation
                   verbose = FALSE,num.thread=1#,
                   #control.fixed = list(mean.intercept=-10, prec.intercept=8)
   )
+  inlasin <- INLA::inla.cpo( inlasin )#to improve cpo computation
+
   #summary(inlasin)
   #in case some infinite values are returned by inla
   inlasin$marginals.fitted.values[[i]][is.infinite(inlasin$marginals.fitted.values[[i]])] <- 0.0000000001
@@ -1341,6 +1474,8 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     obs = countrydf$Y[i]/countrydf$n[i],
     #pred = inverse.logit(coeffs[1,1]+coeffs['HbS',1]*countrydf$HbS[i]),
     pred = inla.emarginal(inverse.logit, inlasin$marginals.fitted.values[[i]]),
+    cpo = sum(log(inlasin$fit$cpo$cpo + 1), na.rm = TRUE),
+    waic = inlasin$waic$waic,
     intercept=round(coeffs[1,1:2],5),
     HbS_hat=data.frame(round(coeffs['HbS',1:2],5)),
     region_hat=NA,
@@ -1356,3 +1491,4 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     row.names=NULL)
   return(mypred)
 }
+
