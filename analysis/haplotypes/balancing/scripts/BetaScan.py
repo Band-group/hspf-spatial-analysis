@@ -635,8 +635,6 @@ def main():
                     if args.fold:
                         B = calc_beta_folded(SNPSet, freqCount/sample_n, sample_n, args.p)
                     elif not args.fold and not args.B2:
-                        #print( sI, endI )
-                        #print( calc_d(SNPSet[:, 0]/SNPSet[:, 1], freqCount/sample_n, args.p))
                         B = calc_beta_unfolded(SNPSet, freqCount/sample_n, sample_n, args.p)
                     elif args.B2:
                         B = calc_beta_2(SNPSet, args.DivTime, sample_n, freqCount/sample_n, args.p)
@@ -672,9 +670,23 @@ def main():
                     B = 0
                     T = 0
                 if not args.std:
-                    output.write(str(loc)+"\t"+str(round(B, 6))+"\n")  # Remove thetas
+                    output.write(
+                        "%d\t%d\t%d\t%.3f\t%.6f\n" % (
+                            loc,
+                            freqCount, sample_n,
+                            freqCount / sample_n,
+                            B
+                        )
+                    )
                 else:
-                    output.write(str(loc)+"\t"+str(round(B, 6))+"\t"+str(round(T, 6))+"\n")
+                    output.write(
+                        "%d\t%d\t%d\t%.3f\t%.6f\t%.6f\n" % (
+                            loc,
+                            freqCount, sample_n,
+                            freqCount / sample_n,
+                            B, T
+                        )
+                    )
             elif freq > 1.0 or freq < 0:
                 print(sys.exit("Error: Input file contains SNP of invalid frequency on line "+str(snp_i)+"."))
             elif freq < 1.0-args.m and freq > args.m and sample_n <= 3:

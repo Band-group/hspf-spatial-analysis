@@ -108,6 +108,30 @@ regions = {
 	}
 }
 
+countries = [
+	"Gambia",
+	"Senegal",
+#	"Guinea",
+#	"Mauritania",
+#	"Cote_dIvoire",
+	"Mali",
+#	"Burkina_Faso",
+	"Ghana",
+	"Benin",
+#	"Nigeria",
+#	"Gabon",
+	"Cameroon",
+	"Democratic_Republic_of_the_Congo",
+#	"Sudan",
+#	"Uganda",
+	"Malawi",
+	"Tanzania",
+#	"Mozambique",
+	"Kenya",
+#	"Ethiopia",
+#	"Madagascar
+]
+
 wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
 	Ne = '[0-9]+'
@@ -121,8 +145,12 @@ rule all:
 		samples = "outputs/pf7/relate/input/relate_input.sample",
 		relate = expand( "outputs/pf7/relate/output/pf7.relate.{chromosome}.Ne=100000.mut", chromosome = chromosomes ),
 		regions = expand( "outputs/pf7/relate/input/{region}.shapeit.gz", region = regions.keys() ),
-		popsize = expand( "outputs/pf7/relate/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.popsize.pdf", chromosome_or_region = chromosomes, Ne = [ "100000" ])
-
+		popsize = expand( "outputs/pf7/relate/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.popsize.pdf", chromosome_or_region = chromosomes, Ne = [ "100000" ]),
+		betascan = expand(
+			"outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz",
+			window = ["5000", "10000" ],
+			p = [ "20", "50" ]
+		)
 
 rule filter_samples:
 	output:
@@ -504,7 +532,7 @@ rule estimate_pop_size:
 
 rule estimate_pop_size_joint:
 	output:
-		pdf = "outputs/pf7/relate/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.popsize.pdf"
+		pdf = "outputs/pf7/relate/popsize/pf7.relate.Ne={Ne}.popsize.pdf"
 	input:
 		anc = rules.run_relate.output.anc,
 		mut = rules.run_relate.output.mut,
@@ -639,7 +667,7 @@ rule create_betascan_file:
 
 rule run_betascan:
 	output:
-		tsv = "outputs/pf7/betascan/output/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv"
+		tsv = temp( "outputs/pf7/betascan/output/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv" )
 	input:
 		counts = rules.create_betascan_file.output.tsv
 	params:
@@ -660,6 +688,31 @@ rule run_betascan:
 		-p {wildcards.p} \
 		-o {output.tsv}
 	"""
+
+rule combine_betascan:
+	output:
+		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz"
+	input:
+		tsv = lambda w: (
+			expand(
+				rules.run_betascan.output.tsv,
+				chromosome = chromosomes,
+				country = countries,
+				window = [w.window],
+				p = [w.p]
+			)
+		)
+	params:
+		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv"
+	run:
+		f = input.tsv[0]
+		shell( "echo -e 'window\\tp\\tcountry\\tchromosome\\tposition\\tbeta' > {params.tsv}")
+		for chromosome in chromosomes:
+			for country in countries:
+				f = rules.run_betascan.output.tsv.format( chromosome = chromosome, country = country, window = wildcards.window, p = wildcards.p )
+				print( "++ Adding from file: %s" % f )
+				shell( """tail -n +2 {f} | awk '{{printf("{wildcards.window}\\t{wildcards.p}\\t{country}\\t{chromosome}\\t%s\\t%s\\n", $1, $2 )}}'>> {params.tsv}""" )
+		shell( "gzip {params.tsv}" )
 
 rule find_similar_freq_mutations:
 	output:
