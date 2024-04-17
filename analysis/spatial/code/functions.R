@@ -787,7 +787,7 @@ inla_exec<- function(allModelsList, i){
   if(result$ok==FALSE){
     result <- inla.cpo(result, force=FALSE)
   }
-  result_model <- data.frame(Model= as.character(formula), CPO=sum(log(result$cpo$cpo+1),na.rm=TRUE),
+  result_model <- data.frame(Model= as.character(formula), CPO=-1*mean(log(result$cpo+0.1),na.rm=TRUE),
                              WAIC= result$waic$waic,
                              DIC=result$dic$dic)
   setTxtProgressBar(mypb, i, title = "Model fit completed", label = i)
@@ -953,11 +953,12 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalet
     wsf$Samples <- log(wsf$N)
     wsf_af <- wsf[border,]
     myshape <- c("original" = 21, "extended" = 23)
+    myquantb <- c(5,10,100,200,400,600)
     fig1b <- ggplot() +
       geom_sf(data = border, fill = NA, col = 'grey60') +
       geom_sf(data = wsf_af, aes(size = sqrt(N), fill = Prevalence, shape = Dataset),
               color='grey35', alpha = 0.85) +
-      scale_size_continuous(range = c(0.25, 14), name = "Sample size (square root)") +
+      scale_size_continuous(range = c(0.25, 14),breaks = myquantb, name = "Sample size (square root)") +
       scale_fill_scico(name = paste0("HbS prevalence"),palette = scicopalette)+
       scale_shape_manual(values = myshape, name = "HbS dataset") +
       theme_void(14) +
@@ -1230,8 +1231,8 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     #                     "Mali" = "#42426f", "Burkina Faso"=  "#377eb8", "Ivory Coast" = "#03b4cc", "Ghana"=  "#03b4cd", "Cameroon" = "#e41a1c",
     #                     "DRC" = "#2E8B57", "Malawi" = "#a65628", "Tanzania" = "#ee5c42", "Kenya" = "#ff7f00","Nigeria"="#2f4f4f","Ethiopia"="#ee5500") 
     #only for mycountries <- c("Mali", "Tanzania", "DRC", "Gambia","Ghana","Ethiopia")
-    region_colors <- c("All" ="grey35", "Senegambea" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
-    region_ltype <- c("All"="solid","Senegambea" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
+    region_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
+    region_ltype <- c("All"="solid","Senegal-Gambia" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
    } else {#regional or rob models
        region_colors <- c(
          "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
@@ -1248,7 +1249,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   #define region and country levels for wrap plots
   rlevels <- c("All","West Africa","East Africa")
   if(senegambea == TRUE){
-    clevels <- c("All","Senegambea","Mali","DRC","Tanzania")
+    clevels <- c("All","Senegal-Gambia","Mali","DRC","Tanzania")
   } else {
     clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
   }
@@ -1416,7 +1417,7 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
     region = as.factor("All"),
     obs = mydf$Y[i]/mydf$n[i],
     pred = inla.emarginal(inverse.logit, inlaspat$marginals.fitted.values[[i]]),
-    cpo = sum(log(inlaspat$fit$cpo$cpo + 1), na.rm = TRUE),
+    cpo = -1*mean(log(inlaspat$fit$cpo+0.1), na.rm = TRUE),
     waic = inlaspat$waic$waic,
     intercept=round(inlaspat$summary.fixed[1,1:2],5),
     HbS_hat=data.frame(round(inlaspat$summary.fixed[-1,1:2],5)),
@@ -1474,7 +1475,7 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     obs = countrydf$Y[i]/countrydf$n[i],
     #pred = inverse.logit(coeffs[1,1]+coeffs['HbS',1]*countrydf$HbS[i]),
     pred = inla.emarginal(inverse.logit, inlasin$marginals.fitted.values[[i]]),
-    cpo = sum(log(inlasin$fit$cpo$cpo + 1), na.rm = TRUE),
+    cpo = -1*mean(log(inlasin$fit$cpo+0.1), na.rm = TRUE),
     waic = inlasin$waic$waic,
     intercept=round(coeffs[1,1:2],5),
     HbS_hat=data.frame(round(coeffs['HbS',1:2],5)),
