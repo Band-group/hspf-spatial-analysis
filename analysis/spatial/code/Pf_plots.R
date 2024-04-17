@@ -23,13 +23,12 @@ ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
 #Fig2 plots
 #Country maps
 tif_files <- list.files("output/HbSraster/", pattern = "\\.tif$", full.names = TRUE)
-pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Gambia","Ghana")
 #Options if we aggregate some West African countries############################
 if(senegambea==TRUE){
-  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Senegambea")
-    africa_sf$NAME <- ifelse(africa_sf$NAME %in% c('Senegal', 'Gambia', 'Guinea'), 'Senegambea', africa_sf$NAME)
+  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Senegal-Gambia")
+    africa_sf$NAME <- ifelse(africa_sf$NAME %in% c('Senegal', 'Gambia'), 'Senegal-Gambia', africa_sf$NAME)
 } else {
-  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Gambia","Ghana")
+  pfcountries <-  c("Mali","Tanzania","Dem. Rep. Congo","Gambia","Ghana","Senegal")
 }
 ################################################################################
 afsel_sf <- africa_sf[africa_sf$NAME %in% pfcountries,]
