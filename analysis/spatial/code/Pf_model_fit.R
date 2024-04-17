@@ -169,7 +169,7 @@ for (l in 1:length(Pfalleles)){
   #Option: aggregate countries with very few number of observation##############
   #Here we aggregate Gambia, Senegal, and Guinea
   if(senegambea==TRUE){
-  levels(mydf$Country)[levels(mydf$Country) %in% c('Senegal', 'Gambia', 'Guinea')] <- 'Senegambea'
+  levels(mydf$Country)[levels(mydf$Country) %in% c('Senegal', 'Gambia')] <- 'Senegal-Gambia'
   }
   #save descriptive information to be added in the manuscript
   datadescript <- data.frame(sampsize=nrow(xyt@data),
@@ -243,7 +243,7 @@ for (l in 1:length(Pfalleles)){
   
   ################################################################################
   #Fit single model per country of interest
-  mycountries <- c("Mali", "Tanzania", "DRC", "Senegambea")#"Ethiopia" not enough obs.
+  mycountries <- c("Mali", "Tanzania", "DRC", "Senegal-Gambia")#"Ethiopia" not enough obs.
   finaloutputc <- list()
   modname <- "country"
   for (j in 1:length(mycountries)){
