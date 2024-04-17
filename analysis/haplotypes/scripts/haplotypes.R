@@ -1,86 +1,50 @@
-library( argparse )
 library( tidyverse )
 library( rbgen )
+library( argparse )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
 }
 
-blank.plot = function( xlim = c(0,1), ylim = c(0,1), xlab = '', ylab = '', ... ) {
-	plot( 0, 0, xlim = xlim, ylim = ylim, col = 'white', xaxt = 'n', xlab = xlab, ylab = ylab, ... )
-}
-compute.ld <- function( haps, focus.i = 1:nrow(haps), variant.names = rownames( haps ) ) {
-    # haps is a 0-1 matrix with L SNPs (in rows) and N haplotypes (in columns).
-    # Since the values are 0, 1, we rely on the fact that a*b=1 iff a and b are 1.
-    # assume focus.i contains l values in range 1..L
-    L = nrow( haps )
-    l = length( focus.i )
-    # p11 = lxL matrix.  i,jth entry is probability of 11 haplotype for ith focal SNP against jth SNP.
-    focus.hap = haps[ focus.i, , drop = FALSE ]
-    p11 <- ( focus.hap %*% t( haps )) / ncol( haps )
-    # p1. = lxL matrix.  ith row is filled with the frequency of ith focal SNP.
-    p1. <- matrix( rep( rowSums( focus.hap ) / ncol( haps ), L ), length( focus.i ), L, byrow = FALSE )
-    # p.1 = lxL matrix.  jth column is filled with the frequency of jth SNP.
-    frequency = rowSums( haps ) / ncol( haps )
-    p.1 <- matrix( rep( frequency, length( focus.i ) ), length( focus.i ), L, byrow = TRUE )
-
-    # Compute D
-    D <- p11 - p1. * p.1
-
-    # Compute D'
-    denominator = pmin( p1.*(1-p.1), (1-p1.)*p.1 )
-    wNeg = (D < 0)
-    denominator[ wNeg ] = pmin( p1.*p.1, (1-p1.)*(1-p.1) )[wNeg]
-    denominator[ denominator == 0 ] = NA
-    Dprime = D / denominator 
-
-    # Compute correlation, this result should agree with cor( t(haps ))
-    R = D / sqrt( p1. * ( 1 - p1. ) * p.1 * ( 1 - p.1 ))
-
-    if( !is.null( variant.names )) {
-        rownames( D ) = rownames( Dprime ) = rownames( R ) = variant.names[ focus.i ]
-        colnames( D ) = colnames( Dprime ) = colnames( R ) = variant.names
-        names( frequency ) = variant.names
-    }
-
-    return( list( D = D, Dprime = Dprime, frequency = frequency, R = R ) ) ;
-}
-
-compute.pi.stratified = function( haplotypes, focus ) {
-	result = list()
-	selection = list()
-	for( g in c( 0, 1 )) {
-		name = sprintf( "g%d", g )
-		selection[[name]] = which( focus == g )
-	}
-	d = as.matrix(dist( t( haplotypes[,unlist(selection)] )))
-
-	w0 = 1:length( selection[['g0']] )
-	w1 = length( selection[['g0']] ) + 1:length( selection[['g1']] )
-
-	genotypes = data.frame(
-		g = c( rep( '-', length(w0)), rep( '+', length(w1))),
-		row.names = rownames(d)[ c(w0,w1) ]
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Plot haplotypes'
 	)
-
-	result = list(
-		'00' = d[w0,w0],
-		'01' = d[w0,w1],	
-		'10' = d[w1,w0],	
-		'11' = d[w1,w1],	
-		'all' = d,
-		'genotypes' = genotypes,
-		'n0' = length( w0 ),
-		'n1' = length( w1 ),
-		'missing' = length( which( is.na(genotypes))),
-		'n' = length(w0)+length(w1),
-		'frequency' = length(w1)/(length(w1)+length(w0))
+	parser$add_argument(
+		"--pf7",
+		type = "character",
+		help = "path to pf7 bgen file",
+		default = "code.github/analysis/haplotypes/outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen"
 	)
-	return( result )
+	parser$add_argument(
+		"--samples",
+		type = "character",
+		help = "path to pf7 samples file",
+		default = "code.github/analysis/haplotypes/outputs/pf7/samples/filtered_samples.tsv"
+	)
+	parser$add_argument(
+		"--margin",
+		type = "integer",
+		help = "margin in base pairs to add",
+		default = 20000
+	)
+	parser$add_argument(
+		"--focus_margin",
+		type = "integer",
+		help = "margin in base pairs to add when sorting / computing statistics.  Should be less than --margin",
+		default = 10000
+	)
+	parser$add_argument(
+		"--focus",
+		type = "character",
+		help = "focus in the form chr:pos",
+		required = TRUE
+	)
+	return( parser$parse_args() )
 }
 
 blank.plot <- function( xlim = c(0,1), ylim = c(0,1), ... ) {
-	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlim = xlim, ylim = ylim )
+	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlim = xlim, ylim = ylim, ... )
 }
 
 plot.joiners <- function( as, bs, ys = c( 0, 0.25, 0.5, 0.75, 1 ), ... ) {
@@ -101,6 +65,49 @@ plot.joiners <- function( as, bs, ys = c( 0, 0.25, 0.5, 0.75, 1 ), ... ) {
 	)
 }
 
+
+compute.sfs <- function( haplotypes ) {
+	row_totals = rowSums( haplotypes )
+	result = sapply( 1:(ncol(haplotypes)-1), function(i) { length( which( row_totals == i ))})
+	return( result )
+}
+
+compute.pi.stratified = function( haplotypes, focus ) {
+	result = list()
+	selection = list()
+	for( g in c( 0, 1 )) {
+		name = sprintf( "g%d", g )
+		selection[[name]] = which( focus == g )
+	}
+	d = as.matrix( dist( t( haplotypes[,unlist(selection)] )))
+
+	w0 = 1:length( selection[['g0']] )
+	w1 = length( selection[['g0']] ) + 1:length( selection[['g1']] )
+
+	genotypes = data.frame(
+		g = c( rep( '-', length(w0)), rep( '+', length(w1))),
+		row.names = rownames(d)[ c(w0,w1) ]
+	)
+
+	row_totals = rowSums( haplotypes ) ;
+	result = list(
+		'00' = d[w0,w0],
+		'01' = d[w0,w1],	
+		'10' = d[w1,w0],	
+		'11' = d[w1,w1],	
+		'all' = d,
+		'segregating.sites' = length( which( row_totals > 0 & row_totals < ncol(haplotypes))),
+		'genotypes' = genotypes,
+		'n0' = length( selection[['g0']] ),
+		'n1' = length( selection[['g1']] ),
+		'missing' = length( which( is.na(genotypes))),
+		'n' = length(focus),
+		'frequency' = length(w1)/(length(w1)+length(w0)),
+		sfs = compute.sfs( haplotypes )
+	)
+	return( result )
+}
+
 plot.one.set <- function(
 	haplotypes,
 	categories,
@@ -109,7 +116,7 @@ plot.one.set <- function(
 	config = list(
 		colours = list(
 			category = rainbow( length( levels( africans$Country ))),
-			haplotype = c( "royalblue3", "darkgoldenrod", "grey" )
+			haplotype = c( "royalblue3", "darkgoldenrod" )
 		),
 		legend = FALSE
 	)
@@ -153,13 +160,39 @@ plot.one.set <- function(
 	}
 }
 
-regions = list(
-	Pfsa1 = list( 'chromosome' = "Pf3D7_02_v3", 'position' = 631190 ),
-	Pfsa2 = list( 'chromosome' = "Pf3D7_02_v3", 'position' = 814288 ),
-	Pfsa3 = list( 'chromosome' = "Pf3D7_11_v3", 'position' = 1058035 ),
-	Pfsa4 = list( 'chromosome' = "Pf3D7_04_v3", 'position' = 1121472 )
+# From https://gist.github.com/mt1022/32e54792dbf4df40da2f2a4b87d218c3
+TajimaD <- function(sfs){
+    #' sfs (site frequency spectrum): number of singletons, doubletons, ..., etc
+    n <- length(sfs) + 1
+    ss <- sum(sfs)
+    
+    a1 <- sum(1 / seq_len(n-1))
+    a2 <- sum(1 / seq_len(n-1)^2)
+    
+    b1 <- (n + 1) / (3 * (n - 1))
+    b2 <- 2 * (n^2 + n + 3)/(9 * n * (n - 1))
+    
+    c1 <- b1 - 1/a1
+    c2 <- b2 - (n + 2)/(a1 * n) + a2 / a1^2
+    
+    e1 <- c1 / a1
+    e2 <- c2 / (a1^2 + a2)
+    
+    Vd <- e1 * ss + e2 * ss * (ss - 1) 
+    
+    theta_pi <- sum(2 * seq_len(n-1) * (n - seq_len(n-1)) * sfs)/(n*(n-1))
+    theta_w <- ss / a1
+    res <- (theta_pi - theta_w) / sqrt(Vd)
+    return(res)
+}
+
+args = parse_arguments()
+stopifnot( args$focus_margin <= args$margin )
+
+focus = list(
+	chromosome = strsplit( args$focus, split = ':' )[[1]][1],
+	position = as.integer( strsplit( args$focus, split = ':' )[[1]][2] )
 )
-focus = regions[['Pfsa1']]
 
 maf = 0.005
 
@@ -167,11 +200,10 @@ ranges = tibble(
 	chromosome = focus$chromosome,
 	position = focus$position
 )
-margin = 15000
-ranges$start = ranges$position - margin
-ranges$end = ranges$position + margin
+ranges$start = ranges$position - args$margin
+ranges$end = ranges$position + args$margin
 
-samples = read_tsv( "github/pfhbs/haplotypes/pf7/Pf7_samples.txt.gz" )
+samples = read_tsv( args$samples )
 samples$Country[ grep( "Ivoire", samples$Country)] = "Cote_dIvoire"
 wAfrica = intersect(
 	grep( "AF-", samples$Population ),
@@ -180,56 +212,26 @@ wAfrica = intersect(
 africans = samples[wAfrica,]
 countries = unique( africans$Country[ order( africans$`Country longitude`)] )
 africans$Country = factor( africans$Country, levels = countries )
-
-ancestral = read_tsv( "github/pfhbs/haplotypes/ancestral/ancestral_alleles.tsv.gz" )
-ancestral$CHROM = sprintf( "Pf3D7_%02d_v3", ancestral$CHROM )
-
+populations = unique( africans$Population[ order( africans$`Country longitude`)] )
+africans$Population = factor( africans$Population, levels = populations )
 
 H = bgen.load(
-	"./github/pfhbs/haplotypes/pf7/pf7.filtered.regions.Africa_and_Colombia.bgen",
+	args$pf7,
 	ranges = ranges,
-	max_entries_per_sample = 28,
+	max_entries_per_sample = 4,
 	samples = africans$Sample
 )
 
 H$variants$name = sprintf( "%s:%d:%s>%s", H$variants$chromosome, H$variants$position, H$variants$allele0, H$variants$allele1 )
 rownames(H$variants) = H$variants$name
-M = match( paste( H$variants$chromosome, H$variants$position ), paste( ancestral$CHROM, ancestral$POS ) )
-H$variants$ancestral = ancestral$ancestral_allele[M]
-H$variants$ancestral[ H$variants$ancestral != H$variants$allele0 & H$variants$ancestral != H$variants$allele1 ] = NA
 
-w = which( H$variants$number_of_alleles <= 3 & H$variants$allele1 != '*' )
-H$biallelic_haplotypes = array(
-	NA,
-	dim = c(
-		length(w),
-		dim(H$data)[2],
-		2
-	),
-	dimnames = list(
-		H$variants$name[w],
-		dimnames(H$data)[[2]],
-		c( "a0", "a1" )
-	)
-)
+# The data is fake diploid (homozygous) so we 
+H$biallelic_haplotypes = H$data[,,2]
+variants = H$variants
+HD = H$biallelic_haplotypes
 
-H$biallelic_haplotypes[,,1] = H$data[w,,1]
-H$biallelic_haplotypes[,,2] = H$data[w,,3]
-H$biallelic_haplotypes[,,1][H$data[w,,2] > 0] = NA
-H$biallelic_haplotypes[,,2][H$data[w,,2] > 0] = NA
-H$biallelic_haplotypes[,,1][H$data[w,,4] > 0] = NA
-H$biallelic_haplotypes[,,2][H$data[w,,4] > 0] = NA
-
-variants = H$variants[w,]
-
-HD = H$biallelic_haplotypes[,,2]
-rm( H); gc()
-
-wFlip = which( variants$ancestral == variants$allele1 )
-HD[wFlip,] = 1 - HD[wFlip,]
-
-freq = rowSums( HD, na.rm = T ) / rowSums( !is.na( HD ))
-wIn = which( freq  > maf & freq < (1-maf) )
+variants$freq = rowSums( HD, na.rm = T ) / rowSums( !is.na( HD ))
+wIn = which( variants$freq  > maf & variants$freq < (1-maf) )
 if( focus$chromosome == 'Pf3D7_11_v3' ) {
 	# R2
 	wIn = setdiff( wIn, which( variants$position > 1053959 & variants$position < 1055073 ))
@@ -239,12 +241,9 @@ if( focus$chromosome == 'Pf3D7_11_v3' ) {
 	wIn = setdiff( wIn, which( variants$position > 1058826 & variants$position < 1059652 ))
 }
 
-selection = list(
-	'-' = c(),
-	'+' = c()
-)
 {
-	pdf( file = sprintf( "results/haplotypes/African_haplotypes_%s:%d.pdf", focus$chromosome, focus$position ), width = 6, height = 6 )
+
+	pdf( file = sprintf( "tmp/African_haplotypes_%s:%d.pdf", focus$chromosome, focus$position ), width = 6, height = 6 )
 	par( mar = c( 0.1, 0.1, 0.1, 0.1 ))
 	layout(
 		matrix(
@@ -261,46 +260,56 @@ selection = list(
 			byrow = T
 		),
 		widths = c( 0.1, 0.05, 0.01, 1, 0.1 ),
-		heights = c( 0.1, 1, 0.01, 1, 0.01, 0.2, 0.1 )
+		heights = c( 0.1, 1, 0.1, 1, 0.01, 0.2, 0.1 )
 	)
 
 	country.palette = rainbow( length( levels( africans$Country )))
 
 	focus.variant = which( variants$position == focus$position )
-	sort.variants = intersect( wIn, which( variants$position >= focus$position - 10000 & variants$position <= focus$position + 10000 ))
+	sort.variants = intersect( wIn, which( variants$position >= focus$position - args$focus_margin & variants$position <= focus$position + args$focus_margin ))
+
+	selection = list(
+		'-' = c(),
+		'+' = c()
+	)
 
 	for( country in countries ) {
 		w = which( africans$Country == country & HD[focus.variant,] == 0 )
-		w = sample(w, min( length(w), 25))
+#		w = sample(w, min( length(w), 25))
 		selection[['-']] = c( selection[['-']], w )
 		w2 = which( africans$Country == country & HD[focus.variant,] == 1 )
-		w2 = sample(w2, min( length(w2), 25))
+#		w2 = sample(w2, min( length(w2), 25))
+		print( table( HD[614,w2] ))
 		selection[['+']] = c( selection[['+']], w2 )
 		echo( "%s: -:%d, +:%d\n", country, length(w), length(w2) )
 	}
+	print( table( HD[614,selection[['+']]] ))
 
 	plot.one.set(
 		HD[wIn,selection[['+']]],
-		africans$Country[selection[['+']]]
+		africans$Population[selection[['+']]]
 	)
 	plot.one.set(
 		HD[wIn,selection[['-']]],
-		africans$Country[selection[['-']]]
+		africans$Population[selection[['-']]]
 	)
 
-	xlim = c( ranges$start[1], ranges$end[1] )
-	blank.plot( xlim = c( ranges$start, ranges$end ), xaxs='i' )
-	evens = seq( from = xlim[1], to = xlim[2], length = length(wIn))
+	xlim = range( variants$position[wIn] )
+	blank.plot( xlim = xlim, xaxs='i' )
+	N = length(wIn)
+	at = (0.5 + 0:(N-1))/N
+	#evens = seq( from = xlim[1] + (0.5+), to = xlim[2], length = length(wIn) )
+	evens = xlim[1] + at * ( xlim[2]-xlim[1] )
 
 	plot.joiners(
 		as = evens,
 		bs = variants$position[wIn]
 	)
-
+	highlight = c( min(sort.variants), focus.variant, max( sort.variants))
 	plot.joiners(
-		as = evens[which( wIn == focus.variant )],
-		bs = variants$position[focus.variant],
-		lwd = 4,
+		as = evens[which( wIn %in% highlight )],
+		bs = variants$position[highlight],
+		lwd = 2,
 		col = 'red'
 	)
 
@@ -311,30 +320,58 @@ selection = list(
 pi = list()
 for( country in levels(africans$Country )) {
 	w = which( africans$Country == country )
-	if( length(w) > 100 ) {
-		focus.variant = which( variants$position == focus$position )
-		a = compute.pi.stratified( HD[wIn,w], HD[focus.variant,w] )
+	focus.variant = which( variants$position == focus$position )
+	sort.variants = which( variants$position >= focus$position - 2000 & variants$position <= focus$position + 2000 )
+	g = HD[focus.variant,w]
+	if( length( which( g == 0 )) > 0 & length( which( g == 1 )) > 0 ) {
+		a = compute.pi.stratified( HD[sort.variants,w], HD[focus.variant,w] )
 		pi[[country]] = c( country = country, a )
 	} else {
 		# Nothing to do.
 	}
 }
 
+
 A = map_dfr( names( pi ), function( name ) {
 	z = pi[[name]]
 	return(tibble(
-		f = z$frequency,
-		nd00 = mean(z$`00`),
-		nd11 = mean(z$`11`),
+		country = name,
+		n = nrow( pi[[name]]$genotypes ),
 		g0 = z$n0,
 		g1 = z$n1,
-		n = nrow( pi[[name]]$genotypes )
+		f = z$frequency,
+		nd = mean(z$all),
+		segregating.sites = z$segregating.sites,
+		nd00 = mean(z$`00`),
+		nd11 = mean(z$`11`),
+		nd01 = mean(z$`01`),
+		cross_within_ratio = mean( z$`01` ) / mean( c( z$`00`, z$`11` )),
+		tajimas_d = TajimaD( z$sfs )
 	))
 })
 
+echo( "++ Summary:\n" )
+print(A)
+
+readr::write_tsv( A, file = sprintf( "tmp/African_pi_%s:%d_summary.tsv", focus$chromosome, focus$position ))
+
+pdf( file = sprintf( "tmp/African_pi_%s:%d.pdf", focus$chromosome, focus$position ), width = 6, height = 6 )
+layout( matrix( c( 1:4 ), byrow = T, nrow = 2 ))
+par( mar = c( 4.1, 4.1, 1.1, 1.1 ))
+plot( A$f, A$nd00, pch = 19, xlab = "Derived allele frequency", ylab = "Theta, Ancestral haplotypes", ylim = c( 0, 6 ) )
+grid()
+plot( A$f, A$nd11, pch = 19, xlab = "Derived allele frequency", ylab = "Theta, derived haplotypes", ylim = c( 0, 6 ) )
+grid()
+plot( A$f, A$nd01, pch = 19, xlab = "Derived allele frequency", ylab = "theta between classes", ylim = c( 0, 6 ) )
+grid()
+plot( A$f, A$cross_within_ratio, pch = 19, xlab = "Derived allele frequency", ylab = "theta cross/within", ylim = c( 0, 3 ) )
+grid()
+dev.off()
+
 heatmaps = list()
 for( country in names(pi)) {
-	heatmaps[[country]] = pheatmap(
+	print( country )
+	heatmaps[[country]] = pheatmap::pheatmap(
 		pi[[country]]$all,
 		annotation_row = pi[[country]]$genotypes,
 		cluster_cols = FALSE,
@@ -344,12 +381,12 @@ for( country in names(pi)) {
 	)[[4]]
 }
 pdf(
-	file = sprintf( "results/haplotypes/African_haplotype_heatmaps_%s:%d.pdf",
+	file = sprintf( "tmp/African_haplotype_heatmaps_%s:%d.pdf",
 		focus$chromosome,
 		focus$position
 	),
-	width = 10,
+	width = 16,
 	height = 12
 )
-do.call( grid.arrange, heatmaps )
+do.call( gridExtra::grid.arrange, heatmaps )
 dev.off()
