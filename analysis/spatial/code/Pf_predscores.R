@@ -191,14 +191,14 @@ message(paste0("\nEND Pf_predscores.R for ", Pfalleles[l]))
 
 #Make graph for Figure 2
 # Define the color palette
-country_colors <- c("All" ="grey35", "Senegambea" = "#0000cd","Gambia" = "#0000cd", "Mali" = "#42426f", "Ghana" = "#03b4cd", "DRC" = "#2E8B57", "Tanzania" = "#ee5c42", "Ethiopia" = "#ee5500")
+country_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd","Gambia" = "#0000cd", "Mali" = "#42426f", "Ghana" = "#03b4cd", "DRC" = "#2E8B57", "Tanzania" = "#ee5c42", "Ethiopia" = "#ee5500")
 region_colors <- c(
   "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
   "East Africa" = "#DA680F",    #Burgundyred#8D021F, Orangered: #D9534F
   "Africa" = "grey35"           # Dark grey
 )
 #define region and country levels for wrap plots
-alevels <- c("East Africa","West Africa","DRC","Tanzania","Mali","Senegambea","Gambia","Ghana")
+alevels <- c("East Africa","West Africa","DRC","Tanzania","Mali","Senegal-Gambia","Gambia","Ghana")
 
 modnames <- list('country','regional')
 allpalettes <- list(country_colors,region_colors)
@@ -233,7 +233,7 @@ for (l in 1:length(Pfalleles)){
   hbsdata$region <- factor(hbsdata$region,levels=rev(rlevels))
  } 
   if (modnames[i]=='country'){
-  clevels <- c("All","Senegambea","Gambia","Mali","Ghana","DRC","Tanzania")
+  clevels <- c("All","Senegal-Gambia","Gambia","Mali","Ghana","DRC","Tanzania")
   hbsdata$region <- factor(hbsdata$region,levels=rev(clevels))
  }
 # Create a ggplot graph
