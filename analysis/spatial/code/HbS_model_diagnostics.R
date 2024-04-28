@@ -87,6 +87,9 @@ echo( "++ Ok, making diagnostic plots in %s...", "output/HbSsensitivity/diagnost
 dir.create( "output/HbSsensitivity/diagnostics")
 in.sample.summary = tibble()
 HbS.priors = priors()
+
+#Run in foreach loop to save time
+
 for( i in 1:nrow( HbS.priors )) {
   prior = HbS.priors[i,]
   message( sprintf( "++ Creating diagnostic plot for prior %s...", prior$name ))
