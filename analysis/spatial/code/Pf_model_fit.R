@@ -153,14 +153,15 @@ for (l in 1:length(Pfalleles)){
   levels(mydf$Country)[levels(mydf$Country) == "Democratic_Republic_of_the_Congo"] <- "DRC"
   
   #Add African Region
-  mydf <- mydf %>%
+  mydf <- mydf %>%# Not sure if Gabon and Cameroon can be treated as West Africa
     dplyr::mutate(Region = case_when(
       Country %in% c("Mali", "Burkina_Faso", "Gambia", "Ghana", "Guinea", 
-                     "Nigeria", "Cote_dIvoire", "Gabon", "Benin", "Senegal", 
-                     "Mauritania","Cameroon") ~ "West Africa",
+                     "Nigeria", "Cote_dIvoire", "Benin", "Senegal", 
+                     "Mauritania") ~ "West Africa",
       #Country %in% c("DRC") ~ "DRC",
-      Country %in% c("DRC","Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", 
-                     "Madagascar", "Sudan", "Mozambique", "Zambia") ~ "East Africa",
+      # Not sure if DRC and Sudan can be treated as East Africa
+      Country %in% c("Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", 
+                     "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
       TRUE ~ NA_character_  # This will set 'Region' to NA for any countries not listed above
     ))
   mydf$Region <- as.factor(mydf$Region)
