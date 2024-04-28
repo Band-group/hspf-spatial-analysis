@@ -32,6 +32,11 @@ pf_data <- pf_data[pf_data$N>minpf,]
 #summary(pf_data)
 #remove data from Verity in some countries (extreme values might be wrong)
 pf_data <- subset(pf_data, !(source == 'Verity_et_al_2021' & (country == 'Tanzania' | country == 'Ghana')))
+if(DRCsplit == TRUE) {
+  pf_data <- pf_data[!(pf_data$country == "Democratic_Republic_of_the_Congo" & pf_data$latitude > -2.5), ]
+}
+  
+#keep only data for DRC below -2.5 degree North (only South of DRC)
 ################################################################
 ###################END OPTIONAL#################################
 
