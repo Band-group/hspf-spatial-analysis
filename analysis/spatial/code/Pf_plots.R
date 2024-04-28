@@ -57,6 +57,7 @@ xyt <- load.entry.from.Rdata(paste0("output/Pf/output/rdata/Pf_regression_robinp
   for (tif_file in tif_files) {
     # get name of raster file (mean, iqr,...)
     hbsname <- tolower(tools::file_path_sans_ext(basename(tif_file)))
+    hbsnameplot <- gsub("_"," ",hbsname)
     raster_layer <- raster::raster(tif_file)
     myfigs <- list()
     i <- 0
@@ -69,33 +70,55 @@ xyt <- load.entry.from.Rdata(paste0("output/Pf/output/rdata/Pf_regression_robinp
       HBsdf <- as.data.frame(raster_ctry, xy=TRUE) %>% na.omit()
       HBsdf <- data.frame(HBsdf)
       names(HBsdf) <- c("x","y","value")
+      #save for each country
+      if(!(pfcountries[i]=="Mali")){
+        showpfprevelegend <- FALSE;showhbsprevlegend <- FALSE
+      } else {
+        showpfprevelegend <- TRUE;showhbsprevlegend <- TRUE
+      }
+        
       # Create a ggplot object
       myfigs[[i]] <- ggplot() +
         geom_sf(data = country_sf, fill = 'grey95', col = 'grey85', size = 0.2) +
-        geom_tile(data = HBsdf, aes(x = x, y = y, fill = value),alpha=0.7) +
-        scale_fill_scico(palette = 'bamako',name = paste0("Predicted HbS ", hbsname))+ 
-        geom_sf(data = pfpt_ctry, aes(size = sqrt(N), color = Pf), alpha = 0.9, shape = 21,stroke=1.25) +
+        geom_tile(data = HBsdf, aes(x = x, y = y, fill = value),alpha=0.7,show.legend = showhbsprevlegend) +
+        scale_fill_scico(palette = 'bamako',name = paste0("Predicted ", hbsnameplot),guide=guide_legend(title.position = "top"))+ 
+        geom_sf(data = pfpt_ctry, aes(size = sqrt(N), color = Pf), alpha = 0.9, shape = 21,stroke=1.25,show.legend = showpfprevelegend) +
         geom_sf(data = country_sf, fill = 'transparent', col = 'grey35', linewidth = 1) +
-         scale_size_continuous(range = c(0.25, 12),name="Sample size (square root)",guide=guide_legend(title.position = "top")) +
+         scale_size_continuous(range = c(1, 15),name="Sample size (square root)",breaks=c(4,6,8,10),guide=guide_legend(title.position = "top")) +
         scale_color_scico(name = "Pf+ prevalence",palette = 'turku',
                           guide = guide_legend(title.position = "top"))+
-        ggthemes::theme_map(7)+ theme(legend.position="bottom",
-                                      legend.key.width = unit(0.5,'cm'),
-                                      legend.direction = "vertical",
-                                      plot.title=element_text(hjust=0.5))#+
-     }
-    #save for each country
+        #ggthemes::theme_map(12)+ 
+        theme(
+          legend.position=c(0.21,0.65),
+          legend.spacing.y = unit(0.1, "cm"),
+          legend.title = element_text(size = 11),
+          legend.background = element_rect(fill = "white"),
+          legend.key = element_rect(fill = "transparent"),
+          legend.key.width = unit(0.5,'cm'),
+          legend.direction = "horizontal",
+          plot.title=element_text(hjust=0.5),
+          axis.title = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_rect(fill='transparent'),
+          panel.grid.major = element_line(color=gray(.25),linetype = 'dashed',size=1))+
+         guides(fill = guide_legend(nrow=2,label.position = "right", title.position = "top",
+                                    override.aes = list(shape = NA)),
+                size = guide_legend(nrow=1,label.position = "right", title.position = "top",
+                                    override.aes = list(fill = NA)),
+                color = guide_legend(nrow=2,label.position = "right", title.position = "top",
+                override.aes = list(fill = NA)))
+      
     library(gridExtra)
-    for (i in 1:length(pfcountries)) {
-      #remove legend except from DRC
-      if(!(pfcountries[i]=="Dem. Rep. Congo")){
-        myfigs[[i]] <- myfigs[[i]] + theme(legend.position = "none")
-      }
-      fig2 <- gridExtra::grid.arrange(myfigs[[i]])
-      pdf_file_name <- paste0("output/Pf/output/pdf/fig2",pfcountries[i],"_",hbsname,"_",Pfalleles[l],".pdf")
-      svg_file_name <- paste0("output/Pf/output/pdf/fig2",pfcountries[i],"_",hbsname,"_",Pfalleles[l], ".svg")
-      ggsave(pdf_file_name, plot = fig2, device = "pdf",width = 8,height=8)
-      ggsave(svg_file_name, plot = fig2, device = "svg",width = 8,height=8)
+    fig2 <- gridExtra::grid.arrange(myfigs[[i]])
+    pdf_file_name <- paste0("output/Pf/output/pdf/fig2",pfcountries[i],"_",hbsname,"_",Pfalleles[l],".pdf")
+    svg_file_name <- paste0("output/Pf/output/pdf/fig2",pfcountries[i],"_",hbsname,"_",Pfalleles[l], ".svg")
+    ggsave(pdf_file_name, plot = fig2, device = "pdf",width = 9,height=8)
+    ggsave(svg_file_name, plot = fig2, device = "svg",width = 9,height=8)
+    # for (i in 1:length(pfcountries)) {
+    #   #remove legend except from DRC
+    #   if(!(pfcountries[i]=="Dem. Rep. Congo")){
+    #     myfigs[[i]] <- myfigs[[i]] + theme(legend.position = "none")
+    #   }
     }
   }#end loop for various HbS maps (mean,sd,iqr,...)
 
@@ -113,7 +136,7 @@ finaloutput2$pred <- sapply(finaloutput2$pred, convert_scientific_to_numeric)
 #End import from .csv####################################################################
 
 finaloutput <- rbind(finaloutput1,finaloutput1all,finaloutput2)
-mymodnames <- c("regional","country","All")
+mymodnames <- c("regional","country")
 for (mymodn in mymodnames){
 plot.hbs(finaloutput = finaloutput,mymodname = mymodn,savepath="output/Pf/output/pdf")
 }
