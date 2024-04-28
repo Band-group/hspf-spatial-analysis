@@ -59,16 +59,16 @@ source("code/Shapefiles_load.R",verbose=FALSE)
 
 #HbS################################################
 #source("code/HbS_model_fit.R",verbose=FALSE)
-source("code/HbS_model_diagnostics.R",verbose=FALSE)
+#source("code/HbS_model_diagnostics.R",verbose=FALSE)
 #About 30mn with AMD 3975WX 32 cores################
 #End HbS############################################
 
 #Pf#################################################
-# source("code/Pf_datacleaning.R",verbose=FALSE)
-# source("code/Pf_model_fit.R",verbose=FALSE)#aspatial Pf models
-# source("code/Pf_plots.R",verbose=FALSE)#pf plots
-# source("code/Pf_model_spatial.R",verbose=FALSE)#spatial Pf models
-# source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
+#source("code/Pf_datacleaning.R",verbose=FALSE)
+#source("code/Pf_model_fit.R",verbose=FALSE)#aspatial Pf models
+#source("code/Pf_plots.R",verbose=FALSE)#pf plots
+source("code/Pf_model_spatial.R",verbose=FALSE)#spatial Pf models
+source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
 #About 3h10mn with AMD 3975WX 32 cores################
 #End Pf#############################################
 
