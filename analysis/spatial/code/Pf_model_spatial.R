@@ -65,12 +65,28 @@ for (modname in spatialmod){
   write.csv(finaloutput,paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".csv"),row.names = FALSE)
   outputlatex <- xtable::xtable(finaloutput)
   print(outputlatex, file=paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".txt"))
-  #plots
-  plot.hbs(finaloutput=finaloutput,mymodname = modname,savepath="output/Pf/output/pdf")
   #indicate the process completion
   cat(paste0("\nSpatial",j," model completed"))
   if (j==length(spatialmod)) {cat(paste0("\nAll spatial models for " ,Pfalleles[l]," completed. Well done!"))}
-}#end loop spatial models
+  
+  }#end loop spatial models
+
+#plots based on best model
+#collect saved data
+finaloutputs <- do.call(rbind, lapply(spatialmod, function(modname) { 
+  files <- list.files(path = "output/Pf/output/csv/", pattern = paste0("^Pfoutput", modname,"_",Pfalleles[l], "*\\.csv$"), full.names = TRUE)
+  myoutput <- do.call(rbind, lapply(files, read.csv)) 
+  return(myoutput)
+  }))
+#select the best model based on cpo
+#bestmodelname <- aggregate(waic ~ model, finaloutputs, mean)$model[which.min(aggregate(waic ~ model, finaloutputs, mean)$waic)]
+bestmodelname <- aggregate(cpo ~ model, finaloutputs, mean)$model[which.min(aggregate(cpo ~ model, finaloutputs, mean)$cpo)]
+bestmodel <- finaloutputs[finaloutputs$model==bestmodelname,]
+bestmodel$model <- "bestmodel"
+
+#plots based on best model
+plot.hbs(finaloutput=bestmodel,mymodname = "bestmodel",savepath="output/Pf/output/pdf")
+
 
 }#end allele loop
 message(paste0("\nEND Pf_model_spatial.R"))
