@@ -1166,7 +1166,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   } else { #modname as 'regional' or 'All' or spatial01,...
     unique_regions <- unique(myoutput$region)  
   }
-  
+  unique_regions <- na.omit(unique_regions)
   df_list <- list()
   for (i in 1:length(unique_regions)) {
       if (mymodname=='country'){
