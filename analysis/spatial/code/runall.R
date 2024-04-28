@@ -44,6 +44,8 @@ if(nbcores >= 64){highmem <- TRUE} else {highmem <- FALSE }
 #Aggregate Senegal, Gambia, and Guinea since data sample too small
 senegambea <- TRUE#if TRUE, aggregate Senegal, Gambia, and Guinea-Bissau
 DRCsplit <- TRUE#if TRUE, keep only Pf data in south of DRC (below -2.5 lat) (for test)
+cposel <- FALSE#if TRUE, use cpo to select best model; FALSE: use waic
+
 ################################################################################
 ################################################################################
 #If not defined otherwise, use this theme for all plots
