@@ -79,8 +79,11 @@ finaloutputs <- do.call(rbind, lapply(spatialmod, function(modname) {
   return(myoutput)
   }))
 #select the best model based on cpo
-#bestmodelname <- aggregate(waic ~ model, finaloutputs, mean)$model[which.min(aggregate(waic ~ model, finaloutputs, mean)$waic)]
+if (cposel == FALSE) {
+bestmodelname <- aggregate(waic ~ model, finaloutputs, mean)$model[which.min(aggregate(waic ~ model, finaloutputs, mean)$waic)]
+} else {
 bestmodelname <- aggregate(cpo ~ model, finaloutputs, mean)$model[which.min(aggregate(cpo ~ model, finaloutputs, mean)$cpo)]
+}
 bestmodel <- finaloutputs[finaloutputs$model==bestmodelname,]
 bestmodel$model <- "bestmodel"
 
