@@ -1356,16 +1356,16 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = country, fill = country)) +
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 10,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5)# +
+    #  geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Country"
   } else {#regional or rob
     #regionoutput <- myoutput[myoutput$region != "All", ]
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = region, fill = region))+
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 10,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) #+
+    #  geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Region"
   }
 
