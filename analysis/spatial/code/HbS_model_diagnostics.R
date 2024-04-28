@@ -146,8 +146,12 @@ for( i in 1:nrow( HbS.priors )) {
   #at the end of the procedure makes HbS map for figure 1 based on the best performing model
   if(i == nrow( HbS.priors ))
   {
-    in.sample.summary <- in.sample.summary %>% (if(cposel == FALSE) waic else cpo)#ordered (lowest first) by best out-of-sample (cpo or waic)
-    readr::write_csv(
+    if(cposel == FALSE){
+      in.sample.summary <- in.sample.summary %>% arrange (waic) 
+    } else {
+      in.sample.summary <- in.sample.summary %>% arrange (cpo)
+    }
+  readr::write_csv(
       (
         in.sample.summary
         %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
