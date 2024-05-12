@@ -153,14 +153,15 @@ for (l in 1:length(Pfalleles)){
   levels(mydf$Country)[levels(mydf$Country) == "Democratic_Republic_of_the_Congo"] <- "DRC"
   
   #Add African Region
-  mydf <- mydf %>%
+  mydf <- mydf %>%# Not sure if Gabon and Cameroon can be treated as West Africa
     dplyr::mutate(Region = case_when(
       Country %in% c("Mali", "Burkina_Faso", "Gambia", "Ghana", "Guinea", 
-                     "Nigeria", "Cote_dIvoire", "Gabon", "Benin", "Senegal", 
-                     "Mauritania","Cameroon") ~ "West Africa",
+                     "Nigeria", "Cote_dIvoire", "Benin", "Senegal", 
+                     "Mauritania") ~ "West Africa",
       #Country %in% c("DRC") ~ "DRC",
-      Country %in% c("DRC","Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", 
-                     "Madagascar", "Sudan", "Mozambique", "Zambia") ~ "East Africa",
+      # Not sure if DRC and Sudan can be treated as East Africa
+      Country %in% c("Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", 
+                     "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
       TRUE ~ NA_character_  # This will set 'Region' to NA for any countries not listed above
     ))
   mydf$Region <- as.factor(mydf$Region)
@@ -169,7 +170,7 @@ for (l in 1:length(Pfalleles)){
   #Option: aggregate countries with very few number of observation##############
   #Here we aggregate Gambia, Senegal, and Guinea
   if(senegambea==TRUE){
-  levels(mydf$Country)[levels(mydf$Country) %in% c('Senegal', 'Gambia', 'Guinea')] <- 'Senegambea'
+  levels(mydf$Country)[levels(mydf$Country) %in% c('Senegal', 'Gambia')] <- 'Senegal-Gambia'
   }
   #save descriptive information to be added in the manuscript
   datadescript <- data.frame(sampsize=nrow(xyt@data),
@@ -243,7 +244,7 @@ for (l in 1:length(Pfalleles)){
   
   ################################################################################
   #Fit single model per country of interest
-  mycountries <- c("Mali", "Tanzania", "DRC", "Senegambea")#"Ethiopia" not enough obs.
+  mycountries <- c("Mali", "Tanzania", "DRC", "Senegal-Gambia")#"Ethiopia" not enough obs.
   finaloutputc <- list()
   modname <- "country"
   for (j in 1:length(mycountries)){

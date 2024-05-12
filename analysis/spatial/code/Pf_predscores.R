@@ -22,8 +22,8 @@ predmodels <- lapply(Pfalleles[l], function(p) {
 predmodels <- unlist(predmodels)
 predall <- lapply(predmodels, FUN = read.csv)
 predall <- as.data.frame(dplyr::bind_rows(predall))
-rownames(predall)<-1:nrow(predall)
-predall$model <-as.factor(predall$model)
+rownames(predall) <- 1:nrow(predall)
+predall$model <- as.factor(predall$model)
 predall$region <-as.factor(predall$region)
 predall$country <-as.factor(predall$country)
 predall$pf <- as.factor(Pfalleles[l])
@@ -123,8 +123,57 @@ if ('alt_hat.mean' %in% colnames(predall)) {
     )
 }
 
+
+#compute for all (aspatial) and spatial models
+if ('alt_hat.mean' %in% colnames(predall)) {
+  allresults <- predall[grepl("spatial|All",predall$model),]
+  allresults <- allresults %>% 
+    group_by(model,country,pf) %>%
+    summarise(
+      r0 = round(mean(r0,na.rm=TRUE),1),
+      sigma0 = round(mean(sigma0),1),
+      mean_intercept = round(mean(intercept.mean,na.rm=TRUE),2),
+      sd_intercept = round(mean(intercept.sd,na.rm=TRUE),2),
+      mean_beta_HbS = round(mean(HbS_hat.mean,na.rm=TRUE),2),
+      sd_beta_HbS = round(mean(HbS_hat.sd,na.rm=TRUE),2),
+      mean_beta_alt = round(mean(alt_hat.mean, na.rm = TRUE), 2),
+      sd_beta_alt = round(mean(alt_hat.sd, na.rm = TRUE), 2),
+      MAE = round(mean(abs(obs - pred)) * 100, 3),
+      RMSE = round(sqrt(mean((obs - pred)^2)) * 100, 3),
+      LogLoss = round(-mean(obs * log(pred) + (1 - obs) * log(1 - pred)) * 100, 3),
+      BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
+      BSS = {
+        1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
+    )
+  
+} else {
+  allresults <- predall[grepl("spatial|All",predall$model),]
+  allresults <- allresults %>% group_by(model,country,pf) %>%
+    summarise(
+      r0 = round(mean(r0,na.rm=TRUE),1),
+      sigma0 = round(mean(sigma0),1),
+      mean_intercept = round(mean(intercept.mean,na.rm=TRUE),2),
+      sd_intercept = round(mean(intercept.sd,na.rm=TRUE),2),
+      mean_beta_HbS = round(mean(HbS_hat.mean,na.rm=TRUE),2),
+      sd_beta_HbS = round(mean(HbS_hat.sd,na.rm=TRUE),2),
+      MAE = round(mean(abs(obs - pred)) * 100, 3),
+      RMSE = round(sqrt(mean((obs - pred)^2)) * 100, 3),
+      LogLoss = round(-mean(obs * log(pred) + (1 - obs) * log(1 - pred)) * 100, 3),
+      BSref = round( (mean(obs) * (1 - mean(obs)))*100,3),
+      BSS = {
+        1 - ((mean((obs - pred)^2)) / (mean(obs) * (1 - mean(obs))) )
+      }* 100 %>% round(., 3),
+      mean_CPO = mean(cpo,na.rm=TRUE),
+      mean_WAIC = mean(waic,na.rm=TRUE)
+    )
+}
+
 names(countryresults)[names(countryresults) == "country"] <- "region"
-results[[l]] <- rbind(regionalresults,countryresults)
+names(allresults)[names(allresults) == "country"] <- "region"
+results[[l]] <- rbind(regionalresults,countryresults,allresults)
 }
 
 myresult <- do.call(rbind, results)
@@ -180,7 +229,7 @@ HbSp2 <- ggplot(myresult[myresult$pf==Pfalleles[l],], aes(model, mean_beta_HbS,c
       ) +
    guides(color = "none")+
   coord_cartesian(xlim = c(1.2, NA), clip = "off")+
-  ggthemes::theme_few(22)+ theme(panel.border=element_rect(linewidth = 0.3))+
+  ggthemes::theme_few(22)+ theme(panel.border=element_rect(linewidth = 0.3),axis.text.x = element_text(angle=90,hjust = 1))+
   ylab(bquote(hat(beta)[HbS]))+
   xlab("Model")
 ggsave(HbSp2,file=paste0("output/Pf/output/pdf/HbScoef_distribution",Pfalleles[l],".pdf"),width=17,height=4)
@@ -191,20 +240,26 @@ message(paste0("\nEND Pf_predscores.R for ", Pfalleles[l]))
 
 #Make graph for Figure 2
 # Define the color palette
-country_colors <- c("All" ="grey35", "Senegambea" = "#0000cd","Gambia" = "#0000cd", "Mali" = "#42426f", "Ghana" = "#03b4cd", "DRC" = "#2E8B57", "Tanzania" = "#ee5c42", "Ethiopia" = "#ee5500")
+country_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd","Gambia" = "#0000cd", "Mali" = "#42426f", "Ghana" = "#03b4cd", "DRC" = "#2E8B57", "Tanzania" = "#ee5c42", "Ethiopia" = "#ee5500")
 region_colors <- c(
   "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
   "East Africa" = "#DA680F",    #Burgundyred#8D021F, Orangered: #D9534F
   "Africa" = "grey35"           # Dark grey
 )
 #define region and country levels for wrap plots
-alevels <- c("East Africa","West Africa","DRC","Tanzania","Mali","Senegambea","Gambia","Ghana")
+alevels <- c("All","East Africa","West Africa","DRC","Tanzania","Mali","Senegal-Gambia","Gambia","Ghana")
 
-modnames <- list('country','regional')
 allpalettes <- list(country_colors,region_colors)
 for (l in 1:length(Pfalleles)){
   #plot hbs effects for both country and regional models
   hbsdata <- myresult[(myresult$pf==Pfalleles[l]),]
+
+  #pick global model from the best spatial / aspatial model
+  #here we use cpo 
+  bestglobal <- hbsdata[grepl("All|spatial", hbsdata$region),]
+  bestglobal <- bestglobal[which.min(bestglobal$mean_CPO),]
+  othermodel <- hbsdata[!grepl("All|spatial", hbsdata$region),]
+  hbsdata <- rbind(bestglobal,othermodel)
   hbsdata$region <- factor(hbsdata$region,levels=rev(alevels))
   # Create a ggplot graph
   hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
@@ -224,16 +279,19 @@ for (l in 1:length(Pfalleles)){
   ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,width = 14,height = 5)
   ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
   
+
+  modnames <- list('country','regional')
   
   #plot hbs effects for country models
+  rlevels <- c("West Africa","East Africa")
+  clevels <- c("Senegal-Gambia","Gambia","Mali","Ghana","DRC","Tanzania")
+  
  for (i in 1:length(modnames)){
   hbsdata <- myresult[(myresult$model==modnames[i] & myresult$pf==Pfalleles[l]),]
-  if (modnames[i]=='regional'){
-  rlevels <- c("All","West Africa","East Africa")
+  if (modnames[[i]]=='regional'){
   hbsdata$region <- factor(hbsdata$region,levels=rev(rlevels))
  } 
-  if (modnames[i]=='country'){
-  clevels <- c("All","Senegambea","Gambia","Mali","Ghana","DRC","Tanzania")
+  if (modnames[[i]]=='country'){
   hbsdata$region <- factor(hbsdata$region,levels=rev(clevels))
  }
 # Create a ggplot graph

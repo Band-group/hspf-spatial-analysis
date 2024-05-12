@@ -87,6 +87,9 @@ echo( "++ Ok, making diagnostic plots in %s...", "output/HbSsensitivity/diagnost
 dir.create( "output/HbSsensitivity/diagnostics")
 in.sample.summary = tibble()
 HbS.priors = priors()
+
+#Run in foreach loop to save time
+
 for( i in 1:nrow( HbS.priors )) {
   prior = HbS.priors[i,]
   message( sprintf( "++ Creating diagnostic plot for prior %s...", prior$name ))
@@ -139,15 +142,19 @@ for( i in 1:nrow( HbS.priors )) {
   plots$in.sample.summary$name = prior$name
   plots$in.sample.summary$priorid <- ifelse(plots$in.sample.summary$type == 'piel', NA, i)
   #extract cpo and waic values (out-of-sample and in-sample metric) for our model (NA if taken from piel)
-  plots$in.sample.summary$cpo <- ifelse(plots$in.sample.summary$type == 'piel', NA, sum(log(modelfit$fit$cpo$cpo + 1), na.rm = TRUE))
+  plots$in.sample.summary$cpo <- ifelse(plots$in.sample.summary$type == 'piel', NA, -1*mean(log(modelfit$fit$cpo$cpo+0.1), na.rm = TRUE))
   plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
   in.sample.summary <- bind_rows( in.sample.summary, plots$in.sample.summary )
   #ONLY FOR BEST MODEL###########################################################
   #at the end of the procedure makes HbS map for figure 1 based on the best performing model
   if(i == nrow( HbS.priors ))
   {
-    in.sample.summary <- in.sample.summary %>% arrange( desc( cpo ) )#ordered by best out-of-sample (cpo)
-    readr::write_csv(
+    if(cposel == FALSE){
+      in.sample.summary <- in.sample.summary %>% arrange (waic) 
+    } else {
+      in.sample.summary <- in.sample.summary %>% arrange (cpo)
+    }
+  readr::write_csv(
       (
         in.sample.summary
         %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
@@ -155,7 +162,11 @@ for( i in 1:nrow( HbS.priors )) {
       file = "output/HbSsensitivity/diagnostics/metrics.csv"
     )
     
-    message( "++ Models ordered by cpo are:" )
+    if (cposel == FALSE) {
+      message("++ Models ordered by waic are:")
+    } else {
+      message("++ Models ordered by cpo are:")
+    }
     print(
       (
         in.sample.summary
@@ -163,7 +174,7 @@ for( i in 1:nrow( HbS.priors )) {
       )
     )
   #identify where cpo is highest
-    best_model <- in.sample.summary[1,]$name#first row is best model cause (decreasing by CPO)
+    best_model <- in.sample.summary[1,]$name#first row is best model cause (increasing by CPO)
     best_id <- in.sample.summary[1,]$priorid
     prior = HbS.priors[best_id,]
     message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))

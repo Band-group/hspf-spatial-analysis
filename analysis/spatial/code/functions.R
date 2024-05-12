@@ -787,7 +787,7 @@ inla_exec<- function(allModelsList, i){
   if(result$ok==FALSE){
     result <- inla.cpo(result, force=FALSE)
   }
-  result_model <- data.frame(Model= as.character(formula), CPO=sum(log(result$cpo$cpo+1),na.rm=TRUE),
+  result_model <- data.frame(Model= as.character(formula), CPO=-1*mean(log(result$cpo+0.1),na.rm=TRUE),
                              WAIC= result$waic$waic,
                              DIC=result$dic$dic)
   setTxtProgressBar(mypb, i, title = "Model fit completed", label = i)
@@ -914,11 +914,11 @@ fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
   pfpt$logN <- log(pfpt$N)
   pfpt <- st_as_sf(pfpt)
   pfpt <- pfpt[border,]
-  pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
+  #pfpt <- pfpt %>% mutate(region = as.factor(ifelse(lon < 20, "West Africa", "East Africa")))
   mys <- sqrt(pfpt$N)
   myquant <- c(1,2,4,16,40)
   fig1a <- ggplot(pfpt) +
-    geom_sf(data = border, fill = "white", col = 'grey60') +
+    geom_sf(data = border, fill = "white", col = 'grey15') +
     geom_sf(data = pfpt, aes(size = sqrt(N), fill = Pf), color= 'transparent',alpha = 0.4, shape = 21) +
     scale_size_continuous(range=c(0.05,12),breaks = myquant,
                           limits = c(0, max(mys)),
@@ -929,7 +929,7 @@ fig1a.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL) {
     theme_void(14) +
     theme(legend.box = "vertical",
           legend.direction = "horizontal",
-          legend.position = c(0.15, 0.18),
+          legend.position = c(0.1, 0.18),
           legend.justification = c(0, 1))+
     guides(fill = guide_legend(override.aes = list(alpha = 1,size=4)),
            size = guide_legend(override.aes = list(alpha = 1,color='black')))
@@ -953,17 +953,18 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalet
     wsf$Samples <- log(wsf$N)
     wsf_af <- wsf[border,]
     myshape <- c("original" = 21, "extended" = 23)
+    myquantb <- c(5,10,100,200,400,600)
     fig1b <- ggplot() +
-      geom_sf(data = border, fill = NA, col = 'grey60') +
+      geom_sf(data = border, fill = NA, col = 'grey15') +
       geom_sf(data = wsf_af, aes(size = sqrt(N), fill = Prevalence, shape = Dataset),
               color='grey35', alpha = 0.85) +
-      scale_size_continuous(range = c(0.25, 14), name = "Sample size (square root)") +
+      scale_size_continuous(range = c(0.25, 14),breaks = myquantb, name = "Sample size (square root)") +
       scale_fill_scico(name = paste0("HbS prevalence"),palette = scicopalette)+
       scale_shape_manual(values = myshape, name = "HbS dataset") +
       theme_void(14) +
       theme(legend.box = "vertical",
             legend.direction = "horizontal",
-            legend.position = c(0.15, 0.36),
+            legend.position = c(0.1, 0.45),
             legend.justification = c(0, 1),
             legend.title = element_text(vjust = 0.5)) +
       guides(
@@ -987,7 +988,7 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,scicopalet
       geom_sf(data=lake,fill='deepskyblue',col="deepskyblue3")+
       ylim(-36,extent(border)[4])+ 
       guides(fill=guide_legend(title="Predicted mean\nHbS prevalence"))+
-      theme_void(14) + theme(legend.position=c(0.15,0.25),
+      theme_void(14) + theme(legend.position=c(0.25,0.25),
                                               legend.key.width = unit(1,'cm'),
                                               #legend.title =element_blank(),
                                               legend.direction = "vertical",
@@ -1162,10 +1163,10 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   # Loop over unique regions
   if (mymodname=='country'){
     unique_regions <- unique(myoutput$country)
-  } else { #modname as 'regional' or rob01,...
+  } else { #modname as 'regional' or 'All' or spatial01,...
     unique_regions <- unique(myoutput$region)  
   }
-  
+  unique_regions <- na.omit(unique_regions)
   df_list <- list()
   for (i in 1:length(unique_regions)) {
       if (mymodname=='country'){
@@ -1230,13 +1231,13 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     #                     "Mali" = "#42426f", "Burkina Faso"=  "#377eb8", "Ivory Coast" = "#03b4cc", "Ghana"=  "#03b4cd", "Cameroon" = "#e41a1c",
     #                     "DRC" = "#2E8B57", "Malawi" = "#a65628", "Tanzania" = "#ee5c42", "Kenya" = "#ff7f00","Nigeria"="#2f4f4f","Ethiopia"="#ee5500") 
     #only for mycountries <- c("Mali", "Tanzania", "DRC", "Gambia","Ghana","Ethiopia")
-    region_colors <- c("All" ="grey35", "Senegambea" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
-    region_ltype <- c("All"="solid","Senegambea" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
+    region_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500")
+    region_ltype <- c("All"="solid","Senegal-Gambia" ="solid", "Gambia" = "solid","Mali" = "solid", "Ghana"=  "solid","DRC" = "solid", "Tanzania" = "solid","Ethiopia"="solid")
    } else {#regional or rob models
        region_colors <- c(
          "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
          "East Africa" = "#DA680F",    #Burgundyred#8D021F, Orangered: #D9534F
-         "Africa" = "grey35"           # Dark grey
+         "All" = "grey35"           # Dark grey
        )
        region_ltype <- c(
          "West Africa" = "solid",   
@@ -1248,7 +1249,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   #define region and country levels for wrap plots
   rlevels <- c("All","West Africa","East Africa")
   if(senegambea == TRUE){
-    clevels <- c("All","Senegambea","Mali","DRC","Tanzania")
+    clevels <- c("All","Senegal-Gambia","Mali","DRC","Tanzania")
   } else {
     clevels <- c("All","Gambia","Mali","Ghana","DRC","Tanzania")
   }
@@ -1257,26 +1258,32 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency")) +
    # scale_fill_manual(values = region_colors) +  # Assign fill colors to regions
     # coord_fixed(ratio = 0.35, xlim = c(0, max(finaloutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) + 
-    scale_size_continuous(range = c(1, 5)) +  
-    theme(legend.position = "none", text = element_text(family = "serif"))
+    scale_size_continuous(range = c(1, 12),breaks=c(1,5,10,20,40))# +  
+   # theme(legend.position = "none", text = element_text(family = "serif"))
   
   # Conditionally add facet_wrap and smoothing
   if (mymodname == 'country') {
     #multiple lines together
     plot1b <- plot1 +
-      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, fill=country,size = sqrt(N)), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=country,group=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
       scale_fill_manual(values = region_colors) + 
       scale_color_manual(values = region_colors)  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
-      geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=country), shape = 21, alpha = 0.3) +
+      geom_point(data = myoutput, aes(x = HbS, y = Y/N, fill=country, size = sqrt(N)),shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=country),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey", alpha = 0.2) +
       facet_wrap(~factor(country,levels=clevels), ncol = length(unique_regions),scales = 'free')+ 
-      scale_fill_manual(values = region_colors) + 
-      scale_color_manual(values = region_colors) 
+      scale_fill_manual(values = region_colors,guide = "none") + 
+      scale_color_manual(values = region_colors,guide = "none") 
+    plot1a <- plot1a +
+      theme(legend.position = c(0.27, 0.9), legend.title = element_text(size = 7),
+            legend.text =element_text(size=5),legend.spacing.y = unit(0.1, "cm"),
+            legend.background = element_rect(fill = "transparent"))+
+      guides(size = guide_legend(title = "Sample size (square root)", label.position = "right", title.position = "top",nrow=1)) 
+    
   } else {#regional or rob models
     #multiple lines together
     plot1b <- plot1 +
@@ -1284,16 +1291,22 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
       geom_line(data = prediction, aes(x = x, y = y,color=region,group=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2) +
       scale_fill_manual(values = region_colors) + 
-      scale_color_manual(values = region_colors)  # Assign line colors to regions
+      scale_color_manual(values = region_colors,guide = "none")  # Assign line colors to regions
     #separate plots for each line
     plot1a <- plot1 +
       geom_point(data = myoutput, aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) +
       geom_line(data = prediction, aes(x = x, y = y,color=region),linewidth=1.5) +
       geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = "grey",alpha=0.2) +
       facet_wrap(~factor(region,levels=rlevels), ncol = length(unique_regions),scales='free')+
-      scale_fill_manual(values = region_colors) + 
-      scale_color_manual(values = region_colors)  # Assign line colors to regions
-}
+      scale_fill_manual(values = region_colors,guide = "none") + 
+      scale_color_manual(values = region_colors,guide = "none")  # Assign line colors to regions
+    plot1a <- plot1a +
+      theme(legend.position = c(0.45, 0.9), legend.title = element_text(size = 7),
+            legend.text =element_text(size=5),legend.spacing.y = unit(0.1, "cm"),
+            legend.background = element_rect(fill = "transparent"))+
+      guides(size = guide_legend(title = "Sample size (square root)", label.position = "right", title.position = "top",nrow=1)) 
+    
+    }
     for (k in 1:length(unique_regions)){
       plot1c <- ggplot(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region)) + 
         geom_point(data = myoutput[myoutput$country==unique_regions[k],], aes(x = HbS, y = Y/N, size = sqrt(N),fill=region), shape = 21, alpha = 0.3) + 
@@ -1303,12 +1316,13 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
         scale_size_continuous(range = c(1, 5)) +  
         geom_ribbon(aes(ymin = y_lower, ymax = y_upper),fill = c("grey"),alpha=0.2,linewidth=NA) +
         geom_line(data = prediction[prediction$country==unique_regions[k],], aes(x = x, y = y,color=region),linewidth=1.5) +
-        scale_color_manual(values = region_colors) +  # Assign line colors to regions
-        theme(legend.position = "none", text = element_text(family = "serif"))
+        scale_color_manual(values = region_colors) #+  # Assign line colors to regions
+   #     theme(legend.position = "none", text = element_text(family = "serif"))
       ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".pdf", sep = ""), plot1c,width=5,height=5)
       ggsave(paste(savepath, "/HbSeffect_",unique_regions[k],"_",Pfalleles[l], ".svg", sep = ""), plot1c,width=5,height=5)
     }
   
+    
   # Save the plots
   #save one plot per all countries together
   ggsave(filename = paste0(savepath, "/HbSeffect",mymodname,"_",Pfalleles[l],".pdf"), plot = plot1a, width = mywidth, height = 5)
@@ -1321,7 +1335,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     geom_abline(intercept = 0, slope = 1, linetype = 2) + 
     coord_fixed(ratio = 1, xlim = c(0, 1), ylim = c(0, 1)) + 
     labs(x = paste0("Observed ", Pfalleles[l]," frequency"), y = paste0("Predicted ", Pfalleles[l]," frequency")) +
-    scale_size_continuous(range = c(1, 5))+
+    scale_size_continuous(range = c(1, 15))+
     theme(legend.position = "none", text = element_text(family = "serif"))
   # Conditionally add facet_wrap
   if (mymodname == 'country') {
@@ -1342,16 +1356,16 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = country, fill = country)) +
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 10,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = country), shape = 21, alpha = 0.5)# +
+    #  geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = country), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Country"
   } else {#regional or rob
     #regionoutput <- myoutput[myoutput$region != "All", ]
     regionoutput <- myoutput[myoutput$model == mymodname, ]
     regionpred <- prediction[prediction$region %in% unique_regions, ]
     plot3 <- ggplot(data = regionpred, aes(color = region, fill = region))+
-      geom_point(data = regionoutput[regionoutput$N >= 5,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) +
-      geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+      geom_point(data = regionoutput[regionoutput$N >= 10,], aes(x = HbS, y = Y/N, size = sqrt(N), fill = region), shape = 21, alpha = 0.5) #+
+    #  geom_point(data = regionoutput[regionoutput$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
     mytitle <- "Region"
   }
 
@@ -1365,7 +1379,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
     
     labs(x = "AS or SS freq", y = paste0("Observed ", Pfalleles[l], " frequency")) +
     # coord_fixed(ratio = 0.35, xlim = c(0, max(regionoutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) +
-    scale_size_continuous(range = c(1, 10))+
+    scale_size_continuous(range = c(1, 10),breaks = c(5,10,20,30))+
     scale_linetype_manual(values=region_ltype,guide = "none")
   
   if (l == length(Pfalleles)) {
@@ -1375,7 +1389,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
             legend.background = element_rect(fill = "transparent"))+
       guides(
         color = guide_legend(title = mytitle, label.position = "right", title.position = "top",ncol=length(unique(prediction$region))),
-        size = guide_legend(title = "Sample size (square root)", label.position = "right", title.position = "top",ncol=3)) 
+        size = guide_legend(title = "Sample size (square root)", label.position = "right", title.position = "top",nrow=1)) 
     
   } else {
     plot3 <- plot3 + theme(legend.position = "none")
@@ -1407,7 +1421,7 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
                    verbose = FALSE,num.thread=1#,
                    #control.fixed = list(mean.intercept=-10, prec.intercept=8)
   )
-  inlaspat <- inla.rerun(inlaspat)
+  inlaspat <- inla.cpo(inlaspat)
   #in case some infinite values are returned by inla
   inlaspat$marginals.fitted.values[[i]][is.infinite(inlaspat$marginals.fitted.values[[i]])] <- 0.0000000001
   predspat <- data.frame(
@@ -1416,7 +1430,7 @@ spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
     region = as.factor("All"),
     obs = mydf$Y[i]/mydf$n[i],
     pred = inla.emarginal(inverse.logit, inlaspat$marginals.fitted.values[[i]]),
-    cpo = sum(log(inlaspat$fit$cpo$cpo + 1), na.rm = TRUE),
+    cpo = -1*mean(log(inlaspat$cpo$cpo+0.1), na.rm = TRUE),
     waic = inlaspat$waic$waic,
     intercept=round(inlaspat$summary.fixed[1,1:2],5),
     HbS_hat=data.frame(round(inlaspat$summary.fixed[-1,1:2],5)),
@@ -1474,7 +1488,7 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
     obs = countrydf$Y[i]/countrydf$n[i],
     #pred = inverse.logit(coeffs[1,1]+coeffs['HbS',1]*countrydf$HbS[i]),
     pred = inla.emarginal(inverse.logit, inlasin$marginals.fitted.values[[i]]),
-    cpo = sum(log(inlasin$fit$cpo$cpo + 1), na.rm = TRUE),
+    cpo = -1*mean(log(inlasin$cpo$cpo+0.1), na.rm = TRUE),
     waic = inlasin$waic$waic,
     intercept=round(coeffs[1,1:2],5),
     HbS_hat=data.frame(round(coeffs['HbS',1:2],5)),
