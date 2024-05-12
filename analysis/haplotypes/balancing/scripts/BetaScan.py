@@ -557,23 +557,23 @@ def main():
 
     if args.onewin:
         if args.fold:
-            output.write("Position\tBeta1*_std\n")
+            output.write("Position\tDerived\tTotal\tFrequency\tBeta1*_std\n")
         elif args.B2:
-            output.write("Position\tBeta2_std\n")
+            output.write("Position\tDerived\tTotal\tFrequency\tBeta2_std\n")
         else:
-            output.write("Position\tBeta1_std\n")
+            output.write("Position\tDerived\tTotal\tFrequency\tBeta1_std\n")
     elif not args.std and args.fold:
-        output.write("Position\tBeta1*\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta1*\n")
     elif args.std and args.fold:
-        output.write("Position\tBeta1*\tBeta1*_std\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta1*\tBeta1*_std\n")
     elif args.std and not args.B2:
-        output.write("Position\tBeta1\tBeta1_std\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta1\tBeta1_std\n")
     elif not args.B2:
-        output.write("Position\tBeta1\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta1\n")
     elif args.B2 and not args.std:
-        output.write("Position\tBeta2\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta2\n")
     else:
-        output.write("Position\tBeta2\tBeta2_std\n")
+        output.write("Position\tDerived\tTotal\tFrequency\tBeta2\tBeta2_std\n")
 
     if not args.B2 and np.any(SNPs[:, 1] == SNPs[:, 2]):
         SNPs = SNPs[(SNPs[:, 1] != SNPs[:, 2]) & (SNPs[:, 1] != 0)]
