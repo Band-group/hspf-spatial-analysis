@@ -4,6 +4,8 @@ import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 
+type LatLon = { latitude: number, longitude: number } ;
+
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
@@ -62,7 +64,7 @@ class Simulation {
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		let self = this ;
 		// get pixel coords of lat/long, with padding.
-		let toPixelCoords = function( pt ) {
+		let toPixelCoords = function( pt: LatLon ) {
 			let xy = self.tiffs[0].toPixelCoords( pt ) ;
 			xy.x += self.outerPadding ;
 			xy.y += self.outerPadding ;
@@ -87,7 +89,7 @@ class Simulation {
 		}
 		this.data.unshift( this.hspf.pfsa ) ;
 	
-		let section = document.querySelector("section") ;
+		const section = document.querySelector("section") ;
 		if( section ) {
 			this.data.forEach( function( datum, index ) {
 				const canvas = document.createElement( 'canvas' ) ;
@@ -165,8 +167,8 @@ async function run() {
 	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
 	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-//	let simulation = await Simulation.create( "https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
