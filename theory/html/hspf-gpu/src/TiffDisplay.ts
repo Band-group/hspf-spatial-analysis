@@ -81,8 +81,9 @@ export default class TiffDisplay {
 			if( a < 0 ) {
 				return vec4f( 0, 33.0/256, 71.0/256, 0.5 ) ;
 				// return vec4f(0.05, 0.05, 0.2, 0.5);
-			//} else if( a > 0.05 && u32(min(max(a,0.0),0.99) * 200.0) % 10 == 0 ){
-			//	return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
+			} else if( a > 0.05 && u32(min(max(a,0.0),0.99) * 500.0) % 25 == 0 ){
+				//return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
+				return vec4f(0.6, 0.25, 0, 0.5); // (Red, Green, Blue, Alpha)
 			} else {
 				let q = u32(min(max(a,0.0),0.99)*20) ;
 				return palette[q] ;

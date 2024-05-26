@@ -14,6 +14,7 @@
     "vite": "^5.1.4"
   },
   "dependencies": {
+    "@observablehq/plot": "^0.6.14",
     "@stdlib/random": "^0.2.1",
     "@stdlib/stats": "^0.2.1",
     "@webgpu/types": "^0.1.40",
