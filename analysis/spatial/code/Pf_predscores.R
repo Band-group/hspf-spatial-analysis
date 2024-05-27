@@ -240,26 +240,40 @@ message(paste0("\nEND Pf_predscores.R for ", Pfalleles[l]))
 
 #Make graph for Figure 2
 # Define the color palette
-country_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd","Gambia" = "#0000cd", "Mali" = "#42426f", "Ghana" = "#03b4cd", "DRC" = "#2E8B57", "Tanzania" = "#ee5c42", "Ethiopia" = "#ee5500")
+country_colors <- c("All" ="grey35", "Senegal-Gambia" = "#0000cd", "Gambia" = "#0000cd","Mali" = "#42426f", "Ghana"=  "#03b4cd","DRC" = "#2E8B57", "Tanzania" = "#ee5c42","Ethiopia"="#ee5500",
+                   "India"="yellow1", "Colombia"="maroon", "Peru"="maroon2", "Indonesia"="yellow4", "Thailand"="yellow3", "Myanmar"="yellow2"  )
+
 region_colors <- c(
-  "West Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
-  "East Africa" = "#DA680F",    #Burgundyred#8D021F, Orangered: #D9534F
-  "Africa" = "grey35"           # Dark grey
+  "Africa" = "#0E4C92",   #Yale Blue; Royal Blue: "#4169E1"
+  "Asia and South America" = "#DA680F"    #Burgundyred#8D021F, Orangered: #D9534F
+ # "Africa" = "grey35"           # Dark grey
 )
 #define region and country levels for wrap plots
-alevels <- c("All","East Africa","West Africa","DRC","Tanzania","Mali","Senegal-Gambia","Gambia","Ghana")
+# alevels <- c("All","Africa","Asia and South America","DRC","Tanzania","Mali","Senegal-Gambia","Gambia","Ghana",
+#              "India", "Colombia", "Peru", "Indonesia", "Thailand", "Myanmar")
+
+#only focus on Africa here
+alevels <- c("All","Africa","DRC","Tanzania","Mali","Senegal-Gambia","Gambia")             
 
 allpalettes <- list(country_colors,region_colors)
 for (l in 1:length(Pfalleles)){
   #plot hbs effects for both country and regional models
   hbsdata <- myresult[(myresult$pf==Pfalleles[l]),]
-
-  #pick global model from the best spatial / aspatial model
-  #here we use cpo 
-  bestglobal <- hbsdata[grepl("All|spatial", hbsdata$region),]
-  bestglobal <- bestglobal[which.min(bestglobal$mean_CPO),]
-  othermodel <- hbsdata[!grepl("All|spatial", hbsdata$region),]
-  hbsdata <- rbind(bestglobal,othermodel)
+ 
+  # OPTION 1: pick the model with best predictive score
+  # #pick global model from the best spatial / aspatial model
+  # #here we use cpo 
+  # bestglobal <- hbsdata[grepl("All|spatial", hbsdata$region),]
+  # if (cposel == TRUE) {
+  # bestglobal <- bestglobal[which.min(bestglobal$mean_CPO),]
+  # } else {
+  # bestglobal <- bestglobal[which.min(bestglobal$mean_WAIC),]
+  # }
+  # OPTION 2: pick the aspatial model
+  hbsdata <- hbsdata[grepl("All|regional|country", hbsdata$model),]
+  #othermodel <- hbsdata[!grepl("All|spatial", hbsdata$model),]
+  #hbsdata <- rbind(bestglobal,othermodel)
+  hbsdata <- hbsdata[hbsdata$region %in% alevels,]
   hbsdata$region <- factor(hbsdata$region,levels=rev(alevels))
   # Create a ggplot graph
   hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
@@ -268,23 +282,26 @@ for (l in 1:length(Pfalleles)){
     geom_point(aes(color = region), size = 6) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "grey35",linewidth=1)+
     scale_color_manual(values = unlist(allpalettes)) +
-    labs(title = paste0("Estimated HbS effects on ",Pfalleles[l]," (log odd-ratios)")) +
-    theme_bw(16) +
+    labs(title = paste0("Estimated HbS effects on ",Pfalleles[l]), " prevalence") +
+     labs(x = "HbS effects [log odd-ratios]")+
+    theme_bw() +
     theme(legend.position = "none",axis.title=element_blank(),
           axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.border = element_blank(),
-          panel.background = element_blank())
-  ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,width = 14,height = 5)
-  ggsave(file=paste0("output/Pf/output/pdf/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 5)
+          panel.background = element_blank(),
+           text = element_text(size=20))
+  ggsave(file=paste0("output/fig2/HbShat_allmodels","_", Pfalleles[l],".pdf"),hbshatplot,width = 15,height = length(unique(hbsdata$region)))
+  ggsave(file=paste0("output/fig2/HbShat_allmodels","_", Pfalleles[l],".svg"),hbshatplot,width = 15,height = length(unique(hbsdata$region)))
   
 
   modnames <- list('country','regional')
   
   #plot hbs effects for country models
-  rlevels <- c("West Africa","East Africa")
-  clevels <- c("Senegal-Gambia","Gambia","Mali","Ghana","DRC","Tanzania")
+  rlevels <- c("Africa","Asia and South America")
+  clevels <- c("Senegal-Gambia","Gambia","Mali","Ghana","DRC","Tanzania",
+               "India", "Colombia", "Peru", "Indonesia", "Thailand", "Myanmar")
   
  for (i in 1:length(modnames)){
   hbsdata <- myresult[(myresult$model==modnames[i] & myresult$pf==Pfalleles[l]),]
@@ -302,15 +319,15 @@ hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "grey35",linewidth=1)+
    scale_color_manual(values = unlist(allpalettes[i])) +
   labs(title = paste0("Estimated HbS effects on ",Pfalleles[l]," (log odd-ratios)")) +
-  theme_bw(16) +
+  theme_bw(18) +
   theme(legend.position = "none",axis.title=element_blank(),
         axis.line = element_line(colour = "black"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank())
-ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 14,height = 4)
-ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 14,height = 4)
+ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".pdf"),hbshatplot,width = 15,height = length(unique(hbsdata$region)))
+ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],".svg"),hbshatplot,width = 15,height = length(unique(hbsdata$region)))
   }
 }
 # #plot hbs effects for regional models
@@ -326,5 +343,5 @@ ggsave(file=paste0("output/Pf/output/pdf/HbShat_",modnames[i],"_", Pfalleles[l],
 # ggsave(file=paste0("output/Pf/output/pdf/HbShatregion_",Pfalleles[l],".pdf"),hbshatplot,dpi = 100,width = 16,height = 7)
 # ggsave(file=paste0("output/Pf/output/pdf/HbShatregion_",Pfalleles[l],".svg"),hbshatplot,width = 16,height = 7)
 # }
-message(paste0("\nEND Pf_predscores.R for all Pf alleles"))
-gc()  
+gc() 
+message("++ Great success! End Pf_predscores.R" ) 
