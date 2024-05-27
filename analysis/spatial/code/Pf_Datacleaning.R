@@ -1,5 +1,5 @@
 #Extract HbS data at Pf data locations for Pf Model
-message("Start Pf_Datapreparation.R")
+message("Start Pf_Datacleaning.R")
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("raster","sf","stats", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "RSQLite","DBI","readxl","ggplot2","elevatr",
                       "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","rmapshaper","ggrepel","ggnewscale")
@@ -26,9 +26,6 @@ pf7path <- "input/hbs-pf.sqlite"
 mydb <- DBI::dbConnect(drv=RSQLite::SQLite(), dbname=pf7path)
 pf_data <- DBI::dbGetQuery(mydb,"SELECT * FROM by_site")
 DBI::dbDisconnect(mydb)
-####################OPTIONAL: REMOVE IF NOT ENOUGH OBSERVATIONS#################
-pf_data <- pf_data[pf_data$N>minpf,]
-################################################################################
 #summary(pf_data)
 #remove data from Verity in some countries (extreme values might be wrong)
 pf_data <- subset(pf_data, !(source == 'Verity_et_al_2021' & (country == 'Tanzania' | country == 'Ghana')))
@@ -75,23 +72,37 @@ for( name in names( paths$hbs )) {
 xytall <- list()
 for (i in 1:length(Pfalleles)){
   
-  vari <- c("source","site","country","longitude","latitude","hbs_mean","hbs_sd","hbs_q25","hbs_q75","N",
+  vari <- c("source","site","country","longitude","latitude","hbs_mean","hbs_sd","hbs_q25","hbs_q75",paste0(Pfalleles[i],":N"),
             paste0(Pfalleles[i],":ref"),paste0(Pfalleles[i],":nonref"),paste0(Pfalleles[i],":frequency"),
             paste0(Pfalleles[i],":lower2.5"),paste0(Pfalleles[i],":upper97.5"))
   
   xyti <- pf_data[,vari]
   names(xyti) <- c("source","site","country","longitude","latitude","HbSmean","HbSsd","HbSq25","HbSq75",
                    "N","Pfsaref", "Pfsanonref", "Pfmean","PfCIl","PfCIu")
+  #Optional keep data if N > minpf#########
+  xyti <- xyti[xyti$N > minpf,]     
+  #########################################   
+  #keep if complete         
+  xyti<- xyti[complete.cases(xyti[,c("HbSmean","Pfsaref","Pfsanonref","longitude","latitude")]),]
   coordinates(xyti) <- ~longitude+latitude
   proj4string(xyti) <- proj4string(africa)
   xyti$lon <- xyti@coords[,1]
   xyti$lat <- xyti@coords[,2]
-  #keep if complete
-  xytall[[i]] <- xyti[complete.cases(xyti@data[,c("HbSmean","Pfsaref","Pfsanonref")]),]
+  #add continent element
+ xyti <- sf::st_join(sf::st_as_sf(xyti),continents_sf)
+  #Cut the study into Africa and non-Africa (which, for our dataset, includes Asia (or South Asia) and South America)
+#  xyti  <- xyti %>%
+#   dplyr::mutate(CONTINENT = ifelse(CONTINENT != "Africa", "Asia and South America", CONTINENT))
+ #Replace continent named Asia by South Asia since all observations are in South Asia
+  xyti$CONTINENT[xyti$CONTINENT == "Asia"] <- "South Asia"
+  #Some rows do not have continents, so here is a correction
+ xyti$CONTINENT <- ifelse(is.na(xyti$CONTINENT) &xyti$country == "Nigeria", "Africa",xyti$CONTINENT)
+ xyti$CONTINENT <- ifelse(is.na(xyti$CONTINENT) &xyti$country == "Papua_New_Guinea", "Oceania",xyti$CONTINENT)
+  xytall[[i]] <- as(xyti,"Spatial")
 }
 
 save(xytall,Pfalleles,file=paste0("output/Pf/input/Pfdata.Rdata"))
 message("End of Pf_Datacleaning.R")
 #END
-# plot(africa)
+# plot(myarea)
 # plot(xytall[[1]],col="red",pch='+',add=TRUE)
