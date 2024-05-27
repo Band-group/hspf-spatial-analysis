@@ -29,14 +29,23 @@ pred_locs = get_prediction_locations(
 # and subset to africa:
 HbSdata <- read.csv("input/cleanHbSdata.csv")
 pt = dfToSpatialPts( HbSdata )
+if(worldsel==FALSE){
 mycheck = check.excluded( pt, africa )
+} else {
+#world <- as(world_sf,"Spatial")
+world <- as(HbSpredextent,"Spatial")
+world$ID <- 1
+mycheck = check.excluded( pt, world )
+}
 message( sprintf( "fit_HbS_models.R: number of observations excluded: %d", nrow(mycheck$excluded@data )))
+# option 1: keep only observations in study area
+#extpoly = mycheck$extpoly
+#xyt <- pt[extpoly, ]
+# option 2:  keep observations in area where we want to predict (Piel + a few countries)
+# this latter option allows us for a finer mesh in location of interest while reducing computational burden
+xyt <- pt[as(HbSpredextent,"Spatial"), ]
 
-# keep only observations in study area
-extpoly = mycheck$extpoly
-xyt <- pt[extpoly, ]
-
-########################################################
+ ########################################################
 # Model fitting
 
 verbose = TRUE
@@ -56,7 +65,7 @@ for( i in 1:nrow( HbS.priors )) {
 
     modelfit <- fit_inla_binomial_model(
       xyt,
-      extpoly,
+      extpoly=as(HbSpredextent,"Spatial"),#here we set mesh based on where we want to predict
       prior,
       verbose = verbose
     )
