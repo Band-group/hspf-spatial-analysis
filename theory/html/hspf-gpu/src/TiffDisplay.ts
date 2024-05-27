@@ -78,17 +78,28 @@ export default class TiffDisplay {
 			@location(0) cell: vec2f
 		  ) -> @location(0) vec4f {
 			let a = HbS[i32(cell.x + (grid.y-cell.y-1)*grid.x)] ;
-			if( a < 0 ) {
-				return vec4f( 0, 33.0/256, 71.0/256, 0.5 ) ;
-				// return vec4f(0.05, 0.05, 0.2, 0.5);
-			} else if( a > 0.05 && u32(min(max(a,0.0),0.99) * 500.0) % 25 == 0 ){
-				//return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
-				//alpha not making a difference here at the moment
-				return vec4f(1, 1, 1, 0.5); // (Red, Green, Blue, Alpha)
-			} else {
-				let q = u32(min(max(a,0.0),0.99)*20) ;
-				return palette[q] ;
-			}
+			// WIP contour lines / clipping
+			// prefer not to use 'if' non-uniform flow... let's work out the palette colour, then adjust it.
+			let q = u32(clamp(a,0.0,0.99)*20) ;
+			var c = palette[q] ;
+			var w = 1./30. ; //edge feather, todo use derivatives (fwidth)
+			var wa = smoothstep(0.1, 0., (a*20.) % 1.) ;
+			wa = 1.-max(smoothstep(1-w, 1, wa), smoothstep(w, 0, wa)) ;
+			// let alpha = smoothstep(radius - aaf, radius, dst) ;
+			c = mix(c, vec4f(1,1,1,1), smoothstep(0.0, 1.0, wa)) ;
+			// c.r = fw ;
+			return c ;
+			// if( a < 0 ) {
+			// 	return vec4f( 0, 33.0/256, 71.0/256, 0.5 ) ;
+			// 	// return vec4f(0.05, 0.05, 0.2, 0.5);
+			// } else if( a > 0.05 && u32(min(max(a,0.0),0.99) * 500.0) % 25 == 0 ){
+			// 	//return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
+			// 	//alpha not making a difference here at the moment
+			// 	return vec4f(1, 1, 1, 0.5); // (Red, Green, Blue, Alpha)
+			// } else {
+			// 	let q = u32(min(max(a,0.0),0.99)*20) ;
+			// 	return palette[q] ;
+			// }
 		  }
 		`
 		});
