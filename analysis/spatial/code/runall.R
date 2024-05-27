@@ -3,7 +3,7 @@
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("raster","sf","stats", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
                       "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","ggdist","inlabru","mapproj",
-                      "parallelly","parallel","foreach","dplyr","rbenchmark")
+                      "parallelly","parallel","foreach","dplyr","rbenchmark","ggspatial","pals",'fasterize')
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
@@ -45,6 +45,7 @@ if(nbcores >= 64){highmem <- TRUE} else {highmem <- FALSE }
 senegambea <- TRUE#if TRUE, aggregate Senegal, Gambia, and Guinea-Bissau
 DRCsplit <- FALSE#if TRUE, keep only Pf data in south of DRC (below -2.5 lat) (for test)
 cposel <- FALSE#if TRUE, use cpo to select best model; FALSE: use waic
+worldsel <- TRUE#if TRUE, fit and predict HbS in the world; FALSE: in Africa only
 
 ################################################################################
 ################################################################################
@@ -67,8 +68,8 @@ source("code/HbS_model_diagnostics.R",verbose=FALSE)
 source("code/Pf_datacleaning.R",verbose=FALSE)
 source("code/Pf_model_fit.R",verbose=FALSE)#aspatial Pf models
 source("code/Pf_plots.R",verbose=FALSE)#pf plots
-source("code/Pf_model_spatial.R",verbose=FALSE)#spatial Pf models
-source("code/Pf_predscores.R")#predictive scores plots of HbS coef. estimation
+source("code/Pf_model_spatial.R",verbose=TRUE)#spatial Pf models
+source("code/Pf_predscores.R",verbose=TRUE)#predictive scores plots of HbS coef. estimation
 #About 3h10mn with AMD 3975WX 32 cores################
 #End Pf#############################################
 
