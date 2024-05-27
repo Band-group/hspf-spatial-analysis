@@ -77,27 +77,35 @@ for (l in 1:length(Pfalleles)){
   inccountries <- world_sf[wsf,]
   continents_sf_inc <- continents_sf[wsf,]
   inccsp  <- sf::as_Spatial(continents_sf_inc)
-  CP <- as(extent(africa),"SpatialPolygons")
-  proj4string(CP) <- CRS(proj4string(africa))
+ # CP <- as(extent(africa),"SpatialPolygons")
+ # proj4string(CP) <- CRS(proj4string(africa))
   
   ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
  
   
   #mesh construction of Pf Model
-  pfmesh <- makemesh( wsf, africa, boundary = TRUE )
+  pfmesh <- makemesh( wsf, myarea, boundary = TRUE )
   #pfmesh$n#mesh without external boundary for plotting purpose only (not necessary)
   #plot mesh
+  if(worldsel==TRUE){
+    myheight=5;mywidth=16
+  } else {
+    myheight=8;mywidth=8
+  }
+  #mycrs <- "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
   pmesh <-  ggplot()+
     geom_sf(data = continents_sf_inc,fill='transparent',col='transparent') +
-    geom_sf(data = inccountries,fill='grey90',size=0.5) +
+    geom_sf(data = inccountries,fill='grey45',size=0.5) +
     inlabru::gg(pfmesh,edge.color="navy",int.color="navy",
                 alpha=0.3,size=0.01)+
     geom_sf(data = ocean_sf,fill='white',col='transparent') +
     geom_sf(data = world_sf,fill='transparent',col='black',size=0.5)+
-    coord_sf(expand = FALSE)+xlab("")+ylab("")+
-    xlim(extent(continents_sf_inc)[1],extent(continents_sf_inc)[2])+ylim(-37,extent(continents_sf_inc)[4])#+
+    #coord_sf(crs=mycrs)+
+    coord_sf()+xlab("")+ylab("")+
+    xlim(-180,180)+ylim(-60,85)#+
   #theme(panel.ontop = TRUE)
-  ggsave(pmesh,file=paste0("output/Pf/output/pdf/Pfmesh_",Pfalleles[l],".pdf"),width = 7,height=7)
+  ggsave(pmesh,file=paste0("output/Pf/output/pdf/Pfmesh_",Pfalleles[l],".pdf"),width = mywidth,height=myheight)
+  ggsave(pmesh,file=paste0("output/Pf/output/pdf/Pfmesh_",Pfalleles[l],".svg"),width = mywidth,height=myheight)
  
   #Now that we have a random sample of HbS estimates for each predicted location
   #We will estimate effects HBs -> Pf+ by running one Pf+ Model for each HbS sample
@@ -147,24 +155,11 @@ for (l in 1:length(Pfalleles)){
     pred[,k] <- stats::plogis(lp) #for a binomial likelihood
   }
   
-  mydf <- data.frame(Y,N,rowMeans(compute.S.frequency(pred)),Lon=xyt$lon,Lat=xyt$lat,Country=as.factor(xyt$country)) # For HbAS or SS frequency combined
-  names(mydf) <- c("Y","n","HbS","Lon","Lat","Country")
+  mydf <- data.frame(Y,N,rowMeans(compute.S.frequency(pred)),Lon=xyt$lon,Lat=xyt$lat,Country=as.factor(xyt$country),Region=as.factor(xyt$CONTINENT)) # For HbAS or SS frequency combined
+  names(mydf) <- c("Y","n","HbS","Lon","Lat","Country","Region")
   #replace long name for DRC by DRC
   levels(mydf$Country)[levels(mydf$Country) == "Democratic_Republic_of_the_Congo"] <- "DRC"
-  
-  #Add African Region
-  mydf <- mydf %>%# Not sure if Gabon and Cameroon can be treated as West Africa
-    dplyr::mutate(Region = case_when(
-      Country %in% c("Mali", "Burkina_Faso", "Gambia", "Ghana", "Guinea", 
-                     "Nigeria", "Cote_dIvoire", "Benin", "Senegal", 
-                     "Mauritania") ~ "West Africa",
-      #Country %in% c("DRC") ~ "DRC",
-      # Not sure if DRC and Sudan can be treated as East Africa
-      Country %in% c("Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", 
-                     "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
-      TRUE ~ NA_character_  # This will set 'Region' to NA for any countries not listed above
-    ))
-  mydf$Region <- as.factor(mydf$Region)
+    mydf$Region <- as.factor(mydf$Region)
   
   ##############################################################################
   #Option: aggregate countries with very few number of observation##############
@@ -175,14 +170,15 @@ for (l in 1:length(Pfalleles)){
   #save descriptive information to be added in the manuscript
   datadescript <- data.frame(sampsize=nrow(xyt@data),
                              nbcountries=length(unique(xyt$country)),
+                             nbcontinents=length(unique(xyt$CONTINENT)),
                              meshnodes=mymesh$n,
                              Pfavgprev=mean(mydf$Y/mydf$n,na.rm=TRUE),
                              Pfsdprev=sd(mydf$Y/mydf$n,na.rm=TRUE)
   )
   write.csv(datadescript,paste0("output/Pf/output/csv/Pfdatadescription_",Pfalleles[l],".csv"),row.names = FALSE)
   ################################################################################
-  #Fit single model per region of interest
-  myregions <- c("East Africa", "West Africa")
+  #Fit single regional model by continent Africa
+  myregions <- c("Africa")
   finaloutputc <- list()
   modname <- "regional"
   for (j in 1:length(myregions)){
@@ -209,11 +205,59 @@ for (l in 1:length(Pfalleles)){
     finaloutputc[[j]] <- do.call(rbind,HbS.coef)
   }
   finaloutput1 <- do.call(rbind,finaloutputc)
-  #save the output as .csv
+ #save the output as .csv
   write.csv(finaloutput1,paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".csv"),row.names = FALSE)
   outputlatex1 <- xtable::xtable(finaloutput1)
   print(outputlatex1, file=paste0("output/Pf/output/csv/Pfoutput",modname,"_",Pfalleles[l],".txt"))
   
+ #fit subcontinental models only for some Pf alleles
+ #Add African Region
+  if (Pfalleles[l]=="Pfsa2" | Pfalleles[l]=="Pfsa4"){
+  mydf <- mydf %>%# Not sure if Gabon and Cameroon can be treated as West Africa
+    dplyr::mutate(Region = case_when(
+      Country %in% c("Mali", "Burkina_Faso", "Gambia","Senegal-Gambia", "Ghana", "Guinea", 
+                     "Nigeria", "Cote_dIvoire", "Benin", "Senegal", "Cameroon","Gabon",
+                     "Mauritania") ~ "West Africa",
+      Country %in% c("DRC") ~ "DRC",
+      # Not sure if DRC and Sudan can be treated as East Africa
+      Country %in% c("Tanzania", "Kenya", "Malawi", "Uganda", "Ethiopia", "Sudan",
+                     "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
+    TRUE ~ Region # keep continent unchanged if conditions above not met
+    ))
+  mysubregions <- c("East Africa", "West Africa")
+  finaloutputc <- list()
+  modname <- "regional"
+  for (j in 1:length(mysubregions)){
+    myregiondf <- mydf[mydf$Region==mysubregions[j],]
+    myssc <- nrow(myregiondf)
+    nbcores <- pmin(maxRcores, availableCores(omit = freecores),myssc)  
+    #define model name
+    if (Sys.info()["sysname"] == "Linux" && highmem == TRUE) {
+      library(parallel)
+      HbS.coef <- mclapply(1:myssc, process_country,single=TRUE, 
+                           mc.cores = nbcores,countrydf=myregiondf, mymodname=modname)
+    } else {
+      library(foreach);library(doParallel)
+      cl <- makeCluster(nbcores)
+      registerDoParallel(cl)
+      HbS.coef <- foreach(i = 1:myssc, .packages = c("INLA","stats")) %dopar% {
+        process_country(i=i,countrydf=myregiondf,single=TRUE, mymodname=modname)
+      }
+      stopCluster(cl)
+      registerDoSEQ()  # Unregister doParallel
+    }
+    gc()
+    #put data together
+    finaloutputc[[j]] <- do.call(rbind,HbS.coef)
+  }
+  finaloutput1b <- do.call(rbind,finaloutputc)
+ #save the output as .csv
+  write.csv(finaloutput1b,paste0("output/Pf/output/csv/Pfoutput",modname,"b_",Pfalleles[l],".csv"),row.names = FALSE)
+  outputlatex1b <- xtable::xtable(finaloutput1b)
+  print(outputlatex1b, file=paste0("output/Pf/output/csv/Pfoutput",modname,"b_",Pfalleles[l],".txt"))
+  }  
+  
+ 
   #fit global model
   modname <- "All"
   myalldf <- mydf
@@ -245,6 +289,14 @@ for (l in 1:length(Pfalleles)){
   ################################################################################
   #Fit single model per country of interest
   mycountries <- c("Mali", "Tanzania", "DRC", "Senegal-Gambia")#"Ethiopia" not enough obs.
+  countries_list <- c("India", "Colombia", "Peru", "Indonesia", "Thailand", "Myanmar")
+  # Check which countries in the list are present in the unique values of mydf$Country
+  selected_countries <- countries_list[countries_list %in% unique(mydf$Country)]
+  if (length(selected_countries)>0){
+  # Add selected countries to mycountries vector
+  mycountries <- c(mycountries, selected_countries)
+  }
+  
   finaloutputc <- list()
   modname <- "country"
   for (j in 1:length(mycountries)){
