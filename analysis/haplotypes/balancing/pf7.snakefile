@@ -150,6 +150,11 @@ rule all:
 			"outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz",
 			window = ["5000", "10000" ],
 			p = [ "20", "50" ]
+		),
+		selscan = expand(
+			"outputs/pf7/selscan/pf7.{chromosome}.selscan.{mode}.tsv.gz",
+			chromosome = chromosomes,
+			mode = [ 'ihs' ]
 		)
 
 rule filter_samples:
@@ -251,6 +256,19 @@ rule merge_vcf:
 	tabix -p vcf {output.vcf}
 """
 
+rule extract_annotation:
+	output:
+		tsv = "outputs/pf7/vcf/04_merged/{chromosome}.merged.annotation.tsv.gz"
+	input:
+		vcf = rules.merge_vcf.output.vcf
+	params:
+		tsv = "outputs/pf7/vcf/04_merged/{chromosome}.merged.annotation.tsv"
+	shell: """
+	echo -e 'chromosome\\tposition\\tref\\talt\\tac\\tannotation' > {params.tsv}
+	bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%INFO/AC\t%INFO/ANN\n' {input.vcf} >> {params.tsv}
+	gzip {params.tsv}
+"""
+
 rule remove_hets:
 	output:
 		vcf = "outputs/pf7/vcf/05_nohets/{chromosome}.nohets.vcf.gz"
@@ -338,6 +356,26 @@ rule subset_and_flip_to_ancestral_alleles:
 		-ofiletype vcf \
 		-og {output.vcf} \
 		-os {output.samples}
+	"""
+
+rule remove_ancestral_hets:
+	output:
+		vcf = "outputs/pf7/vcf/07_ancestral/{chromosome}.nohets.vcf.gz"
+	input:
+		vcf = "outputs/pf7/vcf/07_ancestral/{chromosome}.vcf.gz"
+	params:
+		sed_cmd = ' '.join(
+			[
+				( "-e '%s'" % s)
+				for s in [
+					's/0[|]1/0|0/g', # A few hets seem to come through phasing, treat as ref
+					's/1[|]0/0|0/g' # A few hets seem to come through phasing, treat as ref
+				]
+			]
+		)
+	shell: """
+		set +o pipefail
+		zcat {input.vcf} | sed {params.sed_cmd} | gzip -c > {output.vcf}
 	"""
 
 rule convert_to_bgen:
@@ -706,12 +744,56 @@ rule combine_betascan:
 		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv"
 	run:
 		f = input.tsv[0]
-		shell( "echo -e 'window\\tp\\tcountry\\tchromosome\\tposition\\tbeta' > {params.tsv}")
+		shell( "echo -e 'window\\tp\\tcountry\\tchromosome\\tposition\\tderived\\ttotal\\tfrequency\\tbeta' > {params.tsv}")
 		for chromosome in chromosomes:
 			for country in countries:
 				f = rules.run_betascan.output.tsv.format( chromosome = chromosome, country = country, window = wildcards.window, p = wildcards.p )
 				print( "++ Adding from file: %s" % f )
-				shell( """tail -n +2 {f} | awk '{{printf("{wildcards.window}\\t{wildcards.p}\\t{country}\\t{chromosome}\\t%s\\t%s\\n", $1, $2 )}}'>> {params.tsv}""" )
+				shell( """tail -n +2 {f} | awk '{{printf("{wildcards.window}\\t{wildcards.p}\\t{country}\\t{chromosome}\\t%s\\n", $0 )}}'>> {params.tsv}""" )
+		shell( "gzip {params.tsv}" )
+
+rule run_my_betascan:
+	output:
+		tsv = "outputs/pf7/betascan/advanced/tmp/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv"
+	input:
+		haplotypes = rules.convert_to_bgen.output.bgen,
+		samples = rules.filter_samples.output.samples
+	params:
+		script = srcdir( "scripts/betascan.R"),
+		margin = lambda w: int(w.window)/2
+	shell: """
+		Rscript --vanilla {params.script} \
+		--haplotypes {input.haplotypes} \
+		--samples {input.samples} \
+		--countries {wildcards.country} \
+		-p {wildcards.p} \
+		--bp_margin {params.margin} \
+		--output {output.tsv}
+	"""
+
+rule combine_my_betascan:
+	output:
+		tsv = "outputs/pf7/betascan/advanced/pf7.betascan.window={window}.p={p}.tsv.gz"
+	input:
+		tsv = lambda w: (
+			expand(
+				rules.run_my_betascan.output.tsv,
+				chromosome = chromosomes,
+				country = countries,
+				window = [w.window],
+				p = [w.p]
+			)
+		)
+	params:
+		tsv = "outputs/pf7/betascan/advanced/tmp/pf7.betascan.window={window}.p={p}.tsv"
+	run:
+		f = input.tsv[0]
+		shell( """head -n 1 {f} | sed 's/countries/country/' > {params.tsv}""" )
+		for chromosome in chromosomes:
+			for country in countries:
+				f = rules.run_my_betascan.output.tsv.format( chromosome = chromosome, country = country, window = wildcards.window, p = wildcards.p )
+				print( "++ Adding from file: %s" % f )
+				shell( """tail -n +2 {f} >> {params.tsv}""" )
 		shell( "gzip {params.tsv}" )
 
 rule find_similar_freq_mutations:
@@ -724,3 +806,111 @@ rule find_similar_freq_mutations:
 	shell: """
 		sqlite3 -separator $'\\t' {input.stats} "{params.sql}" > {output.txt}
 	"""
+
+rule prepare_to_run_selscan:
+	output:
+		hap = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.hap.gz",
+		haptmp = "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.haptmp.gz",
+		map = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.map.gz",
+		qctool = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.qctool.tsv.gz" ),
+		cM = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.cM" )
+	input:
+		vcf = rules.remove_ancestral_hets.output.vcf,
+		samples = "outputs/pf7/samples/filtered_samples.sample",
+		cM = "ancestral/pf_simple_genetic_map_0.017Mb_per_cM.txt"
+	params:
+		transpose = srcdir( "scripts/transpose_matrix.py" ),
+		sed_cmd = ' '.join(
+			[
+				( "-e '%s'" % s)
+				for s in [
+					's/0[|]0/0/g',
+					's/0[|]1/0/g', # A few hets seem to come through phasing, treat as ref
+					's/1[|]0/0/g', # A few hets seem to come through phasing, treat as ref
+					's/1[|]1/1/g'
+				]
+			]
+		)
+
+	shell: """
+		set +o pipefail
+		# This horrendous bit of code is to prepare .hap/.map files for selscan.
+		# We use the shapeit input files to produce .hap file, then use the genetic map
+		# file with qctool (it needs to be reformatted for this) to extract cM coords,
+		# then awk to make the map file.
+
+		qctool_v2.2.4 \
+		-g {input.vcf} \
+		-s {input.samples} \
+		-incl-samples-where 'Country="{wildcards.country}"' \
+		-og - | \
+		grep -v '^#' | \
+		cut -f10- | \
+		sed {params.sed_cmd} | \
+		gzip -c > {output.haptmp}
+
+		zcat {output.haptmp} | python3 {params.transpose} | gzip -c > {output.hap}
+
+		# WARNING: cM extraction is not working right now, returns a zero column
+		echo 'chromosome pos COMBINED_rate Genetic_Map' > {output.cM}
+		tail -n +2 {input.cM} | awk '{{printf("{wildcards.chromosome} %s\\n", $0 );}}' >> {output.cM}
+		qctool_v2.2.4 \
+		-g {input.vcf} \
+		-annotate-genetic-map {output.cM} \
+		-osnp {output.qctool}
+
+		zcat {output.qctool} \
+			| grep -v -e '^#' -e 'chromosome' \
+			| awk '{{printf("%s %s_%s_%s %s %s\\n", $3, $4, $5, $6, $8, $4 )}}' \
+			| gzip -c \
+		> {output.map}
+	"""
+
+rule run_selscan:
+	output:
+		selscan = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.out" ),
+		log = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.log" )
+	input:
+		hap = rules.prepare_to_run_selscan.output.hap,
+		map = rules.prepare_to_run_selscan.output.map
+	params:
+		selscan = "/well/band/shared/software/selscan-v2.0.1",
+		mode = lambda w: ({"ihs": "--ihs --ihs-detail", "ihh12": "--ihh12" }[w.mode]),
+		output_stub = "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan"
+	threads: 2
+	shell: """
+		{params.selscan} \
+		--threads {threads} \
+		--hap {input.hap} \
+		--map {input.map} \
+		--pmap \
+		{params.mode} \
+		--maf 0.05 \
+		--out {params.output_stub}
+	"""
+
+
+rule combine_selscan:
+	output:
+		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv.gz"
+	input:
+		selscan = expand(
+			rules.run_selscan.output.selscan,
+			chromosome = chromosomes,
+			country = countries,
+			mode = '{mode}'
+		)
+	params:
+		header = lambda w: ({
+			"ihs": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tihh1\\tihh0\\tuIHS\\tihh1_left\\tihh1_right\\tihh0_left\\tihh0_right",
+			"ihh12": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tuiHH12"
+		}[w.mode]),
+		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv"
+	run:
+		shell( """echo -e '{params.header}' > {params.tsv}""" )
+		for chromosome in chromosomes:
+			for country in countries:
+				print( "Doing country %s, chromosome %s..." % ( country, chromosome ))
+				filename = rules.run_selscan.output.selscan.format( chromosome = chromosome, country = country, mode = wildcards.mode )
+				shell( """cat {filename} | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {params.tsv}""" )
+		shell( """gzip {params.tsv}""" )

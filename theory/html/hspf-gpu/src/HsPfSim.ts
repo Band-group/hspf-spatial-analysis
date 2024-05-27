@@ -1,6 +1,13 @@
 import GridData from "./GridData.js" ;
 import betaPDF from "./beta.js" ;
 
+
+interface LocalData {
+	nbhd: GridData,
+	barriers: GridData,
+	fitness: GridData
+} ;
+
 interface SimulationBuffers {
 	parameters: GPUBuffer ;
 	fitness: GPUBuffer ;
@@ -9,6 +16,7 @@ interface SimulationBuffers {
 	pfsaA: GPUBuffer ;
 	pfsaB: GPUBuffer ;
 	pfsaResult: GPUBuffer ;
+	barriers: GPUBuffer ;
 } ;
 
 interface SimulationBindGroupLayouts {
@@ -19,6 +27,16 @@ interface SimulationBindGroupLayouts {
 interface SimulationBindGroups {
 	background: GPUBindGroup,
 	pfsa: GPUBindGroup[]
+} ;
+
+interface Pt {
+	x: number,
+	y: number
+} ;
+interface Barrier {
+	name: string,
+	p0: Pt,
+	p1: Pt
 } ;
 
 let sqrt = Math.sqrt ;
@@ -43,8 +61,8 @@ export default class HsPfSim {
 	// higher numbers mean greater concentration i.e. less geographical smoothing
 	nbhdConcentration: number = 6 ;
 	nbhd: GridData ;
-	max_barriers: 10 ;
-	number_of_barriers: 0 ;
+	max_barriers: number = 10 ;
+	number_of_barriers: number = 0 ;
 	barriers: GridData = new GridData( [10,4] ) ;
 	m_iteration: number ;
 
@@ -146,6 +164,19 @@ export default class HsPfSim {
 				let s = fs*fs + 2*fs*(1-fs) ;
 				let a = 1 - s ;
 
+				if(false) { // no barrier model
+					if( cellx == 915 && celly == 580 ) {
+						for( var i: u32 = 0; i < n; i++ ) {
+							let x = u32(nbhd[i].dx + f32(cellx)) ;
+							let y = u32(nbhd[i].dy + f32(celly)) ;
+							var weight = nbhd[i].weight ;
+							let bite_idx = y*parameters[1] + x ;
+							pfsanew[bite_idx] = 1.0 ; //weight ;
+						}
+						return ;
+					}
+				}
+
 				for( var i: u32 = 0; i < n; i++ ) {
 					let x = u32(nbhd[i].dx + f32(cellx)) ;
 					let y = u32(nbhd[i].dy + f32(celly)) ;
@@ -156,18 +187,18 @@ export default class HsPfSim {
 
 					// test for overlap with barrier
 					var weight = nbhd[i].weight ;
-					/*
-					for( var j: u32 = 0; j < parameters[3]; j++ ) {
-						if(
-							segments_overlap(
-								barriers[j].xy, barriers[j].zw,
-								vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
-							)
-						) {
-							weight *= 0.1 ;
+					if(false) {
+						for( var j: u32 = 0; j < parameters[3]; j++ ) {
+							if(
+								segments_overlap(
+									barriers[j].xy, barriers[j].zw,
+									vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
+								)
+							) {
+								weight *= 0.1 ;
+							}
 						}
 					}
-					*/
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
 						denominator += weight * (
@@ -181,26 +212,15 @@ export default class HsPfSim {
 							+ (pfalt * s * fitness[1][3])
 						) ;
 					}
-					// plot of a simple circle.
-					//if( local_id[0] == 0 && local_id[1] == 0 ) {
-					//	pfsanew[ idx ] = f32(x % 16)/16.0 ;
-					//}
 				}
 				denominator /= totalWeight ;
 				value /= totalWeight ;
-
-				// checkerboard
-				// pfsanew[ cellidx ] = f32(((cellx/16) + (celly/16)) % 2) ;
 
 				if( fs == -1 ) {
 					pfsanew[ cellidx ] = -1 ;
 				} else {
 					pfsanew[ cellidx ] = value / denominator ;
 				}
-
-				// pfsanew[ cellidx ] = f32(local_id[0]) / ${this.workgroupSize[0]} ; //((f32(cellx) % 160) / 160.0) ; 
-				//pfsanew[ cellidx ] = fitness[(celly/16)%2][(cellx/16)%4] ;
-				//pfsanew[ cellidx ] = fitness[1][(cellx/16)%4] ;
 			}`
 		});
 		this.layouts = {
@@ -286,8 +306,10 @@ export default class HsPfSim {
 		this.m_iteration = 0 ;
 	}
 
-	bufferToGPU( what ) {
-		this.device.queue.writeBuffer( this.buffers[what], 0, this[what].data ) ;
+	bufferToGPU( what: string ) {
+		let thisKey = what as keyof typeof this ;
+		let bufferKey = what as keyof SimulationBuffers ;
+		this.device.queue.writeBuffer( this.buffers[bufferKey], 0, this[thisKey].data ) ;
 	}
 
 	paramsToGPU() {
@@ -326,7 +348,9 @@ export default class HsPfSim {
 		this.paramsToGPU() ;
 	}
 
-	addBarriers( barriers ) {
+
+
+	addBarriers( barriers: Array<Barrier> ) {
 		if( this.number_of_barriers + barriers.length > this.max_barriers ) {
 			throw new Error( "Too many barriers!" ) ;
 		}

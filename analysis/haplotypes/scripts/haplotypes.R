@@ -65,49 +65,6 @@ plot.joiners <- function( as, bs, ys = c( 0, 0.25, 0.5, 0.75, 1 ), ... ) {
 	)
 }
 
-
-compute.sfs <- function( haplotypes ) {
-	row_totals = rowSums( haplotypes )
-	result = sapply( 1:(ncol(haplotypes)-1), function(i) { length( which( row_totals == i ))})
-	return( result )
-}
-
-compute.pi.stratified = function( haplotypes, focus ) {
-	result = list()
-	selection = list()
-	for( g in c( 0, 1 )) {
-		name = sprintf( "g%d", g )
-		selection[[name]] = which( focus == g )
-	}
-	d = as.matrix( dist( t( haplotypes[,unlist(selection)] )))
-
-	w0 = 1:length( selection[['g0']] )
-	w1 = length( selection[['g0']] ) + 1:length( selection[['g1']] )
-
-	genotypes = data.frame(
-		g = c( rep( '-', length(w0)), rep( '+', length(w1))),
-		row.names = rownames(d)[ c(w0,w1) ]
-	)
-
-	row_totals = rowSums( haplotypes ) ;
-	result = list(
-		'00' = d[w0,w0],
-		'01' = d[w0,w1],	
-		'10' = d[w1,w0],	
-		'11' = d[w1,w1],	
-		'all' = d,
-		'segregating.sites' = length( which( row_totals > 0 & row_totals < ncol(haplotypes))),
-		'genotypes' = genotypes,
-		'n0' = length( selection[['g0']] ),
-		'n1' = length( selection[['g1']] ),
-		'missing' = length( which( is.na(genotypes))),
-		'n' = length(focus),
-		'frequency' = length(w1)/(length(w1)+length(w0)),
-		sfs = compute.sfs( haplotypes )
-	)
-	return( result )
-}
-
 plot.one.set <- function(
 	haplotypes,
 	categories,
