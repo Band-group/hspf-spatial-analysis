@@ -9,7 +9,7 @@ library(INLA)
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("raster","sf", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
                       "RColorBrewer","ggthemes", "ggmap","ggridges", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","stats",
-                      "parallelly","parallel","foreach","remotes")
+                      "parallelly","parallel","foreach","remotes","ggspatial")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
@@ -92,6 +92,7 @@ plot.hbs(finaloutput=bestmodel,mymodname = "bestmodel",savepath="output/Pf/outpu
 
 
 }#end allele loop
+gc()  
 message(paste0("\nEND Pf_model_spatial.R"))
 #END 
-gc()  
+
