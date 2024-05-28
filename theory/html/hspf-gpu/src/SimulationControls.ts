@@ -7,6 +7,7 @@ export default class SimulationControls {
 	elt: HTMLElement ;
 	playbackControl: HTMLDivElement ;
 	fitnessControl: HTMLDivElement ;
+	featuresControl: HTMLDivElement ;
 	spreadControl: HTMLDivElement ;
 	m_callbacks: { [key: string]: Function[] } ;
 
@@ -17,6 +18,8 @@ export default class SimulationControls {
 	<div class="playback">
 	</div>
 	<div class="control fitness">
+	</div>
+	<div class="control features">
 	</div>
 	<div class="control fitness">
 	</div>
@@ -67,15 +70,21 @@ export default class SimulationControls {
 				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
 				"A:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"A:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"A:++": { value: 0.81, min: 0, max: 1, step: 0.01 },
-				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
+				"A:++": { value: 0.8, min: 0, max: 1, step: 0.01 },
+				"S:--": { value: 0.02, min: 0, max: 1, step: 0.01 },
 				"S:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"S:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
+				"S:++": { value: 0.8, min: 0, max: 1, step: 0.01 }
 			}
 		) ;
 
-		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
+		this.featuresControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
+		this.featuresControl.innerHTML = (
+			'<h2>Features</h2>'
+			+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
+			+ '<label for="barrier_checkbox">Use barriers?</label>'
+		) ;
+		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[3] ;
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
 			'spread',
 			[ 'value' ],
@@ -83,7 +92,7 @@ export default class SimulationControls {
 			{
 				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
-				'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
+				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
 				'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
 			}
 		) ;
@@ -91,6 +100,7 @@ export default class SimulationControls {
 		this.m_callbacks = {
 			playback: [],
 			fitness: [],
+			features: [],
 			spread: []
 		} ;
 		let self = this ;
@@ -105,6 +115,7 @@ export default class SimulationControls {
 			}
 		) ;
 		this.fitnessControl.addEventListener( 'input', _elt => self.trigger( 'fitness' )) ;
+		this.featuresControl.addEventListener( 'input', _elt => self.trigger( 'features' )) ;
 		this.spreadControl.addEventListener( 'input', _elt => self.trigger( 'spread' )) ;
 		this.on( 'spread', function( values: GridData ) { self.drawSpreadDisplay( values ) ; }) ;
 	}
@@ -126,6 +137,8 @@ export default class SimulationControls {
 			return this.getPlayState() ;
 		} else if( what == 'fitness' ) {
 			return this.getFitnessValues() ;
+		} else if( what == 'features' ) {
+			return this.getFeatures() ;
 		} else if( what == 'spread' ) {
 			return this.getSpreadValues() ;
 		} else {
@@ -188,6 +201,15 @@ export default class SimulationControls {
 			}
 		}) ;
 		return result ;
+	}
+
+	getFeatures(): GridData {
+		return new GridData(
+			[1,1],
+			[
+				document.querySelector("#barrier_checkbox").checked ? 1.0 : 0.0
+			]
+		) ;
 	}
 
 	drawSpreadDisplay( values: GridData ) {

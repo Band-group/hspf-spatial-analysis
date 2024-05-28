@@ -80,15 +80,83 @@ class Simulation {
 		{
 			this.hspf.addBarriers(
 				[
+/*					{
+						name: "Test vertical",
+						p1: toPixelCoords({ longitude: 14.135643, latitude: 24.446175 }),
+						p0: toPixelCoords({ longitude: 12.699882, latitude: -6.469062 })
+					},
+*/
 					{
-						name: "rift valley 1",
-						p1: toPixelCoords({ longitude: 39, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 37, latitude: -7 })
+						name: "highland 1",
+						p1: toPixelCoords({ longitude: 35.128781, latitude: 2.477923 }),
+						p0: toPixelCoords({ longitude: 35.601193, latitude: 1.176734 })
 					},
 					{
-						name: "rift valley 2",
+						name: "highland 2",
+						p1: toPixelCoords({ longitude: 35.601193, latitude: 1.176734 }),
+						p0: toPixelCoords({ longitude: 35.609433, latitude: 0.174314 })
+					},
+					{
+						name: "highland 3",
+						p1: toPixelCoords({ longitude: 35.609433, latitude: 0.174314 }),
+						p0: toPixelCoords({ longitude: 36.138323, latitude: -1.018577 })
+					},
+					{
+						name: "highland 4",
+						p1: toPixelCoords({ longitude: 35.963301, latitude: -1.635594 }),
+						p0: toPixelCoords({ longitude: 35.571802, latitude: -4.151584 })
+					},
+					{
+						name: "Kilimanjaro range 1",
+						p1: toPixelCoords({ longitude: 37.257547, latitude: -2.960985 }),
+						p0: toPixelCoords({ longitude: 38.694576, latitude: -4.987179 })
+					},
+					{
+						name: "Mt Kenya",
+						p1: toPixelCoords({ longitude: 37.497052, latitude: 0.026900 }),
+						p0: toPixelCoords({ longitude: 37.243730, latitude: -0.336961 })
+					},
+					
+					{
+						name: "Udzungawa",
+						p1: toPixelCoords({ longitude: 37.544623, latitude: -5.779348 }),
+						p0: toPixelCoords({ longitude: 35.793841, latitude: -8.607073 })
+					},
+					{
+						name: "Gashaka-Gumti",
+						p1: toPixelCoords({ longitude: 11.707259, latitude: 7.739510 }),
+						p0: toPixelCoords({ longitude: 9.608778, latitude: 5.846300 })
+					},
+
+					{
+						name: "Mt Buea",
+						p1: toPixelCoords({ longitude: 9.247516, latitude: 4.275657 }),
+						p0: toPixelCoords({ longitude: 9.151556, latitude: 4.141450 })
+					},
+					/*					{
+						name: "highland 3",
 						p1: toPixelCoords({ longitude: 37, latitude: 6 }),
 						p0: toPixelCoords({ longitude: 35, latitude: -7 })
+					},*/
+					{
+						name: "center highland 1",
+						p0: toPixelCoords( {longitude: 29.355400, latitude: 0.105379 }),
+						p1: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 })
+					},
+					{
+						name: "center highland 2",
+						p0: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 }),
+						p1: toPixelCoords( {longitude: 29.522432, latitude: -3.865091 })
+					},
+					{
+						name: "center highland 3",
+						p0: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 }),
+						p1: toPixelCoords( {longitude: 28.706522, latitude: -2.372299 })
+					},
+					{
+						name: "center highland 4",
+						p0: toPixelCoords( {longitude: 28.706522, latitude: -2.372299 }),
+						p1: toPixelCoords( {longitude: 29.050808, latitude: -3.907439 })
 					}
 				]
 			) ;
@@ -107,7 +175,7 @@ class Simulation {
 					container,
 					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
 					new PaletteScale(
-						new Viridis( 10 ),
+						new Viridis( 20 ),
 						0, 1.0,
 						function(v) { return nf.format(v * 100) + '%' }
 					),
@@ -124,7 +192,7 @@ class Simulation {
 				container.classList.add( 'hs_map' );
 				this.displays.hs = new MapDisplay(
 					container,
-					{ 'width': this.data[0].width / 2, 'height': this.data[0].height / 2 },
+					{ 'width': this.data[0].width, 'height': this.data[0].height },
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 0.4,
@@ -184,6 +252,11 @@ class Simulation {
 		this.hspf.setFitness( values ) ;
 	}
 
+	setFeatures( values: GridData ) {
+		console.log( "setFeatures()", values ) ;
+		this.hspf.setFeatures( values ) ;
+	}
+
 	setSpread( values: GridData ) {
 		this.hspf.setSpread( values ) ;
 	}
@@ -203,6 +276,7 @@ async function run() {
 	// let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { simulation.setFeatures( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
 	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
 
