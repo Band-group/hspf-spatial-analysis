@@ -96,8 +96,8 @@ class Simulation {
 				const container = document.createElement( 'div' ) ;
 				container.classList.add('map_container');
 				container.classList.add('c' + (index+1) );
-				canvas.setAttribute( "width", "" + datum.width ) ;
-				canvas.setAttribute( "height", "" + datum.height ) ;
+				canvas.setAttribute( "width", "" + datum.width/1.5 ) ;
+				canvas.setAttribute( "height", "" + datum.height/1.5 ) ;
 				container.appendChild( canvas ) ;
 				section.appendChild( container ) ;
 			}) ;
@@ -188,8 +188,8 @@ async function run() {
 	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
 	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	// let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-	let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
+	let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;

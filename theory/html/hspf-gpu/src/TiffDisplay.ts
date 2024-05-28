@@ -84,17 +84,22 @@ export default class TiffDisplay {
 			@location(1) uv: vec2f,
 		  ) -> @location(0) vec4f {
 			let a = textureSample(HbS, textureSampler, uv).r ;
+
 			// contour lines / clipping
-			// prefer not to use 'if' non-uniform flow... let's work out the palette colour, then adjust it.
-			let q = u32(clamp(a,0.0,0.99)*20) ;
-			var c = palette[q] ;
+			// Let's work out the palette colour, then adjust it.
+			let q = u32( clamp( a, 0.0, 0.99 )*20 ) ;
+			var result = palette[q] ;
+			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
 			let w = fwidth(a) ;
-			var wa = smoothstep(15.*w, 0., (a*20.) % 1.) ;
-			wa = 1.-max(smoothstep(1-w, 1, wa), smoothstep(w, 0, wa)) ;
-			c = mix(c, vec4f(1,1,1,1), smoothstep(0.0, 1.0, wa)) ;
-			// 'if( a < 0 )', sort-of ...
-			c = mix(c, vec4f( 0, 33.0/256, 71.0/256, 0.5 ), smoothstep(0.0, -0.01, a)) ;
-			return c ;
+			// NB. smoothstep(low, high, x) = Hermite interpolation
+			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
+			let contour_width = 15.0 ;
+			var wa = smoothstep( contour_width*w, 0., (a*20.) % 1. ) ;
+			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
+			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
+			// Fix off-map colours to background...
+			result = mix(result, vec4f( 0, 33.0/256, 71.0/256, 0.5 ), smoothstep(0.0, -0.01, a)) ;
+			return result ;
 		  }
 		`
 		});

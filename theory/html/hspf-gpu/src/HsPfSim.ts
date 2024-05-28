@@ -164,6 +164,7 @@ export default class HsPfSim {
 				let s = fs*fs + 2*fs*(1-fs) ;
 				let a = 1 - s ;
 
+					/*
 				if(false) { // no barrier model
 					if( cellx == 915 && celly == 580 ) {
 						for( var i: u32 = 0; i < n; i++ ) {
@@ -176,7 +177,7 @@ export default class HsPfSim {
 						return ;
 					}
 				}
-
+				*/
 				for( var i: u32 = 0; i < n; i++ ) {
 					let x = u32(nbhd[i].dx + f32(cellx)) ;
 					let y = u32(nbhd[i].dy + f32(celly)) ;
