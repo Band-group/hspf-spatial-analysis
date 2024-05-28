@@ -105,7 +105,7 @@ class Simulation {
 				container.classList.add( 'pf_map' );
 				this.displays.pf = new MapDisplay(
 					container,
-					{ 'width': this.data[0].width / 1.5, 'height': this.data[0].height / 1.5 },
+					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 1.0,
@@ -124,10 +124,10 @@ class Simulation {
 				container.classList.add( 'hs_map' );
 				this.displays.hs = new MapDisplay(
 					container,
-					{ 'width': this.data[0].width / 1.5, 'height': this.data[0].height / 1.5 },
+					{ 'width': this.data[0].width / 2, 'height': this.data[0].height / 2 },
 					new PaletteScale(
 						new Viridis( 10 ),
-						0, 0.20,
+						0, 0.4,
 						function(v) { return nf.format(v * 100) + '%' }
 					),
 					this.device,

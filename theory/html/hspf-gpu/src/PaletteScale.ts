@@ -18,11 +18,10 @@ export default class PaletteScale {
 		this.m_breaks[ 0 ] = min - 0.00001 ;
 		this.m_breaks[ L ] = max ;
 		this.labels = [] ;
-		for( let i = 1; i < L; ++i ) {
+		for( let i = 1; i < L+1; ++i ) {
 			this.m_breaks[i] = min + i*(max-min)/L ;
-			this.labels[i-1] = "<=" + valueFormat( this.m_breaks[i] )
+			this.labels[i-1] = "≤" + valueFormat( this.m_breaks[i] )
 		}
-		this.labels[L-1] = ">" + valueFormat( this.m_breaks[L] )
 	}
 
 	get values() {

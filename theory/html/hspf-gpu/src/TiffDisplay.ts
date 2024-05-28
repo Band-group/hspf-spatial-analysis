@@ -50,21 +50,23 @@ export default class TiffDisplay {
 			}],
 		};
 		this.paletteBuffer = this.palette.values.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
-		this.paletteBreaksBuffer = this.palette.breaks.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
+		this.paletteBreaksBuffer = this.palette.breaks.toDeviceBuffer( this.device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ) ;
 		let paletteLevels = this.palette.values.height ;
 		this.shaders = device.createShaderModule({
 			label: "Cell shader",
 			code: `
-			fn bin_value(
+			fn binned_colour(
 				value: f32,
-				breaks: array<f32,${this.palette.values.height}>
-			) -> i32 {
+				levels: array<vec4f,${paletteLevels}>,
+				breaks: array<f32,${this.palette.values.height+1}>
+			) -> vec4f {
 				for( var i = 0; i < ${this.palette.values.height}; i++ ) {
-					if( value <= breaks[i] ) {
-						return i ;
+					if( value <= breaks[i+1] ) {
+						return levels[i] ;
 					}
 				}
-				return ${this.palette.values.height} ;
+				// Argh, no value!
+				return vec4f(0,0,0,1) ;
 			}
 
 			struct VertexInput {
@@ -81,6 +83,7 @@ export default class TiffDisplay {
 		  @group(0) @binding(1) var textureSampler: sampler;
 		  @group(0) @binding(2) var HbS: texture_2d<f32>;
 		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
+		  @group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
   
 		  @vertex
 		  fn vertexMain( input: VertexInput ) -> VertexOutput {
@@ -109,12 +112,13 @@ export default class TiffDisplay {
 			// Let's work out the palette colour, then adjust it.
 			let paletteLevels = f32(${paletteLevels}) ;
 			let q = u32( clamp( a, 0.0, 0.99 )*paletteLevels ) ;
-			var result = palette[q] ;
+			var result = binned_colour( a, palette, palette_breaks ) ;
 			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
 			let w = fwidth(a) ;
 			// NB. smoothstep(low, high, x) = Hermite interpolation
 			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
 			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
+			// TODO: brittle: this assumes evenly-spaced breaks!
 			var wa = smoothstep( contour_width*w, 0., (a*paletteLevels) % 1. ) ;
 			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
 			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
@@ -130,7 +134,8 @@ export default class TiffDisplay {
 			//   { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }},
 			  { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'non-filtering' } },
 			  { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "unfilterable-float", viewDimension: "2d" }},
-			  { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }}
+			  { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
+			  { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }} // using storage because not 16-byte aligned.
 			],
 		}) ;
 		this.pipelineLayout = device.createPipelineLayout({
@@ -204,6 +209,9 @@ export default class TiffDisplay {
 			}, {
 				binding: 3,
 				resource: { buffer: this.paletteBuffer }
+			}, {
+				binding: 4,
+				resource: { buffer: this.paletteBreaksBuffer }
 			}]
 		});
 		const encoder = this.device.createCommandEncoder();
