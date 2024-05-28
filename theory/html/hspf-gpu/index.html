@@ -55,12 +55,32 @@
 			font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
 			border-bottom: 1px solid black ;
 		}
-		.control, .hud {
-			margin-top: 20px ;
+		.control, .hud, .playback {
 			display: block ;
+			margin-top: 20px ;
+		}
+		.control, .hud {
 			border: 1px solid black ;
 			border-radius: 20px ;
 			padding: 20px ;
+		}
+		.playback button {
+			font-size: 24pt ;
+			border: 2px solid black ;
+			border-radius: 10px ;
+			width: 50px ;
+		}
+		#playpause[state="paused"] {
+			background-color: rgb(30, 196, 30) ;
+		}
+		#playpause[state="paused"]::after {
+			content: "⏵︎" ;
+		}
+		#playpause[state="playing"] {
+			background-color: rgb(190, 10, 10) ;
+		}
+		#playpause[state="playing"]::after {
+			content: "⏸︎" ;
 		}
 		.control input {
 			width: 80px ;

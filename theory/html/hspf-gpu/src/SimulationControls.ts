@@ -5,6 +5,7 @@ console.log( "D3", d3 ) ;
 
 export default class SimulationControls {
 	elt: HTMLElement ;
+	playbackControl: HTMLDivElement ;
 	fitnessControl: HTMLDivElement ;
 	spreadControl: HTMLDivElement ;
 	m_callbacks: { [key: string]: Function[] } ;
@@ -13,12 +14,15 @@ export default class SimulationControls {
 		this.elt = elt ;
 		this.elt.innerHTML = `
 <div class="controls">
+	<div class="playback">
+	</div>
+	<div class="control fitness">
+	</div>
 	<div class="control fitness">
 	</div>
 	<div class="control spread">
 	</div>
 </div>` ;
-		this.fitnessControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[0] ;
 
 		let buildTable = function(
 			idtag: string,
@@ -45,6 +49,16 @@ export default class SimulationControls {
 			return table ;
 		}
 
+		this.playbackControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[0] ;
+		this.playbackControl.innerHTML = (
+			'<table class="playback-control">'
+			+ '<tr>'
+			+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
+			+ '</tr>'
+			+ '</table>'
+		) ;
+
+		this.fitnessControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[1] ;
 		this.fitnessControl.innerHTML = '<h2>Fitness</h2>' + buildTable(
 			'fitness',
 			['A', 'S'],
@@ -61,7 +75,7 @@ export default class SimulationControls {
 			}
 		) ;
 
-		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[1] ;
+		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
 			'spread',
 			[ 'value' ],
@@ -75,10 +89,21 @@ export default class SimulationControls {
 		) ;
 		d3.select( this.spreadControl ).append( 'svg' ) ;
 		this.m_callbacks = {
+			playback: [],
 			fitness: [],
 			spread: []
 		} ;
 		let self = this ;
+		let playpause = document.getElementById( "playpause" ) ;
+		playpause.addEventListener(
+			'click',
+			function( _elt ) {
+				let oldstate = playpause.getAttribute( 'state' ) ;
+				let newstate = { 'playing': 'paused', 'paused': 'playing' }[oldstate] ;
+				playpause.setAttribute( 'state', newstate ) ;
+				self.trigger( 'playback' ) ;
+			}
+		) ;
 		this.fitnessControl.addEventListener( 'input', _elt => self.trigger( 'fitness' )) ;
 		this.spreadControl.addEventListener( 'input', _elt => self.trigger( 'spread' )) ;
 		this.on( 'spread', function( values: GridData ) { self.drawSpreadDisplay( values ) ; }) ;
@@ -97,13 +122,24 @@ export default class SimulationControls {
 	}
 
 	getValues( what: string ): GridData {
-		if( what == 'fitness' ) {
+		if( what == 'playback' ) {
+			return this.getPlayState() ;
+		} else if( what == 'fitness' ) {
 			return this.getFitnessValues() ;
 		} else if( what == 'spread' ) {
 			return this.getSpreadValues() ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;
 		}
+	}
+
+	getPlayState(): GridData {
+		let playpause = document.getElementById( "playpause" ) ;
+		const value = {
+			"playing": 1,
+			"paused": 0
+		}[playpause.getAttribute( 'state' )] ;
+		return new GridData( [1,1], [ value ] ) ;
 	}
 
 	getSpreadValues(): GridData {

@@ -3,6 +3,8 @@ import Tiff from "./Tiff.js" ;
 import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
+import PaletteScale from "./PaletteScale.js"
+import MapDisplay from "./MapDisplay.js"
 
 type LatLon = { latitude: number, longitude: number } ;
 
@@ -71,6 +73,9 @@ class Simulation {
 			console.log( "toPixelCoords (global)", pt, xy, this.tiffs[0].width, this.tiffs[0].height  ) ;
 			return xy ;
 		}
+
+		// For a more sophisticated model, we add geographic barriers
+		// as straight line segments from the array below.
 		{
 			this.hspf.addBarriers(
 				[
@@ -108,32 +113,14 @@ class Simulation {
 			'pfsa': (<HTMLCanvasElement> document.querySelector( '.c1 > canvas' ))!
 		} ;
 		console.log( "CANVASSES", this.canvasses ) ;
-		//slightly nicer to use another `!` rather than ts-ignore
-		// this.contexts = {
-		// 	'hs': this.canvasses.hs!.getContext( 'webgpu' )!,
-		// 	'pfsa': this.canvasses.pfsa!.getContext( 'webgpu' )!
-		// } ;
-		//...or this (after SIDENOTE)...
-		//<SIDENOTE>:: also took out ! which isn't really doing anything, but sort-of signals there could be something dodgy...
-		//which there could - `{ [key: string]: HTMLCanvasElement }` isn't terribly strict; 
-		//as far as ts is concerned all keys of this.canvasses return HTMLCanvasElement:
-		// const oops = this.canvasses.notACanvas.getContext( 'webgpu' );
-		//                                       ^^ ts doesn't care if we put ! here or not...
-		// ...it thinks everything is ok, and maybe the result could be null...
-		// but what would actually happen is an error calling `getContext` on `undefined`.
-		//Not actually a particular problem here really though, nevermind...
-		//</SIDENOTE>
 		const hs = this.canvasses.hs.getContext( 'webgpu' ) ;
 		const pfsa =  this.canvasses.pfsa.getContext( 'webgpu' ) ;
-		//typescript knows at this point that if either hs or pfsa is null...
+		// typescript knows at this point that if either hs or pfsa is null...
 		if (!hs || !pfsa) throw 'failed to create webgpu contexts'
-		//we'd throw an error and not reach this point of execution...
-		//so it narrows the types from `GPUCanvasContext | null` to `GPUCanvasContext`.
-		//So now we're not just telling ts to stop bothering us 
-		//- we're actually checking for the error in a way that is meaningful at runtime
-		//and ts is clever enough to know that we can now be confident our assertions are valid
+		// we'd throw an error and not reach this point of execution...
+		// so it narrows the types from `GPUCanvasContext | null` to `GPUCanvasContext`.
 
-		//syntax sugar: we can make an object with our variable names as object keys
+		// syntax sugar: we can make an object with our variable names as object keys
 		this.contexts = { hs, pfsa } ; 
 
 		this.display.draw( this.data[0], this.contexts.hs ) ;
@@ -144,16 +131,19 @@ class Simulation {
 	}
 
 	async run() {
-		this.m_running = true ;
+		//this.m_running = true ;
+		this.render() ;
 		this.renderLoop() ;
 	}
 
 	async renderLoop() {
-		while( this.m_running ) {
-			await this.hspf.step() ;
-			this.render() ;
+		while( 1 ) {
+			if( this.m_running ) {
+				await this.hspf.step() ;
+				this.render() ;
+				++this.m_iteration ;
+			}
 			await this.sleep() ;
-			++this.m_iteration ;
 		}
 	}
 
@@ -181,6 +171,11 @@ class Simulation {
 	setSpread( values: GridData ) {
 		this.hspf.setSpread( values ) ;
 	}
+
+	setPlayback( values: GridData ) {
+		console.log( "Set playback to", values.at([0,0]) ) ;
+		this.m_running = ( values.at([0,0]) == 0 ) ? false : true ;
+	}
 }
 
 async function run() {
@@ -193,8 +188,8 @@ async function run() {
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
 
-	console.log( simulation ) ;
 	await simulation.run() ;
 }
 
