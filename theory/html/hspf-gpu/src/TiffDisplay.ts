@@ -1,5 +1,9 @@
 import GridData from "./GridData.js"
-import Viridis from "./Viridis.js"
+import PaletteDisplay from "./PaletteDisplay.js"
+
+export interface MapOptions {
+	contours: bool
+} ;
 
 export default class TiffDisplay {
 	device: GPUDevice;
@@ -11,13 +15,17 @@ export default class TiffDisplay {
 	layout: GPUBindGroupLayout ;
 	pipelineLayout: GPUPipelineLayout ;
 	pipeline: GPURenderPipeline;
-	palette: GridData;
+	palette: PaletteScale;
 	paletteBuffer: GPUBuffer ;
+	paletteBreaksBuffer: GPUBuffer ;
+	options: MapOptions ;
 
-	constructor(device: any) {
-		this.device = device;
-		this.canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-		this.palette = new Viridis(20);
+	constructor( palette: PaletteDisplay, device: any, options: MapOptions ) {
+		this.palette = palette ;
+		this.device = device ;
+		this.options = options ;
+		this.canvasFormat = navigator.gpu.getPreferredCanvasFormat() ;
+		console.log( "TiffDisplay.palette", this.palette ) ;
 		this.vertices = new Float32Array([
 			//   X,    Y,
 			-1, -1, // Triangle 1 (Blue)
@@ -41,12 +49,25 @@ export default class TiffDisplay {
 				shaderLocation: 0, // Position, see vertex shader
 			}],
 		};
-		this.paletteBuffer = this.palette.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
-		console.log( "PALETTE", this.palette ) ;
+		this.paletteBuffer = this.palette.values.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
+		this.paletteBreaksBuffer = this.palette.breaks.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
+		let paletteLevels = this.palette.values.height ;
 		this.shaders = device.createShaderModule({
 			label: "Cell shader",
 			code: `
-		  struct VertexInput {
+			fn bin_value(
+				value: f32,
+				breaks: array<f32,${this.palette.values.height}>
+			) -> i32 {
+				for( var i = 0; i < ${this.palette.values.height}; i++ ) {
+					if( value <= breaks[i] ) {
+						return i ;
+					}
+				}
+				return ${this.palette.values.height} ;
+			}
+
+			struct VertexInput {
 			@location(0) pos: vec2f,
 			@builtin(instance_index) instance: u32,
 		  };
@@ -57,10 +78,9 @@ export default class TiffDisplay {
 			@location(1) uv: vec2f,
 		  };
 		  @group(0) @binding(0) var<uniform> grid: vec2f;
-		//   @group(0) @binding(1) var<storage> HbS: array<f32>;
 		  @group(0) @binding(1) var textureSampler: sampler;
 		  @group(0) @binding(2) var HbS: texture_2d<f32>;
-		  @group(0) @binding(3) var<uniform> palette: array<vec4f,20>;
+		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
   
 		  @vertex
 		  fn vertexMain( input: VertexInput ) -> VertexOutput {
@@ -87,14 +107,15 @@ export default class TiffDisplay {
 
 			// contour lines / clipping
 			// Let's work out the palette colour, then adjust it.
-			let q = u32( clamp( a, 0.0, 0.99 )*20 ) ;
+			let paletteLevels = f32(${paletteLevels}) ;
+			let q = u32( clamp( a, 0.0, 0.99 )*paletteLevels ) ;
 			var result = palette[q] ;
 			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
 			let w = fwidth(a) ;
 			// NB. smoothstep(low, high, x) = Hermite interpolation
 			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
-			let contour_width = 15.0 ;
-			var wa = smoothstep( contour_width*w, 0., (a*20.) % 1. ) ;
+			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
+			var wa = smoothstep( contour_width*w, 0., (a*paletteLevels) % 1. ) ;
 			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
 			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
 			// Fix off-map colours to background...

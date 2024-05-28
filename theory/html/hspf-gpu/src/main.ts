@@ -4,6 +4,7 @@ import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
+import Viridis from "./Viridis.js"
 import MapDisplay from "./MapDisplay.js"
 
 type LatLon = { latitude: number, longitude: number } ;
@@ -12,7 +13,7 @@ class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: Tiff[] ;
-	display: TiffDisplay ;
+	displays: { [key:string]: MapDisplay } ;
 	data: GridData[] ;
 	outerPadding: number ;
 	canvasses: { [key: string]: HTMLCanvasElement } ;
@@ -51,8 +52,8 @@ class Simulation {
 	) {
 		this.device = device ;
 		this.tiffs = tiffs ;
-		this.display = new TiffDisplay( device ) ;
 		this.data = tiffs.map( elt => new GridData([ elt.height, elt.width ], elt.data )) ;
+		// Replace all NAs in HbS map are replaced with -1.
 		this.data.forEach( function( grid ) {
 			grid.data.forEach( function( value, i ) {
 				if( value < 0 || isNaN( value )) {
@@ -94,37 +95,52 @@ class Simulation {
 		}
 		this.data.unshift( this.hspf.pfsa ) ;
 	
+		this.displays = {} ;
 		const section = document.querySelector("section") ;
 		if( section ) {
-			this.data.forEach( function( datum, index ) {
-				const canvas = document.createElement( 'canvas' ) ;
+			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
+			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add('map_container');
-				container.classList.add('c' + (index+1) );
-				canvas.setAttribute( "width", "" + datum.width/1.5 ) ;
-				canvas.setAttribute( "height", "" + datum.height/1.5 ) ;
-				container.appendChild( canvas ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'pf_map' );
+				this.displays.pf = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width / 1.5, 'height': this.data[0].height / 1.5 },
+					new PaletteScale(
+						new Viridis( 10 ),
+						0, 1.0,
+						function(v) { return nf.format(v * 100) + '%' }
+					),
+					this.device,
+					{
+						'contours': true
+					}
+				) ;
 				section.appendChild( container ) ;
-			}) ;
+			}
+			{
+				const container = document.createElement( 'div' ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'hs_map' );
+				this.displays.hs = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width / 1.5, 'height': this.data[0].height / 1.5 },
+					new PaletteScale(
+						new Viridis( 10 ),
+						0, 0.20,
+						function(v) { return nf.format(v * 100) + '%' }
+					),
+					this.device,
+					{
+						'contours': false
+					}
+				) ;
+				section.appendChild( container ) ;
+			}
 		}
 
-		this.canvasses = {
-			'hs': (<HTMLCanvasElement> document.querySelector( '.c2 > canvas' ))!,
-			'pfsa': (<HTMLCanvasElement> document.querySelector( '.c1 > canvas' ))!
-		} ;
-		console.log( "CANVASSES", this.canvasses ) ;
-		const hs = this.canvasses.hs.getContext( 'webgpu' ) ;
-		const pfsa =  this.canvasses.pfsa.getContext( 'webgpu' ) ;
-		// typescript knows at this point that if either hs or pfsa is null...
-		if (!hs || !pfsa) throw 'failed to create webgpu contexts'
-		// we'd throw an error and not reach this point of execution...
-		// so it narrows the types from `GPUCanvasContext | null` to `GPUCanvasContext`.
-
-		// syntax sugar: we can make an object with our variable names as object keys
-		this.contexts = { hs, pfsa } ; 
-
-		this.display.draw( this.data[0], this.contexts.hs ) ;
-		this.display.draw( this.data[1], this.contexts.pfsa ) ;
+		this.displays.hs.draw( this.data[0] ) ;
+		this.displays.pf.draw( this.data[1] ) ;
 
 		this.m_running = false ;
 		this.m_iteration = 0 ;
@@ -152,8 +168,8 @@ class Simulation {
 	}
 
 	render() {
-		this.display.draw( this.hspf.pfsa, this.contexts.pfsa ) ;
-		this.display.draw( this.data[1], this.contexts.hs ) ;
+		this.displays.pf.draw( this.hspf.pfsa ) ;
+		this.displays.hs.draw( this.data[1] ) ;
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",

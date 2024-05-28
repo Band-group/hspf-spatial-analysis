@@ -83,7 +83,7 @@ export default class SimulationControls {
 			{
 				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
-				'value:concentration':  { value: 9, min: 0.5, max: 30, step: 0.5 },
+				'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
 				'value:n': { value: 5000, min: 1000, max: 25000, step: 500 }
 			}
 		) ;
