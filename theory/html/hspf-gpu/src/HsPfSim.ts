@@ -306,10 +306,10 @@ export default class HsPfSim {
 		this.m_iteration = 0 ;
 	}
 
-	bufferToGPU( what: string ) {
-		let thisKey = what as keyof typeof this ;
-		let bufferKey = what as keyof SimulationBuffers ;
-		this.device.queue.writeBuffer( this.buffers[bufferKey], 0, this[thisKey].data ) ;
+	bufferToGPU( what: keyof LocalData ) {
+		// let thisKey = what ; // as keyof typeof this ;
+		// let bufferKey = what ; //as keyof SimulationBuffers ;
+		this.device.queue.writeBuffer( this.buffers[what], 0, this[what].data ) ;
 	}
 
 	paramsToGPU() {

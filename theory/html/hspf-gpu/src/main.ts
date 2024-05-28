@@ -4,6 +4,8 @@ import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 
+type LatLon = { latitude: number, longitude: number } ;
+
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
@@ -60,13 +62,13 @@ class Simulation {
 		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
-		let self = this ;
+		// let self = this ; // unneeded with arrow function, different rules about `this`.
 		// get pixel coords of lat/long, with padding.
-		let toPixelCoords = function( pt ) {
-			let xy = self.tiffs[0].toPixelCoords( pt ) ;
-			xy.x += self.outerPadding ;
-			xy.y += self.outerPadding ;
-			console.log( "toPixelCoords (global)", pt, xy, self.tiffs[0].width, self.tiffs[0].height  ) ;
+		let toPixelCoords = ( pt: LatLon ) => {
+			let xy = this.tiffs[0].toPixelCoords( pt ) ;
+			xy.x += this.outerPadding ;
+			xy.y += this.outerPadding ;
+			console.log( "toPixelCoords (global)", pt, xy, this.tiffs[0].width, this.tiffs[0].height  ) ;
 			return xy ;
 		}
 		{
@@ -87,7 +89,7 @@ class Simulation {
 		}
 		this.data.unshift( this.hspf.pfsa ) ;
 	
-		let section = document.querySelector("section") ;
+		const section = document.querySelector("section") ;
 		if( section ) {
 			this.data.forEach( function( datum, index ) {
 				const canvas = document.createElement( 'canvas' ) ;
@@ -106,12 +108,33 @@ class Simulation {
 			'pfsa': (<HTMLCanvasElement> document.querySelector( '.c1 > canvas' ))!
 		} ;
 		console.log( "CANVASSES", this.canvasses ) ;
-		this.contexts = {
-			// @ts-ignore
-			'hs': this.canvasses.hs!.getContext( 'webgpu' ),
-			// @ts-ignore
-			'pfsa': this.canvasses.pfsa!.getContext( 'webgpu' )
-		} ;
+		//slightly nicer to use another `!` rather than ts-ignore
+		// this.contexts = {
+		// 	'hs': this.canvasses.hs!.getContext( 'webgpu' )!,
+		// 	'pfsa': this.canvasses.pfsa!.getContext( 'webgpu' )!
+		// } ;
+		//...or this (after SIDENOTE)...
+		//<SIDENOTE>:: also took out ! which isn't really doing anything, but sort-of signals there could be something dodgy...
+		//which there could - `{ [key: string]: HTMLCanvasElement }` isn't terribly strict; 
+		//as far as ts is concerned all keys of this.canvasses return HTMLCanvasElement:
+		// const oops = this.canvasses.notACanvas.getContext( 'webgpu' );
+		//                                       ^^ ts doesn't care if we put ! here or not...
+		// ...it thinks everything is ok, and maybe the result could be null...
+		// but what would actually happen is an error calling `getContext` on `undefined`.
+		//Not actually a particular problem here really though, nevermind...
+		//</SIDENOTE>
+		const hs = this.canvasses.hs.getContext( 'webgpu' ) ;
+		const pfsa =  this.canvasses.pfsa.getContext( 'webgpu' ) ;
+		//typescript knows at this point that if either hs or pfsa is null...
+		if (!hs || !pfsa) throw 'failed to create webgpu contexts'
+		//we'd throw an error and not reach this point of execution...
+		//so it narrows the types from `GPUCanvasContext | null` to `GPUCanvasContext`.
+		//So now we're not just telling ts to stop bothering us 
+		//- we're actually checking for the error in a way that is meaningful at runtime
+		//and ts is clever enough to know that we can now be confident our assertions are valid
+
+		//syntax sugar: we can make an object with our variable names as object keys
+		this.contexts = { hs, pfsa } ; 
 
 		this.display.draw( this.data[0], this.contexts.hs ) ;
 		this.display.draw( this.data[1], this.contexts.pfsa ) ;
@@ -165,8 +188,8 @@ async function run() {
 	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
 	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-//	let simulation = await Simulation.create( "https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
