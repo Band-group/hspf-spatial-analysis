@@ -361,7 +361,6 @@ export default class HsPfSim {
 			throw new Error( "Too many barriers!" ) ;
 		}
 		for( let i = 0; i < barriers.length; ++i ) {
-			console.log( "BARRIER", barriers[i] ) ;
 			let index = this.number_of_barriers + i ;
 			this.barriers.set( [index,0], barriers[i].p0.x ) ;
 			this.barriers.set( [index,1], barriers[i].p0.y ) ;

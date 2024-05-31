@@ -7,22 +7,7 @@ import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
-
-interface PfsaCounts {
-	country: string,
-	admin1: string,
-	latitude: number,
-	longitude: number,
-	pfsa1p: number,
-	pfsa1m: number,
-	pfsa2p: number,
-	pfsa2p: number,
-	pfsa3p: number,
-	pfsa3p: number,
-	pfsa1p: number,
-	pfsa4p: number,
-	pfsa4p: number
-} ;
+import ComparisonDisplay from "./ComparisonDisplay.js"
 
 class Simulation {
 	device: GPUDevice ;
@@ -65,8 +50,14 @@ class Simulation {
 						return {
 							country: d.Country,
 							admin1: d['Admin level 1'],
-							latitude: parseFloat(d['Admin level 1 latitude']),
-							longitude: parseFloat(d['Admin level 1 longitude']),
+							latlong: {
+								latitude: parseFloat(d['Admin level 1 latitude']),
+								longitude: parseFloat(d['Admin level 1 longitude']),
+							},
+							xy: {
+								x: 0,
+								y: 0
+							},
 							pfsa1p: parseInt(d['pfsa1+']),
 							pfsa1m: parseInt(d['pfsa1-']),
 							pfsa1N: parseInt(d['pfsa1+']) + parseInt(d['pfsa1-']),
@@ -89,7 +80,6 @@ class Simulation {
 				elt => d3.tsv(
 					elt,
 					(d:any) => {
-						console.log(d) ;
 						return {
 							name: d.name,
 							type: "segment",
@@ -144,6 +134,8 @@ class Simulation {
 			})
 		}) ;
 		this.counts = counts ;
+		console.log( "COUNTS", this.counts ) ;
+
 		this.barriers = barriers ;
 		this.outerPadding = 64 ;
 
@@ -151,11 +143,23 @@ class Simulation {
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		this.data.unshift( this.hspf.pfsa ) ;
 
+		let self = this ;
+
 		// For a more sophisticated model, we add geographic barriers
 		// as straight line segments from the array below.
-		let self = this ;
+		for( let i = 0; i < this.counts.length; ++i ) {
+			this.counts[i].xy = this.toPixelCoords( this.counts[i].latlong ) ;
+		}
+		this.counts = this.counts.filter( (elt:PfsaCounts) => {
+			return (
+				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
+				&&
+				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+			) ;
+		})
+		// For a more sophisticated model, we add geographic barriers
+		// as straight line segments from the array below.
 		{
-			console.log( "BARRIERS", this.barriers ) ;
 			for( var i = 0; i < this.barriers.length; ++i ) {
 				this.barriers[i].p0.xy = this.toPixelCoords( this.barriers[i].p0.latlong ) ;
 				this.barriers[i].p1.xy = this.toPixelCoords( this.barriers[i].p1.latlong ) ;
@@ -188,11 +192,19 @@ class Simulation {
 						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
-					{
-						'contours': true
-					}
+					{ 'contours': true }
 				) ;
 				section.appendChild( container ) ;
+
+				let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+				overlay.setAttribute( "width", "400px" ) ;
+				overlay.setAttribute( "height", "300px" ) ;
+				overlay.setAttribute( "class", "comparison_display" ) ;
+				container.appendChild( overlay ) ;
+				this.displays.comparison = new ComparisonDisplay(
+					this.counts,
+					overlay
+				) ;
 			}
 			{
 				const container = document.createElement( 'div' ) ;
@@ -207,9 +219,7 @@ class Simulation {
 						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
-					{
-						'contours': false
-					}
+					{ 'contours': false }
 				) ;
 				section.appendChild( container ) ;
 			}
@@ -221,11 +231,11 @@ class Simulation {
 	}
 
 	// get pixel coords of lat/long.
-	// this includes padding so it is in simulation grid coordinates.
+	// this is in simulation grid coordinates, i.e. including the padding added to the map.
 	toPixelCoords( pt: LatLong ) {
 		let xy = this.tiffs[0].toPixelCoords( pt ) ;
-		xy.x += this.outerPadding ;
-		xy.y += this.outerPadding ;
+		xy.x = Math.round(xy.x) + this.outerPadding ;
+		xy.y = Math.round(xy.y) + this.outerPadding ;
 		return xy ;
 	} ;
 
@@ -253,6 +263,7 @@ class Simulation {
 	render() {
 		this.displays.pf.draw( this.hspf.pfsa ) ;
 		this.displays.hs.draw( this.data[1] ) ;
+		this.displays.comparison.draw( this.hspf.pfsa ) ;
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
@@ -306,8 +317,10 @@ async function run() {
 	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
 
 	controls.on( 'features', function(values:GridData) {
-		simulation.displays.pf.annotate( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
-		simulation.displays.hs.annotate( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.pf.annotate_counts( simulation.counts ) ;
+		simulation.displays.hs.annotate_counts( simulation.counts ) ;
 	}) ;
 	await simulation.run() ;
 }

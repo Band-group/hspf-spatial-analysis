@@ -70,11 +70,11 @@ export default class SimulationControls {
 				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
 				"A:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"A:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"A:++": { value: 0.8, min: 0, max: 1, step: 0.01 },
-				"S:--": { value: 0.02, min: 0, max: 1, step: 0.01 },
+				"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
+				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
 				"S:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"S:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"S:++": { value: 0.8, min: 0, max: 1, step: 0.01 }
+				"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
 			}
 		) ;
 

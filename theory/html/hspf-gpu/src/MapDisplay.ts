@@ -64,7 +64,35 @@ export default class MapDisplay {
 		this.palette.draw_legend( this.legend ) ;
 	}
 
-	annotate( barriers: Array< any > ) {
+	annotate_counts( counts: Array< PfsaCounts > ) {
+		let svg = d3.select( this.overlay ) ;
+		let elts = svg.selectAll( 'circle.sample' )
+			.data( counts ) ;
+		let scales = {
+			fill: new d3.scaleThreshold(
+				[ 16.4, 30.9 ],
+				[ '#0500ce', '#2f3dc1', '#db624d' ]
+			)
+		} ;
+
+		elts
+			.enter()
+			.append( 'circle' )
+			.attr( 'class', 'sample' )
+		;
+		elts
+			.exit()
+			.remove() ;
+		svg.selectAll( 'circle.sample' )
+			.attr( 'cx', elt => elt.xy.x )
+			.attr( 'cy', elt => elt.xy.y )
+			.attr( 'r', 5 )
+			.attr( 'stroke', 'black' )
+			.attr( 'fill', d => scales.fill( d.latlong.longitude ))
+		;
+	}
+
+	annotate_barriers( barriers: Array< any > ) {
 		console.log( "annotate()", barriers ) ;
 		let svg = d3.select( this.overlay ) ;
 		let elts = svg.selectAll( 'line.barrier' )
