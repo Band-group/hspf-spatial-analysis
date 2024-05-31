@@ -7,7 +7,7 @@
 	<style>
 		.map_container {
 			position: relative ;
-			padding: 10px ;
+			padding: 0px ;
 			margin-bottom: 20px ;
 			margin-top: 20px ;
 			margin-left: 10px ;
@@ -17,6 +17,13 @@
 		}
 		.map_container > canvas {
 			border: 2px solid rgb( 125, 64, 64 ) ;
+		}
+		.map_container > svg.annotation_overlay {
+			display: block ;
+			position: absolute ;
+			right: 0px ;
+			top: 0px ;
+			/*background-color: rgb( 256, 256, 256, 0.1 ) ;*/
 		}
 		body {
 			font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
@@ -105,7 +112,8 @@
 			top: 20px ;
 			background-color: rgb( 256, 256, 256, 0.5 ) ;
 		}
-	</style>
+
+</style>
 </head>
 <body>
 	<h1>The Hs-<em>Pf</em> video game</h1>

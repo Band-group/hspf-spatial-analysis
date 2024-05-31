@@ -4,13 +4,13 @@ import * as d3 from 'd3';
 export default class PaletteScale {
 	m_data: GridData ;
 	m_breaks: Float32Array ;
-	labels: Array[string] ;
+	labels: Array<string> ;
 
 	constructor(
 		data: GridData,
 		min: number,
 		max: number,
-		valueFormat: (value: number) => number
+		valueFormat: (value: number) => string
 	) {
 		this.m_data = data ;
 		let L = this.m_data.height ;
@@ -50,6 +50,11 @@ export default class PaletteScale {
 		svg.attr( 'height', geom.size.height ) ;
 		svg.attr( 'width', geom.size.width ) ;
 		let elts = svg.selectAll( 'g.row' ) ;
+		interface Datum {
+			i: number,
+			value: number,
+			label: string
+		} ;
 		let data = d3.range(this.labels.length).map(
 			i => ({
 				"i": i,
@@ -64,21 +69,21 @@ export default class PaletteScale {
 			.enter()
 			.append( 'g' )
 			.attr( 'class', 'row' )
-			.attr( 'transform', d => ('translate(0 ' + (geom.margin.top + d.i*dy) + ')' ))
+			.attr( 'transform', ( d: Datum ) => ('translate(0 ' + (geom.margin.top + d.i*dy) + ')' ))
 		;
 		g.append( 'rect' )
 			.attr( 'x', geom.margin.left )
 			.attr( 'y', -squaresize/2 )
 			.attr( 'width', squaresize )
 			.attr( 'height', squaresize )
-			.attr( 'fill', d => ( 'rgba(' + 256*this.m_data.at([d.i,0]) + ' ' + 256*this.m_data.at([d.i,1]) + ' ' + 256*this.m_data.at([d.i,2]) + ' / ' + this.m_data.at([d.i,3]) + ')' ))
+			.attr( 'fill', ( d: Datum ) => ( 'rgba(' + 256*this.m_data.at([d.i,0]) + ' ' + 256*this.m_data.at([d.i,1]) + ' ' + 256*this.m_data.at([d.i,2]) + ' / ' + this.m_data.at([d.i,3]) + ')' ))
 			.attr( 'stroke', 'black' )
 		;			
 		g.append( 'text' )
 			.attr( 'transform', 'translate(' + (geom.margin.left + squaresize+5) + ' 0)' )
 			.append( 'tspan')
 			.attr( 'alignment-baseline', 'middle' )
-			.text( d => d.label )
+			.text( (d:Datum) => d.label )
 		;
 	}
 } ;

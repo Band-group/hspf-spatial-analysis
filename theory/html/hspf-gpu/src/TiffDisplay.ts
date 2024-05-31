@@ -1,8 +1,8 @@
 import GridData from "./GridData.js"
-import PaletteDisplay from "./PaletteDisplay.js"
+import PaletteScale from "./PaletteScale.js"
 
 export interface MapOptions {
-	contours: bool
+	contours: boolean
 } ;
 
 export default class TiffDisplay {
@@ -20,7 +20,7 @@ export default class TiffDisplay {
 	paletteBreaksBuffer: GPUBuffer ;
 	options: MapOptions ;
 
-	constructor( palette: PaletteDisplay, device: any, options: MapOptions ) {
+	constructor( palette: PaletteScale, device: any, options: MapOptions ) {
 		this.palette = palette ;
 		this.device = device ;
 		this.options = options ;

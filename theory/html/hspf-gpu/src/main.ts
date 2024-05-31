@@ -1,13 +1,28 @@
+import * as d3 from 'd3';
 import GridData from "./GridData.js" ;
 import Tiff from "./Tiff.js" ;
-import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
 import MapDisplay from "./MapDisplay.js"
+import Barrier from "./Barrier.js"
 
-type LatLon = { latitude: number, longitude: number } ;
+interface PfsaCounts {
+	country: string,
+	admin1: string,
+	latitude: number,
+	longitude: number,
+	pfsa1p: number,
+	pfsa1m: number,
+	pfsa2p: number,
+	pfsa2p: number,
+	pfsa3p: number,
+	pfsa3p: number,
+	pfsa1p: number,
+	pfsa4p: number,
+	pfsa4p: number
+} ;
 
 class Simulation {
 	device: GPUDevice ;
@@ -15,14 +30,16 @@ class Simulation {
 	tiffs: Tiff[] ;
 	displays: { [key:string]: MapDisplay } ;
 	data: GridData[] ;
+	counts: Array<PfsaCounts> ;
 	outerPadding: number ;
-	canvasses: { [key: string]: HTMLCanvasElement } ;
-	contexts: { [key: string]: GPUCanvasContext } ;
 	m_running: boolean ;
 	m_iteration: number ;
 
-	static async create( map_url: string ) {
-		//let tiff = await Tiff.load( "https://www.chg.ox.ac.uk/~gav/projects/tmp/MEAN.tif" ) ;
+	static async create(
+		map_url: string,
+		counts_url: string,
+		barriers_url: string
+	) {
 		if (!navigator.gpu) {
 			throw new Error("WebGPU not supported on this browser.");
 		}
@@ -40,15 +57,80 @@ class Simulation {
 				elt => Tiff.load( elt )
 			)
 		) ;
+		let counts = await Promise.all(
+			[ counts_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						return {
+							country: d.Country,
+							admin1: d['Admin level 1'],
+							latitude: parseFloat(d['Admin level 1 latitude']),
+							longitude: parseFloat(d['Admin level 1 longitude']),
+							pfsa1p: parseInt(d['pfsa1+']),
+							pfsa1m: parseInt(d['pfsa1-']),
+							pfsa1N: parseInt(d['pfsa1+']) + parseInt(d['pfsa1-']),
+							pfsa2p: parseInt(d['pfsa2+']),
+							pfsa2m: parseInt(d['pfsa2-']),
+							pfsa2N: parseInt(d['pfsa2+']) + parseInt(d['pfsa2-']),
+							pfsa3p: parseInt(d['pfsa3+']),
+							pfsa3m: parseInt(d['pfsa3-']),
+							pfsa3N: parseInt(d['pfsa3+']) + parseInt(d['pfsa3-']),
+							pfsa4p: parseInt(d['pfsa4+']),
+							pfsa4m: parseInt(d['pfsa4-']),
+							pfsa4N: parseInt(d['pfsa4+']) + parseInt(d['pfsa4-'])
+						}
+					}
+				)
+			)
+		) ;
+		let barriers = await Promise.all(
+			[ barriers_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						console.log(d) ;
+						return {
+							name: d.name,
+							type: "segment",
+							p0: {
+								latlong: {
+									latitude: parseFloat( d.p0_latitude ),
+									longitude: parseFloat( d.p0_longitude )
+								},
+								display: {
+									x: 0,
+									y: 0
+								}
+							},
+							p1: {
+								latlong: {
+									latitude: parseFloat( d.p1_latitude ),
+									longitude: parseFloat( d.p1_longitude )
+								},
+								display: {
+									x: 0,
+									y: 0
+								}
+							}
+						}
+					}
+				)
+			)
+		) ;
 		return new Simulation(
 			device,
-			tiffs
+			tiffs,
+			counts[0],
+			barriers[0]
 		) ;
 	}
 
 	constructor(
 		device: GPUDevice,
-		tiffs: Tiff[]
+		tiffs: Tiff[],
+		counts: Array< PfsaCounts >,
+		barriers: Array< Barrier >
 	) {
 		this.device = device ;
 		this.tiffs = tiffs ;
@@ -61,107 +143,33 @@ class Simulation {
 				}
 			})
 		}) ;
+		this.counts = counts ;
+		this.barriers = barriers ;
 		this.outerPadding = 64 ;
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 
+		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
-		// let self = this ; // unneeded with arrow function, different rules about `this`.
-		// get pixel coords of lat/long, with padding.
-		let toPixelCoords = ( pt: LatLon ) => {
-			let xy = this.tiffs[0].toPixelCoords( pt ) ;
-			xy.x += this.outerPadding ;
-			xy.y += this.outerPadding ;
-			console.log( "toPixelCoords (global)", pt, xy, this.tiffs[0].width, this.tiffs[0].height  ) ;
-			return xy ;
-		}
+		this.data.unshift( this.hspf.pfsa ) ;
 
 		// For a more sophisticated model, we add geographic barriers
 		// as straight line segments from the array below.
+		let self = this ;
 		{
+			console.log( "BARRIERS", this.barriers ) ;
+			for( var i = 0; i < this.barriers.length; ++i ) {
+				this.barriers[i].p0.xy = this.toPixelCoords( this.barriers[i].p0.latlong ) ;
+				this.barriers[i].p1.xy = this.toPixelCoords( this.barriers[i].p1.latlong ) ;
+			}
 			this.hspf.addBarriers(
-				[
-/*					{
-						name: "Test vertical",
-						p1: toPixelCoords({ longitude: 14.135643, latitude: 24.446175 }),
-						p0: toPixelCoords({ longitude: 12.699882, latitude: -6.469062 })
-					},
-*/
+				this.barriers.map( (elt:Barrier) => (
 					{
-						name: "highland 1",
-						p1: toPixelCoords({ longitude: 35.128781, latitude: 2.477923 }),
-						p0: toPixelCoords({ longitude: 35.601193, latitude: 1.176734 })
-					},
-					{
-						name: "highland 2",
-						p1: toPixelCoords({ longitude: 35.601193, latitude: 1.176734 }),
-						p0: toPixelCoords({ longitude: 35.609433, latitude: 0.174314 })
-					},
-					{
-						name: "highland 3",
-						p1: toPixelCoords({ longitude: 35.609433, latitude: 0.174314 }),
-						p0: toPixelCoords({ longitude: 36.138323, latitude: -1.018577 })
-					},
-					{
-						name: "highland 4",
-						p1: toPixelCoords({ longitude: 35.963301, latitude: -1.635594 }),
-						p0: toPixelCoords({ longitude: 35.571802, latitude: -4.151584 })
-					},
-					{
-						name: "Kilimanjaro range 1",
-						p1: toPixelCoords({ longitude: 37.257547, latitude: -2.960985 }),
-						p0: toPixelCoords({ longitude: 38.694576, latitude: -4.987179 })
-					},
-					{
-						name: "Mt Kenya",
-						p1: toPixelCoords({ longitude: 37.497052, latitude: 0.026900 }),
-						p0: toPixelCoords({ longitude: 37.243730, latitude: -0.336961 })
-					},
-					
-					{
-						name: "Udzungawa",
-						p1: toPixelCoords({ longitude: 37.544623, latitude: -5.779348 }),
-						p0: toPixelCoords({ longitude: 35.793841, latitude: -8.607073 })
-					},
-					{
-						name: "Gashaka-Gumti",
-						p1: toPixelCoords({ longitude: 11.707259, latitude: 7.739510 }),
-						p0: toPixelCoords({ longitude: 9.608778, latitude: 5.846300 })
-					},
-
-					{
-						name: "Mt Buea",
-						p1: toPixelCoords({ longitude: 9.247516, latitude: 4.275657 }),
-						p0: toPixelCoords({ longitude: 9.151556, latitude: 4.141450 })
-					},
-					/*					{
-						name: "highland 3",
-						p1: toPixelCoords({ longitude: 37, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 35, latitude: -7 })
-					},*/
-					{
-						name: "center highland 1",
-						p0: toPixelCoords( {longitude: 29.355400, latitude: 0.105379 }),
-						p1: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 })
-					},
-					{
-						name: "center highland 2",
-						p0: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 }),
-						p1: toPixelCoords( {longitude: 29.522432, latitude: -3.865091 })
-					},
-					{
-						name: "center highland 3",
-						p0: toPixelCoords( {longitude: 29.216211, latitude: -1.402355 }),
-						p1: toPixelCoords( {longitude: 28.706522, latitude: -2.372299 })
-					},
-					{
-						name: "center highland 4",
-						p0: toPixelCoords( {longitude: 28.706522, latitude: -2.372299 }),
-						p1: toPixelCoords( {longitude: 29.050808, latitude: -3.907439 })
+						name: elt.name,
+						p0: elt.p0.xy,
+						p1: elt.p1.xy
 					}
-				]
+				))
 			) ;
 		}
-		this.data.unshift( this.hspf.pfsa ) ;
 	
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
@@ -177,7 +185,7 @@ class Simulation {
 					new PaletteScale(
 						new Viridis( 20 ),
 						0, 1.0,
-						function(v) { return nf.format(v * 100) + '%' }
+						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
 					{
@@ -196,7 +204,7 @@ class Simulation {
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 0.4,
-						function(v) { return nf.format(v * 100) + '%' }
+						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
 					{
@@ -206,13 +214,20 @@ class Simulation {
 				section.appendChild( container ) ;
 			}
 		}
-
-		this.displays.hs.draw( this.data[0] ) ;
-		this.displays.pf.draw( this.data[1] ) ;
+		this.render() ;
 
 		this.m_running = false ;
 		this.m_iteration = 0 ;
 	}
+
+	// get pixel coords of lat/long.
+	// this includes padding so it is in simulation grid coordinates.
+	toPixelCoords( pt: LatLong ) {
+		let xy = this.tiffs[0].toPixelCoords( pt ) ;
+		xy.x += this.outerPadding ;
+		xy.y += this.outerPadding ;
+		return xy ;
+	} ;
 
 	async run() {
 		//this.m_running = true ;
@@ -269,17 +284,31 @@ class Simulation {
 
 async function run() {
 	let controls = new SimulationControls( document.getElementsByTagName( 'nav' )[0] ) ;
-	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
-	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-	// let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// debug
+	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; }) ;
+	controls.on( 'spread', function(values: GridData) { console.log( "SPREAD", values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { console.log( "FEATURES", values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { console.log( "PLAYBACK", values ) ; }) ;
+
+	let simulation = await Simulation.create(
+		"/2024-03-05-MEAN-nobarrier.tif",
+		"/counts_by_adm1.tsv",
+		"/geographic_barriers.tsv"
+	) ;
+//	let simulation = await Simulation.create(
+//		"https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif"
+//	)
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
 	controls.on( 'features', function(values: GridData) { simulation.setFeatures( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
 	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
 
+	controls.on( 'features', function(values:GridData) {
+		simulation.displays.pf.annotate( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.hs.annotate( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+	}) ;
 	await simulation.run() ;
 }
 

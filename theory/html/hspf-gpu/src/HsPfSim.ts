@@ -356,8 +356,6 @@ export default class HsPfSim {
 		this.paramsToGPU() ;
 	}
 
-
-
 	addBarriers( barriers: Array<Barrier> ) {
 		if( this.number_of_barriers + barriers.length > this.max_barriers ) {
 			throw new Error( "Too many barriers!" ) ;
@@ -431,5 +429,4 @@ export default class HsPfSim {
 	  this.buffers.pfsaResult.unmap() ;
 	  return this.m_iteration++ ;
 	}
-  } ;
-  
+} ;

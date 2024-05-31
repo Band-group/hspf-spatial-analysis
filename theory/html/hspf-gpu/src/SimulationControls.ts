@@ -105,11 +105,15 @@ export default class SimulationControls {
 		} ;
 		let self = this ;
 		let playpause = document.getElementById( "playpause" ) ;
+		if( !playpause ) {
+			throw Error( "Unable to create play/pause element" ) ;
+		}
 		playpause.addEventListener(
 			'click',
 			function( _elt ) {
 				let oldstate = playpause.getAttribute( 'state' ) ;
-				let newstate = { 'playing': 'paused', 'paused': 'playing' }[oldstate] ;
+				oldstate = oldstate ? oldstate : 'paused' ;
+				let newstate = ( oldstate == 'paused' ? 'playing' : 'paused' ) ;
 				playpause.setAttribute( 'state', newstate ) ;
 				self.trigger( 'playback' ) ;
 			}
@@ -148,10 +152,9 @@ export default class SimulationControls {
 
 	getPlayState(): GridData {
 		let playpause = document.getElementById( "playpause" ) ;
-		const value = {
-			"playing": 1,
-			"paused": 0
-		}[playpause.getAttribute( 'state' )] ;
+		let oldstate = playpause!.getAttribute( 'state' ) ;
+		oldstate = oldstate ? oldstate : 'paused' ;
+		const value = ( oldstate == 'paused' ? 0 : 1 ) ;
 		return new GridData( [1,1], [ value ] ) ;
 	}
 
@@ -204,12 +207,12 @@ export default class SimulationControls {
 	}
 
 	getFeatures(): GridData {
-		return new GridData(
-			[1,1],
-			[
-				document.querySelector("#barrier_checkbox").checked ? 1.0 : 0.0
-			]
-		) ;
+		let checkbox = <HTMLInputElement> document.querySelector("#barrier_checkbox") ;
+		let value = 0.0 ;
+		if( checkbox ) {
+			value = checkbox.checked ? 1.0 : 0.0 ;
+		}
+		return new GridData( [1,1], [ value ] ) ;
 	}
 
 	drawSpreadDisplay( values: GridData ) {
