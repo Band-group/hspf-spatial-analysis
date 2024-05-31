@@ -1,6 +1,6 @@
-import LatLongCoords from "./Types.js" ;
+import { LatLongCoords } from "./Types.js" ;
 
-interface Barrier {
+export default interface Barrier {
 	name: string,
 	type: string,
 	p0: LatLongCoords,

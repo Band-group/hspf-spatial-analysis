@@ -8,14 +8,17 @@ import Viridis from "./Viridis.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
+import { PfsaCounts, LatLong } from "./Types.js"
 
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: Tiff[] ;
 	displays: { [key:string]: MapDisplay } ;
+	comparison: ComparisonDisplay ;
 	data: GridData[] ;
 	counts: Array<PfsaCounts> ;
+	barriers: Array< Barrier > ;
 	outerPadding: number ;
 	m_running: boolean ;
 	m_iteration: number ;
@@ -88,7 +91,7 @@ class Simulation {
 									latitude: parseFloat( d.p0_latitude ),
 									longitude: parseFloat( d.p0_longitude )
 								},
-								display: {
+								xy: {
 									x: 0,
 									y: 0
 								}
@@ -98,7 +101,7 @@ class Simulation {
 									latitude: parseFloat( d.p1_latitude ),
 									longitude: parseFloat( d.p1_longitude )
 								},
-								display: {
+								xy: {
 									x: 0,
 									y: 0
 								}
@@ -143,8 +146,6 @@ class Simulation {
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		this.data.unshift( this.hspf.pfsa ) ;
 
-		let self = this ;
-
 		// For a more sophisticated model, we add geographic barriers
 		// as straight line segments from the array below.
 		for( let i = 0; i < this.counts.length; ++i ) {
@@ -155,6 +156,8 @@ class Simulation {
 				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
 				&&
 				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+				&&
+				elt.pfsa1N >= 25
 			) ;
 		})
 		// For a more sophisticated model, we add geographic barriers
@@ -177,7 +180,10 @@ class Simulation {
 	
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
-		if( section ) {
+		if( !section ) {
+			throw Error( "No section found!" ) ;
+		}
+		{
 			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
 			{
 				const container = document.createElement( 'div' ) ;
@@ -201,7 +207,7 @@ class Simulation {
 				overlay.setAttribute( "height", "300px" ) ;
 				overlay.setAttribute( "class", "comparison_display" ) ;
 				container.appendChild( overlay ) ;
-				this.displays.comparison = new ComparisonDisplay(
+				this.comparison = new ComparisonDisplay(
 					this.counts,
 					overlay
 				) ;
@@ -263,7 +269,7 @@ class Simulation {
 	render() {
 		this.displays.pf.draw( this.hspf.pfsa ) ;
 		this.displays.hs.draw( this.data[1] ) ;
-		this.displays.comparison.draw( this.hspf.pfsa ) ;
+		this.comparison.draw( this.data[0] ) ;
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
