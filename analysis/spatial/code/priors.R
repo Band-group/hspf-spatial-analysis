@@ -1,8 +1,8 @@
 
 priors <- function() {
 	rangesigma = expand.grid(
-		r0 = c( 2.5, 5, 10, 15, 20 ),
-		sigma0 = c( 0.1, 0.5, 0.6, 0.7, 0.8, 1, 1.5 )
+		r0 = c( 2.5, 5, 7.5, 10),
+		sigma0 = c(0.6, 0.8, 1, 2 )
 	)
 
 	result = rbind(
@@ -28,8 +28,8 @@ priors <- function() {
 			#Note that: P(range < 0.9) = 0.2#initial work
 			Prange = c( 0.1, 0.1, 0.25, 0.25 ),   #if NA means that range0 is fixed
 			Psigma = c( 0.1, 0.1, 0.1, 0.1),      #if NA means that sigma0 is fixed
-			r0 = c( 5, 5, 10, 10 ),               #5 means large range expected
-			sigma0 = c( 0.5, 0.7, 0.5, 0.7 ),     #1 is a default value
+			r0 = c( 2.5, 2.5, 5, 5 ),               #5 means large range expected
+			sigma0 = c( 0.6, 1, 0.6, 1 ),     #1 is a default value
 			#Define precision values for \betas
 			#Here we choose high precision for cov.coef -> shrink towards 0
 			#But low precision for intercept
