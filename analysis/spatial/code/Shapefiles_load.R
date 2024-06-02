@@ -25,11 +25,11 @@ africa_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa_sf"
 #Prepare the spatial cover for HbS prediction (world map)
 #It is based on Piel's spatial cover + a few more countries
 HbSpredextent <- raster::raster("geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif") 
-notpiel <- 0.001
+notpiel <- 0.005
 HbSpredextent <- HbSpredextent >= notpiel
 HbSpredextent[HbSpredextent >= notpiel] <- 1
 HbSpredextent[HbSpredextent < notpiel] <- NA
-HbSpredextent <- raster::aggregate(HbSpredextent,10)
+HbSpredextent <- raster::aggregate(HbSpredextent,7)
 HbSpredextent <- as(HbSpredextent, "SpatialPolygonsDataFrame")
 HbSpredextent <- sf::st_as_sf(HbSpredextent)
 HbSpredextent <- sf::st_geometry(HbSpredextent)
@@ -45,5 +45,13 @@ keepcountries <- sf::st_difference(keepcountries,HbSpredextent)
 HbSpredextent <- sf::st_union(HbSpredextent,keepcountries,is_coverage = TRUE)
 HbSpredextent <- sf::st_as_sf(HbSpredextent)
 HbSpredextent <- sf::st_make_valid(HbSpredextent)
-HbSpredextent <- sf::st_simplify(HbSpredextent, preserveTopology = TRUE, dTolerance = 2000)
+HbSpredextent <- sf::st_simplify(HbSpredextent, preserveTopology = TRUE, dTolerance = 0.02)
 HbSpredextent <- sf::st_make_valid(HbSpredextent)
+#save the extent map for check
+HbSextentmap <- ggplot() +
+        geom_sf(data = HbSpredextent, fill='burlywood', col = 'grey45',size = 0.5)+
+        geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
+        ggtitle(paste0('Spatial coverage where we make HbS prediction\n Region with Piel HbS mean values >',
+        notpiel*100,'% and added countries where HBS data are spatially dense'))+
+        theme_minimal()
+ ggsave('output/HbSraster/HbSextentmap.pdf', plot = HbSextentmap, device = "pdf",width = 16,height=9)
