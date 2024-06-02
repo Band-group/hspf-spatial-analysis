@@ -1,5 +1,9 @@
 import GridData from "./GridData.js"
-import Viridis from "./Viridis.js"
+import PaletteScale from "./PaletteScale.js"
+
+export interface MapOptions {
+	contours: boolean
+} ;
 
 export default class TiffDisplay {
 	device: GPUDevice;
@@ -11,13 +15,17 @@ export default class TiffDisplay {
 	layout: GPUBindGroupLayout ;
 	pipelineLayout: GPUPipelineLayout ;
 	pipeline: GPURenderPipeline;
-	palette: GridData;
+	palette: PaletteScale;
 	paletteBuffer: GPUBuffer ;
+	paletteBreaksBuffer: GPUBuffer ;
+	options: MapOptions ;
 
-	constructor(device: any) {
-		this.device = device;
-		this.canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-		this.palette = new Viridis(20);
+	constructor( palette: PaletteScale, device: any, options: MapOptions ) {
+		this.palette = palette ;
+		this.device = device ;
+		this.options = options ;
+		this.canvasFormat = navigator.gpu.getPreferredCanvasFormat() ;
+		console.log( "TiffDisplay.palette", this.palette ) ;
 		this.vertices = new Float32Array([
 			//   X,    Y,
 			-1, -1, // Triangle 1 (Blue)
@@ -41,23 +49,41 @@ export default class TiffDisplay {
 				shaderLocation: 0, // Position, see vertex shader
 			}],
 		};
-		this.paletteBuffer = this.palette.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
-		console.log( "PALETTE", this.palette ) ;
+		this.paletteBuffer = this.palette.values.toDeviceBuffer( this.device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ) ;
+		this.paletteBreaksBuffer = this.palette.breaks.toDeviceBuffer( this.device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ) ;
+		let paletteLevels = this.palette.values.height ;
 		this.shaders = device.createShaderModule({
 			label: "Cell shader",
 			code: `
-		  struct VertexInput {
+			fn binned_colour(
+				value: f32,
+				levels: array<vec4f,${paletteLevels}>,
+				breaks: array<f32,${this.palette.values.height+1}>
+			) -> vec4f {
+				for( var i = 0; i < ${this.palette.values.height}; i++ ) {
+					if( value <= breaks[i+1] ) {
+						return levels[i] ;
+					}
+				}
+				// Argh, no value!
+				return vec4f(0,0,0,1) ;
+			}
+
+			struct VertexInput {
 			@location(0) pos: vec2f,
 			@builtin(instance_index) instance: u32,
 		  };
   
 		  struct VertexOutput {
 			@builtin(position) pos: vec4f,
-			@location(0) cell: vec2f
+			@location(0) cell: vec2f,
+			@location(1) uv: vec2f,
 		  };
 		  @group(0) @binding(0) var<uniform> grid: vec2f;
-		  @group(0) @binding(1) var<storage> HbS: array<f32>;
-		  @group(0) @binding(2) var<uniform> palette: array<vec4f,20>;
+		  @group(0) @binding(1) var textureSampler: sampler;
+		  @group(0) @binding(2) var HbS: texture_2d<f32>;
+		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
+		  @group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
   
 		  @vertex
 		  fn vertexMain( input: VertexInput ) -> VertexOutput {
@@ -71,31 +97,45 @@ export default class TiffDisplay {
 			var output: VertexOutput ;
 			output.pos = vec4f(gridPos, 0, 1) ;
 			output.cell = cell ;
+			output.uv = gridPos * 0.5 + 0.5;
+			output.uv.y = 1. - output.uv.y ;
 			return output ;
 		  }
 		  @fragment
 		  fn fragmentMain(
-			@location(0) cell: vec2f
+			@location(0) cell: vec2f,
+			@location(1) uv: vec2f,
 		  ) -> @location(0) vec4f {
-			let a = HbS[i32(cell.x + (grid.y-cell.y-1)*grid.x)] ;
-			if( a < 0 ) {
-				return vec4f( 0, 33.0/256, 71.0/256, 0.5 ) ;
-				// return vec4f(0.05, 0.05, 0.2, 0.5);
-			} else if( a > 0.05 && u32(min(max(a,0.0),0.99) * 500.0) % 25 == 0 ){
-				//return vec4f(1, 0.5, 0, 1); // (Red, Green, Blue, Alpha)
-				return vec4f(0.6, 0.25, 0, 0.5); // (Red, Green, Blue, Alpha)
-			} else {
-				let q = u32(min(max(a,0.0),0.99)*20) ;
-				return palette[q] ;
-			}
+			let a = textureSample(HbS, textureSampler, uv).r ;
+
+			// contour lines / clipping
+			// Let's work out the palette colour, then adjust it.
+			let paletteLevels = f32(${paletteLevels}) ;
+			let q = u32( clamp( a, 0.0, 0.99 )*paletteLevels ) ;
+			var result = binned_colour( a, palette, palette_breaks ) ;
+			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
+			let w = fwidth(a) ;
+			// NB. smoothstep(low, high, x) = Hermite interpolation
+			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
+			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
+			// TODO: brittle: this assumes evenly-spaced breaks!
+			var wa = smoothstep( contour_width*w, 0., (a*paletteLevels) % 1. ) ;
+			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
+			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
+			// Fix off-map colours to background...
+			result = mix(result, vec4f( 0, 33.0/256, 71.0/256, 0.5 ), smoothstep(0.0, -0.01, a)) ;
+			return result ;
 		  }
 		`
 		});
 		this.layout = this.device.createBindGroupLayout({
 			entries: [
 			  { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
-			  { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }},
-			  { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }}
+			//   { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }},
+			  { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'non-filtering' } },
+			  { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "unfilterable-float", viewDimension: "2d" }},
+			  { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
+			  { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }} // using storage because not 16-byte aligned.
 			],
 		}) ;
 		this.pipelineLayout = device.createPipelineLayout({
@@ -133,26 +173,26 @@ export default class TiffDisplay {
 		});
 		this.device.queue.writeBuffer(mapgridBuffer, 0, mapgrid);
 
-		const mapBuffer = {
-			buffer: this.device.createBuffer({
-				label: "tiff",
-				size: tiff.data.byteLength,
-				usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-			}),
-			layout: {
-				arrayStride: 4,
-				attributes: [{
-					format: "float32x1",
-					offset: 0,
-					shaderLocation: 0, // Position, see fragment shader
-				}]
-			}
-		};
-		this.device.queue.writeBuffer(
-			mapBuffer.buffer,
-			0,
-			tiff.data
+		const texture = this.device.createTexture({
+			size: [tiff.width, tiff.height, 1],
+			format: 'r32float',
+			usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+		});
+
+		const textureView = texture.createView();
+
+		this.device.queue.writeTexture(
+			{ texture: texture },
+			tiff.data,
+			{ bytesPerRow: tiff.width * 4, rowsPerImage: tiff.height },
+			[tiff.width, tiff.height, 1]
 		);
+
+		// there are issues with making R32F textures filterable, so we are using a sampler with nearest filtering
+		const sampler = this.device.createSampler({
+			magFilter: "nearest",
+			minFilter: "nearest",
+		});
 
 		const bindGroup = this.device.createBindGroup({
 			label: "HbS map bind group",
@@ -162,10 +202,16 @@ export default class TiffDisplay {
 				resource: { buffer: mapgridBuffer }
 			}, {
 				binding: 1,
-				resource: { buffer: mapBuffer.buffer }
+				resource: sampler
 			}, {
 				binding: 2,
+				resource: textureView
+			}, {
+				binding: 3,
 				resource: { buffer: this.paletteBuffer }
+			}, {
+				binding: 4,
+				resource: { buffer: this.paletteBreaksBuffer }
 			}]
 		});
 		const encoder = this.device.createCommandEncoder();

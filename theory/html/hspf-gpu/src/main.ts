@@ -1,23 +1,30 @@
+import * as d3 from 'd3';
 import GridData from "./GridData.js" ;
 import Tiff from "./Tiff.js" ;
-import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
+import PaletteScale from "./PaletteScale.js"
+import Viridis from "./Viridis.js"
+import MapDisplay from "./MapDisplay.js"
+import Barrier from "./Barrier.js"
+import ComparisonDisplay from "./ComparisonDisplay.js"
 
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: Tiff[] ;
-	display: TiffDisplay ;
+	displays: { [key:string]: MapDisplay } ;
 	data: GridData[] ;
+	counts: Array<PfsaCounts> ;
 	outerPadding: number ;
-	canvasses: { [key: string]: HTMLCanvasElement } ;
-	contexts: { [key: string]: GPUCanvasContext } ;
 	m_running: boolean ;
 	m_iteration: number ;
 
-	static async create( map_url: string ) {
-		//let tiff = await Tiff.load( "https://www.chg.ox.ac.uk/~gav/projects/tmp/MEAN.tif" ) ;
+	static async create(
+		map_url: string,
+		counts_url: string,
+		barriers_url: string
+	) {
 		if (!navigator.gpu) {
 			throw new Error("WebGPU not supported on this browser.");
 		}
@@ -35,20 +42,90 @@ class Simulation {
 				elt => Tiff.load( elt )
 			)
 		) ;
+		let counts = await Promise.all(
+			[ counts_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						return {
+							country: d.Country,
+							admin1: d['Admin level 1'],
+							latlong: {
+								latitude: parseFloat(d['Admin level 1 latitude']),
+								longitude: parseFloat(d['Admin level 1 longitude']),
+							},
+							xy: {
+								x: 0,
+								y: 0
+							},
+							pfsa1p: parseInt(d['pfsa1+']),
+							pfsa1m: parseInt(d['pfsa1-']),
+							pfsa1N: parseInt(d['pfsa1+']) + parseInt(d['pfsa1-']),
+							pfsa2p: parseInt(d['pfsa2+']),
+							pfsa2m: parseInt(d['pfsa2-']),
+							pfsa2N: parseInt(d['pfsa2+']) + parseInt(d['pfsa2-']),
+							pfsa3p: parseInt(d['pfsa3+']),
+							pfsa3m: parseInt(d['pfsa3-']),
+							pfsa3N: parseInt(d['pfsa3+']) + parseInt(d['pfsa3-']),
+							pfsa4p: parseInt(d['pfsa4+']),
+							pfsa4m: parseInt(d['pfsa4-']),
+							pfsa4N: parseInt(d['pfsa4+']) + parseInt(d['pfsa4-'])
+						}
+					}
+				)
+			)
+		) ;
+		let barriers = await Promise.all(
+			[ barriers_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						return {
+							name: d.name,
+							type: "segment",
+							p0: {
+								latlong: {
+									latitude: parseFloat( d.p0_latitude ),
+									longitude: parseFloat( d.p0_longitude )
+								},
+								display: {
+									x: 0,
+									y: 0
+								}
+							},
+							p1: {
+								latlong: {
+									latitude: parseFloat( d.p1_latitude ),
+									longitude: parseFloat( d.p1_longitude )
+								},
+								display: {
+									x: 0,
+									y: 0
+								}
+							}
+						}
+					}
+				)
+			)
+		) ;
 		return new Simulation(
 			device,
-			tiffs
+			tiffs,
+			counts[0],
+			barriers[0]
 		) ;
 	}
 
 	constructor(
 		device: GPUDevice,
-		tiffs: Tiff[]
+		tiffs: Tiff[],
+		counts: Array< PfsaCounts >,
+		barriers: Array< Barrier >
 	) {
 		this.device = device ;
 		this.tiffs = tiffs ;
-		this.display = new TiffDisplay( device ) ;
 		this.data = tiffs.map( elt => new GridData([ elt.height, elt.width ], elt.data )) ;
+		// Replace all NAs in HbS map are replaced with -1.
 		this.data.forEach( function( grid ) {
 			grid.data.forEach( function( value, i ) {
 				if( value < 0 || isNaN( value )) {
@@ -56,81 +133,126 @@ class Simulation {
 				}
 			})
 		}) ;
-		this.outerPadding = 64 ;
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
+		this.counts = counts ;
+		console.log( "COUNTS", this.counts ) ;
 
+		this.barriers = barriers ;
+		this.outerPadding = 64 ;
+
+		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
+		this.data.unshift( this.hspf.pfsa ) ;
+
 		let self = this ;
-		// get pixel coords of lat/long, with padding.
-		let toPixelCoords = function( pt ) {
-			let xy = self.tiffs[0].toPixelCoords( pt ) ;
-			xy.x += self.outerPadding ;
-			xy.y += self.outerPadding ;
-			console.log( "toPixelCoords (global)", pt, xy, self.tiffs[0].width, self.tiffs[0].height  ) ;
-			return xy ;
+
+		// For a more sophisticated model, we add geographic barriers
+		// as straight line segments from the array below.
+		for( let i = 0; i < this.counts.length; ++i ) {
+			this.counts[i].xy = this.toPixelCoords( this.counts[i].latlong ) ;
 		}
+		this.counts = this.counts.filter( (elt:PfsaCounts) => {
+			return (
+				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
+				&&
+				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+			) ;
+		})
+		// For a more sophisticated model, we add geographic barriers
+		// as straight line segments from the array below.
 		{
+			for( var i = 0; i < this.barriers.length; ++i ) {
+				this.barriers[i].p0.xy = this.toPixelCoords( this.barriers[i].p0.latlong ) ;
+				this.barriers[i].p1.xy = this.toPixelCoords( this.barriers[i].p1.latlong ) ;
+			}
 			this.hspf.addBarriers(
-				[
+				this.barriers.map( (elt:Barrier) => (
 					{
-						name: "rift valley 1",
-						p1: toPixelCoords({ longitude: 39, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 37, latitude: -7 })
-					},
-					{
-						name: "rift valley 2",
-						p1: toPixelCoords({ longitude: 37, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 35, latitude: -7 })
+						name: elt.name,
+						p0: elt.p0.xy,
+						p1: elt.p1.xy
 					}
-				]
+				))
 			) ;
 		}
-		this.data.unshift( this.hspf.pfsa ) ;
 	
-		let section = document.querySelector("section") ;
+		this.displays = {} ;
+		const section = document.querySelector("section") ;
 		if( section ) {
-			this.data.forEach( function( datum, index ) {
-				const canvas = document.createElement( 'canvas' ) ;
+			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
+			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add('map_container');
-				container.classList.add('c' + (index+1) );
-				canvas.setAttribute( "width", "" + datum.width ) ;
-				canvas.setAttribute( "height", "" + datum.height ) ;
-				container.appendChild( canvas ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'pf_map' );
+				this.displays.pf = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
+					new PaletteScale(
+						new Viridis( 20 ),
+						0, 1.0,
+						function(v) { return nf.format(v * 100) + '%' ; }
+					),
+					this.device,
+					{ 'contours': true }
+				) ;
 				section.appendChild( container ) ;
-			}) ;
+
+				let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+				overlay.setAttribute( "width", "400px" ) ;
+				overlay.setAttribute( "height", "300px" ) ;
+				overlay.setAttribute( "class", "comparison_display" ) ;
+				container.appendChild( overlay ) ;
+				this.displays.comparison = new ComparisonDisplay(
+					this.counts,
+					overlay
+				) ;
+			}
+			{
+				const container = document.createElement( 'div' ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'hs_map' );
+				this.displays.hs = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width, 'height': this.data[0].height },
+					new PaletteScale(
+						new Viridis( 10 ),
+						0, 0.4,
+						function(v) { return nf.format(v * 100) + '%' ; }
+					),
+					this.device,
+					{ 'contours': false }
+				) ;
+				section.appendChild( container ) ;
+			}
 		}
-
-		this.canvasses = {
-			'hs': (<HTMLCanvasElement> document.querySelector( '.c2 > canvas' ))!,
-			'pfsa': (<HTMLCanvasElement> document.querySelector( '.c1 > canvas' ))!
-		} ;
-		console.log( "CANVASSES", this.canvasses ) ;
-		this.contexts = {
-			// @ts-ignore
-			'hs': this.canvasses.hs!.getContext( 'webgpu' ),
-			// @ts-ignore
-			'pfsa': this.canvasses.pfsa!.getContext( 'webgpu' )
-		} ;
-
-		this.display.draw( this.data[0], this.contexts.hs ) ;
-		this.display.draw( this.data[1], this.contexts.pfsa ) ;
+		this.render() ;
 
 		this.m_running = false ;
 		this.m_iteration = 0 ;
 	}
 
+	// get pixel coords of lat/long.
+	// this is in simulation grid coordinates, i.e. including the padding added to the map.
+	toPixelCoords( pt: LatLong ) {
+		let xy = this.tiffs[0].toPixelCoords( pt ) ;
+		xy.x = Math.round(xy.x) + this.outerPadding ;
+		xy.y = Math.round(xy.y) + this.outerPadding ;
+		return xy ;
+	} ;
+
 	async run() {
-		this.m_running = true ;
+		//this.m_running = true ;
+		this.render() ;
 		this.renderLoop() ;
 	}
 
 	async renderLoop() {
-		while( this.m_running ) {
-			await this.hspf.step() ;
-			this.render() ;
+		while( 1 ) {
+			if( this.m_running ) {
+				await this.hspf.step() ;
+				this.render() ;
+				++this.m_iteration ;
+			}
 			await this.sleep() ;
-			++this.m_iteration ;
 		}
 	}
 
@@ -139,8 +261,9 @@ class Simulation {
 	}
 
 	render() {
-		this.display.draw( this.hspf.pfsa, this.contexts.pfsa ) ;
-		this.display.draw( this.data[1], this.contexts.hs ) ;
+		this.displays.pf.draw( this.hspf.pfsa ) ;
+		this.displays.hs.draw( this.data[1] ) ;
+		this.displays.comparison.draw( this.hspf.pfsa ) ;
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
@@ -155,23 +278,50 @@ class Simulation {
 		this.hspf.setFitness( values ) ;
 	}
 
+	setFeatures( values: GridData ) {
+		console.log( "setFeatures()", values ) ;
+		this.hspf.setFeatures( values ) ;
+	}
+
 	setSpread( values: GridData ) {
 		this.hspf.setSpread( values ) ;
+	}
+
+	setPlayback( values: GridData ) {
+		console.log( "Set playback to", values.at([0,0]) ) ;
+		this.m_running = ( values.at([0,0]) == 0 ) ? false : true ;
 	}
 }
 
 async function run() {
 	let controls = new SimulationControls( document.getElementsByTagName( 'nav' )[0] ) ;
-	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
-	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-//	let simulation = await Simulation.create( "https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// debug
+	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; }) ;
+	controls.on( 'spread', function(values: GridData) { console.log( "SPREAD", values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { console.log( "FEATURES", values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { console.log( "PLAYBACK", values ) ; }) ;
+
+	let simulation = await Simulation.create(
+		"/2024-03-05-MEAN-nobarrier.tif",
+		"/counts_by_adm1.tsv",
+		"/geographic_barriers.tsv"
+	) ;
+//	let simulation = await Simulation.create(
+//		"https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif"
+//	)
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { simulation.setFeatures( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
 
-	console.log( simulation ) ;
+	controls.on( 'features', function(values:GridData) {
+		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.pf.annotate_counts( simulation.counts ) ;
+		simulation.displays.hs.annotate_counts( simulation.counts ) ;
+	}) ;
 	await simulation.run() ;
 }
 

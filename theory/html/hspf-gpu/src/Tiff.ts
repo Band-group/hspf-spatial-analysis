@@ -1,6 +1,11 @@
 import type {GeoTIFF, GeoTIFFImage } from "geotiff" ;
 import { fromUrl } from "geotiff" ;
 
+interface LatLong {
+	latitude: number,
+	longitude: number
+} ;
+
 export default class Tiff {
 	url: string ;
 	tiff: GeoTIFF ;
@@ -59,13 +64,12 @@ export default class Tiff {
 			}
 		} ;
 	}
-
-	toPixelCoords( pt ) {
+	
+	toPixelCoords( pt: LatLong ) {
 		// pt is a object with latitude and longitude values
 		let bb = this.extent ;
 		let bbWidth = bb.p1.longitude - bb.p0.longitude ;
 		let bbHeight = bb.p1.latitude - bb.p0.latitude ;
-		console.log( "toPixelCoords", pt, bb ) ;
 		return {
 			x: ((pt.longitude - bb.p0.longitude) / bbWidth) * this.width,
 			y: this.height - (((pt.latitude - bb.p0.latitude) / bbHeight) * this.height )

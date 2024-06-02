@@ -61,9 +61,10 @@ export default class HsPfSim {
 	// higher numbers mean greater concentration i.e. less geographical smoothing
 	nbhdConcentration: number = 6 ;
 	nbhd: GridData ;
-	max_barriers: number = 10 ;
+	max_barriers: number = 20 ;
+	use_barriers: number = 0 ;
 	number_of_barriers: number = 0 ;
-	barriers: GridData = new GridData( [10,4] ) ;
+	barriers: GridData = new GridData( [this.max_barriers,4] ) ;
 	m_iteration: number ;
 
 	// pipeline-related variables
@@ -117,6 +118,18 @@ export default class HsPfSim {
 			}
 
 			// does line segment a->b intersect line segment p->q?
+			/*
+				R code:
+				between = function( x, a, b ) { return( sign(x-a) != sign(x-b)) }
+				segments_overlap = function( a, b, p, q ) {
+					ma = (b['y']-a['y'])/(b['x']-a['x'])
+					ca = a['y'] - a['x']*ma ;
+					mp = (q['y']-p['y'])/(q['x']-p['x'])
+					cp = p['y'] - p['x']*mp
+					xs = (cp - ca)/(ma - mp) ;
+					return( between( xs, a['x'], b['x'] ) && between( xs, p['x'], q['x'] ))
+				}
+			*/
 			fn segments_overlap(
 				a: vec2f, b: vec2f,
 				p: vec2f, q: vec2f
@@ -124,7 +137,7 @@ export default class HsPfSim {
 				let ma = (b.y-a.y)/(b.x-a.x) ;
 				let ca = a.y - a.x * ma ;
 				let mp = (q.y-p.y)/(q.x-p.x) ;
-				let cp = p.y - p.x * ma ;
+				let cp = p.y - p.x * mp ;
 				let xs = (cp - ca)/(ma - mp) ;
 				return(
 					between( xs, a.x, b.x ) && between( xs, p.x, q.x )
@@ -156,26 +169,13 @@ export default class HsPfSim {
 				let width = parameters[1] ;
 				let cellidx = celly * parameters[1] + cellx ;
 
-				let n = parameters[2] ;//arrayLength( &nbhd ) ;
+				let n = parameters[2] ; // number of nbhd points or 'mosquitos'
 				var value: f32 = 0.0 ;
 				var denominator: f32 = 0.0 ;
 				var totalWeight: f32 = 0.0 ;
 				let fs = HbS[cellidx] ; 
 				let s = fs*fs + 2*fs*(1-fs) ;
 				let a = 1 - s ;
-
-				if(false) { // no barrier model
-					if( cellx == 915 && celly == 580 ) {
-						for( var i: u32 = 0; i < n; i++ ) {
-							let x = u32(nbhd[i].dx + f32(cellx)) ;
-							let y = u32(nbhd[i].dy + f32(celly)) ;
-							var weight = nbhd[i].weight ;
-							let bite_idx = y*parameters[1] + x ;
-							pfsanew[bite_idx] = 1.0 ; //weight ;
-						}
-						return ;
-					}
-				}
 
 				for( var i: u32 = 0; i < n; i++ ) {
 					let x = u32(nbhd[i].dx + f32(cellx)) ;
@@ -187,7 +187,8 @@ export default class HsPfSim {
 
 					// test for overlap with barrier
 					var weight = nbhd[i].weight ;
-					if(false) {
+//					if(true) {
+						// Any mozzie that crosses a barrier gets downweighted.
 						for( var j: u32 = 0; j < parameters[3]; j++ ) {
 							if(
 								segments_overlap(
@@ -196,9 +197,11 @@ export default class HsPfSim {
 								)
 							) {
 								weight *= 0.1 ;
+//								pfsanew[ cellidx ] = 0 ;
+//								return ;
 							}
 						}
-					}
+//					}
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
 						denominator += weight * (
@@ -207,7 +210,7 @@ export default class HsPfSim {
 							+ (pfalt * a * fitness[0][3])
 							+ (pfalt * s * fitness[1][3])
 						) ;
-						value += nbhd[i].weight * (
+						value += weight * (
 							(pfalt * a * fitness[0][3])
 							+ (pfalt * s * fitness[1][3])
 						) ;
@@ -306,10 +309,10 @@ export default class HsPfSim {
 		this.m_iteration = 0 ;
 	}
 
-	bufferToGPU( what: string ) {
-		let thisKey = what as keyof typeof this ;
-		let bufferKey = what as keyof SimulationBuffers ;
-		this.device.queue.writeBuffer( this.buffers[bufferKey], 0, this[thisKey].data ) ;
+	bufferToGPU( what: keyof LocalData ) {
+		// let thisKey = what ; // as keyof typeof this ;
+		// let bufferKey = what ; //as keyof SimulationBuffers ;
+		this.device.queue.writeBuffer( this.buffers[what], 0, this[what].data ) ;
 	}
 
 	paramsToGPU() {
@@ -320,7 +323,7 @@ export default class HsPfSim {
 				this.hs.height,
 				this.hs.width,
 				this.nbhd.height,
-				this.number_of_barriers
+				this.use_barriers == 1 ? this.number_of_barriers : 0
 			])
 		) ;
 	}
@@ -336,6 +339,11 @@ export default class HsPfSim {
 		// this.writeParameters() ;
 	}
 
+	setFeatures( values: GridData ) {
+		this.use_barriers = values.at([0,0]) ;
+		this.paramsToGPU() ;
+	}
+
 	setSpread( values: GridData ) {
 		console.log( "setSpread", values ) ;
 		this.mapWidthInKm = values.at([0,0]) ; 
@@ -348,14 +356,11 @@ export default class HsPfSim {
 		this.paramsToGPU() ;
 	}
 
-
-
 	addBarriers( barriers: Array<Barrier> ) {
 		if( this.number_of_barriers + barriers.length > this.max_barriers ) {
 			throw new Error( "Too many barriers!" ) ;
 		}
 		for( let i = 0; i < barriers.length; ++i ) {
-			console.log( "BARRIER", barriers[i] ) ;
 			let index = this.number_of_barriers + i ;
 			this.barriers.set( [index,0], barriers[i].p0.x ) ;
 			this.barriers.set( [index,1], barriers[i].p0.y ) ;
@@ -423,5 +428,4 @@ export default class HsPfSim {
 	  this.buffers.pfsaResult.unmap() ;
 	  return this.m_iteration++ ;
 	}
-  } ;
-  
+} ;
