@@ -3,7 +3,7 @@
 #basic packages and parallel computing packages (add more if needed)
 list.of.packages <- c("raster","sf","stats", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
                       "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","ggdist","inlabru","mapproj",
-                      "parallelly","parallel","foreach","dplyr","rbenchmark","ggspatial","pals",'fasterize')
+                      "parallelly","parallel","foreach","dplyr","rbenchmark","ggspatial","pals",'fasterize','stringr', 'ggpubr')
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
@@ -16,8 +16,8 @@ source("code/Functions.R",verbose=FALSE)
 
 #parameters
 minpf <- 5 #minimum number of observations to filter pf data
-nn <- 500 #nb. estimated HbS value samples per pixel for HbS maps
-nnpf <- 500 #nb. estimated Pf value samples per pixel for Pf maps
+nn <- 750 #nb. estimated HbS value samples per pixel for HbS maps
+nnpf <- 750 #nb. estimated Pf value samples per pixel for Pf maps
 
 #pf range and sigma based on HbS priors (same prior range used)
 HbS.priors = priors()
@@ -25,8 +25,15 @@ myrangerob <- unique(HbS.priors$r0)
 mysigmarob <- unique(HbS.priors$sigma0)
 Prangerob <- NA#if NA means that range0 is fixed
 Psigmarob <- NA#if NA means that sigma0 is fixed
-r0_manuscript <- 10
-sigma0_manuscript <- 1
+r0_manuscript <- 2.5
+sigma0_manuscript <- 0.6
+#choice of r0 and sigma0 to select HbS map 
+#Warning: the selected value should be in chracter class and in the range of HbS.priors
+HbSr0 <- as.character('5.0')
+HbSsigma0 <- as.character('0.6')
+################
+if (!(as.numeric(HbSr0) %in% myrangerob)) stop("You need to select a HbSr0 value within the range of HbS.priors")
+if (!(as.numeric(HbSsigma0) %in% mysigmarob)) stop("You need to select a HbSsigma0 value within the range of HbS.priors")
 ################################################################################
 #Computer resources parameters##################################################
 ################################################################################
