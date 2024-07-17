@@ -146,6 +146,7 @@ generate_diagnostic_plot <- function(
   library(ggplot2)
   library(sf)
   library(ggspatial)
+  library(fasterize)
   #predictions on transect across Africa
   # Define the coordinates for the transect (here, a simple straight line)
   # transect_sf <- matrix(c(39.3, -14.3, -11, 25), ncol = 2) %>%
@@ -168,6 +169,8 @@ generate_diagnostic_plot <- function(
   # 
   myraster <- generate_raster_maps(predictions=predictions,saveraster=saveraster,saverastername = saverastername)
   b <- raster::brick(myraster)
+  b <- raster::crop(b, features$spatialdomain)
+  b <- raster::mask(b, features$spatialdomain)
   bmask <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- bmask*popmask
@@ -206,9 +209,9 @@ generate_diagnostic_plot <- function(
   
   in.sample.summary <- (
     xytdf %>% 
-      group_by( type ) %>% 
-      filter( !is.na(mean) & !is.na(n)) %>% 
-      summarise(
+      dplyr::group_by( type ) %>% 
+      dplyr::filter( !is.na(mean) & !is.na(n)) %>% 
+      dplyr::summarise(
         rmse = round( Metrics::rmse( mean,prev ), 4 ),
         mae = round( Metrics::mae( mean, prev ), 4 )
       ) 
@@ -234,8 +237,8 @@ generate_diagnostic_plot <- function(
   
   comparison = tibble::tibble(
     type = "sampling points",
-    ours = (xytdf %>% filter( type == 'ours' ))$mean,
-    piel = (xytdf %>% filter( type == 'piel' ))$mean
+    ours = (xytdf %>% dplyr::filter( type == 'ours' ))$mean,
+    piel = (xytdf %>% dplyr::filter( type == 'piel' ))$mean
   )
   # transect_comparison = tibble(
   #   type = "transect",
@@ -248,14 +251,14 @@ generate_diagnostic_plot <- function(
   grid_xy <- raster::xyFromCell(aggregated_mask,1:ncell(aggregated_mask))
   grid_xy <- grid_xy[!w,]
   colnames(grid_xy) <- c('longitude','latitude')
-  grid_comparison = tibble(
+  grid_comparison = tibble::tibble(
     type = "grid (aggregated)",
     piel = raster::extract(HbSPiel, grid_xy ),
     ours = raster::extract(b[['mean']], grid_xy )
   )
   p3 <- (
     ggplot(
-      data= bind_rows( grid_comparison, comparison ),
+      data= dplyr::bind_rows( grid_comparison, comparison ),
       aes( x = ours, y = piel, shape = type, colour = type )
     ) + 
     #ggplot( data= comparison, aes( x = ours, y = piel ) )+ 
@@ -277,13 +280,13 @@ generate_diagnostic_plot <- function(
 
   p1 <- (
     ggplot()+ # labs(title = "HbS allele frequency data",
-      geom_sf(data = features$spatialdomain, fill='white', size=0.2 ) +
+      geom_sf(data = world_sf, fill='white', size=0.2 ) +
       geom_sf(data = xytc,aes( shape = Dataset, colour = prev_bins ),alpha=0.95 )+
     #  geom_sf(data = transect_pt,colour = "green2",alpha=0.95)+
       scale_color_manual(values = color.scheme$color[-1], labels = color.scheme$name[-1], drop = FALSE )+
-      geom_sf(data = features$spatialdomain, fill='transparent',size=0.5) +
+      geom_sf(data = world_sf, fill='transparent',size=0.5) +
                               coord_sf(crs = mycrs) +
-    theme_few(14) +
+    ggthemes::theme_few(14) +
     theme(legend.box = "vertical",
           legend.direction = "horizontal",
           legend.position = "bottom",
@@ -351,17 +354,16 @@ stackplots <- function(
   #   )
 myhbsr <- mystack[[j]]
 myhbsr <- myhbsr + 0.00001#to avoid break from negative values
-
 p[[j]] <- (
 ggplot()+ 
     ggspatial:: annotation_spatial(features$spatialdomain,fill="white",col='transparent')+
     ggspatial::layer_spatial(myhbsr ,aes(fill= after_stat(band1))) +
     #scico::scale_fill_scico(palette = 'tokyo',breaks = scales::breaks_extended(10),na.value = NA)+   
-    scale_fill_gradientn(colours=ocean.balance(100),breaks = scales::breaks_extended(10),na.value = NA)+  
+    scale_fill_gradientn(colours=pals::ocean.balance(100),breaks = scales::breaks_extended(10),na.value = NA)+  
     ggspatial:: annotation_spatial(features$spatialdomain,fill="transparent",col='grey',size=0.2)+
     #ylim(-60,89)+xlim(-179,179)+
     guides(fill=guide_legend(title="", ncol = 2 ))+
-    coord_sf(crs = mycrs) +
+  #  coord_sf(crs = mycrs) +
     ggthemes::theme_few(14) 
 )
     if (j == names(mystack)[1]) {
@@ -422,20 +424,20 @@ makemesh <- function(xyt,extpoly,boundary=TRUE){
                      bound.outer = max.edge*5
                      my.bdry <-  inla.sp2segment(extpoly)
                      if (boundary==TRUE){
-                       my.bdry <-  inla.sp2segment(extpoly)
-                       mymesh <- inla.mesh.2d(boundary = my.bdry,
-                                            loc=st_coordinates(st_as_sf(xyt)),
-                                            max.edge = c(1,3)*max.edge,
-                                            offset=c(max.edge, bound.outer),
-                                            cutoff =0.7,
+                      my.bdry$loc <- INLA::inla.mesh.map(my.bdry$loc)
+                       mymesh <- INLA::inla.mesh.2d(loc=st_coordinates(st_as_sf(xyt)), 
+                                            boundary=my.bdry, 
+                                            max.edge=c(1,8),
+                                            offset=c(1,8),
+                                            cutoff = 1,
                                             crs=st_crs(xyt),
                                             max.n=c(6000, 6000), ## Safeguard against large meshes.
                                             max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
                      } else {
                        mymesh <- inla.mesh.2d(loc=st_coordinates(st_as_sf(xyt)),
-                                              max.edge = c(1,3)*max.edge,
+                                              max.edge = c(0.5,0.9)*max.edge,
                                               offset=c(max.edge, bound.outer),
-                                              cutoff =0.7,
+                                              cutoff =0.5,
                                               crs=st_crs(xyt),
                                               max.n=c(6000, 6000), ## Safeguard against large meshes.
                                               max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
@@ -960,8 +962,8 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
     fig1bpfpt$Pf <- round(fig1bpfpt$`Pfsanonref`/fig1bpfpt$N,2)
   }
   if(is.null(allele)){
-    legendname <- "Pfsa1+ \nprevalence"
-  } else {legendname <-paste0(allele,"+ \nprevalence")
+    legendname <- "Pfsa1+"
+  } else {legendname <-paste0(allele,"+")
   }
   fig1bpfpt$logN <- log(fig1bpfpt$N)
   fig1bpfpt <- st_as_sf(fig1bpfpt)
@@ -995,8 +997,9 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
           plot.background = element_blank() ,
           #plot.background = element_rect(size=1,linetype="solid",color="black"),
           panel.grid.major = element_blank())#element_line(color=gray(.65),linewidth=0.35))
-    guidei <- guides(fill = guide_legend(title.position = "top",override.aes = list(alpha = 1,size=4)),#ncol = 1,title.position="left"
-           size = guide_legend(title.position = "top",override.aes = list(alpha = 1,color='black')))  #ncol = 1,title.position="left"
+ guidei <- guides(fill = guide_legend(title.position = "top",override.aes = list(alpha = 1,size=4,shape=21)),#ncol = 1,title.position="left"
+                  size = guide_legend(title.position = "top",override.aes = list(alpha = 1)),
+                  shape = guide_legend(title.position = "top",override.aes = list(alpha = 1,size = 2.5)))  #ncol = 1,title.position="left"
  themel <- theme(
           legend.position = "none",
           panel.background = element_blank() ,
@@ -1005,6 +1008,9 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
           panel.grid.major = element_blank())#element_line(color=gray(.65),linewidth=0.35))
     rel.ctri <- borders[fig1bpfpt,]
     pfpti <- fig1bpfpt[borders,]
+  pfsource <- c("MalariaGEN Pf7" = 21, 
+                "Moser et al. MIP typing" = 22,
+                "Verity et al. MIP typing" = 24)  
     #sf::sf_use_s2(FALSE)
     library(ggplot2);library(gridExtra)
     fig1bl <- list()
@@ -1016,26 +1022,38 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
  
      if (mycont == 'Africa') {myymin <- -35} else { myymin <- st_bbox(myborder)$ymin-0.5}
     fig1bl[[i]] <- ggplot() + #original: ggplot(fig1bpfpt)
-    geom_sf(data = myborder, fill = "gray85", col = 'grey65',linewidth=0.5) + geom_sf(data = rel.ctri, fill = 'white', col =  'gray15',linewidth=0.5) +
-    geom_sf(data = pfpti, aes(size = N, fill = Pf),color= 'grey85',alpha = 0.5, shape = 21) +
+    geom_sf(data = myborder, fill = "gray85", col = 'grey95',linewidth=0.5) + 
+    geom_sf(data = rel.ctri, fill = 'white', col =  'gray15',linewidth=0.5) +
+    geom_sf(data = pfpti, aes(size = N, fill = Pf,shape=source),color= 'black',alpha = 0.5) +
+    scale_shape_manual(values = pfsource, name = paste0(legendname," dataset")) +
     scale_size_continuous(range=c(1,12),breaks = myquant,
                           limits = c(0, max(mys)),
-                          name="Pfsa1+\nsample size") +#,guide=guide_legend(title.position = "left")                     
-    scico::scale_fill_scico(name = legendname,palette = scicopalette)+#,guide = guide_legend(title.position = "left")  
+                          name=paste0(legendname,"\nsample size")) +#,guide=guide_legend(title.position = "left")                     
+    scico::scale_fill_scico(name = paste0(legendname,"\nprevalence"),palette = scicopalette)+#,guide = guide_legend(title.position = "left")  
     coord_sf(xlim=c(st_bbox(myborder)$xmin-0.5, st_bbox(myborder)$xmax+0.5),ylim=c(myymin,st_bbox(myborder)$ymax+0.5),expand=FALSE) + 
     theme_void(14)
-    if (mycont == 'South America') {fig1bl[[i]] <- fig1bl[[i]] + themei + guidei } else {fig1bl[[i]] <- fig1bl[[i]] + themel}
+    if (mycont == 'South America') {
+      figwithlegend <- fig1bl[[i]] + themei + guidei
+      legendfig1b <- ggpubr::get_legend(figwithlegend)  
+      legendfig1b <- ggpubr::as_ggplot(legendfig1b)
+      fig1bl[[i]] <- fig1bl[[i]] + themel
+       } else {
+        fig1bl[[i]] <- fig1bl[[i]] + themel}
     }
    
     fig1b <- gridExtra::grid.arrange(fig1bl[[1]],NULL, fig1bl[[2]],NULL,fig1bl[[3]], nrow = 1,widths = c(1, 0.05, 1,0.05, 1))
+    
   # Save the modified plot
   if(is.null(allele)){
   ggsave(file=paste0(savepath,"/fig1b.pdf"),fig1b, width = 22, height = 7 )
   ggsave(file=paste0(savepath,"/fig1b.svg"),fig1b, width = 22, height = 7)
+  ggsave(file=paste0(savepath,"/legendfig1b.pdf"),legendfig1b, width = 3, height = 8)
+  ggsave(file=paste0(savepath,"/legendfig1b.svg"),legendfig1b, width = 3, height = 8)
   } else {
     ggsave(file=paste0(savepath,"/",allele,"_fig1b.pdf"),fig1b, width = 22, height = 7 )
     ggsave(file=paste0(savepath,"/",allele,"_fig1b.svg"),fig1b, width = 22, height = 7 )
-    
+    ggsave(file=paste0(savepath,"/",allele,"_legendfig1b.pdf"),legendfig1b, width = 3, height = 8)
+    ggsave(file=paste0(savepath,"/",allele,"_legendfig1b.svg"),legendfig1b, width = 3, height = 8)
   }
 #}
 }
@@ -1057,7 +1075,7 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,
     wsf$Prevalence <- wsf$S/wsf$N
     wsf$Samples <- log(wsf$N)
     wsf_af <- wsf[border,]
-    myshape <- c("original" = 21, "extended" = 23)
+    myshape <- c("original" = 21, "extended" = 24)
   
   fig1apfpt <- pfpt 
   fig1apfpt$lon <- fig1apfpt@coords[,1]
@@ -1076,39 +1094,48 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,
     #mycol <- pals::ocean.balance(length(mybreaks)-1)
     mycol <- greyredyellowpal(2,3,(length(mybreaks)-1-2-3))
     
-    fig1anew <- ggplot()+ 
+    fig1a <- ggplot()+ 
     #replace the line below with the second line below to show all continents (to be tested)
     geom_sf(data=border,fill=mycol[1],col="transparent",linewidth=0.5)+ 
     ggspatial::layer_spatial(hbsclip,aes(fill= after_stat(band1)),alpha=0.75) +
     #scico::scale_fill_scico(palette = 'tokyo',breaks = scales::breaks_extended(10),na.value = NA)+   
     scale_fill_gradientn(colours=c("grey80", "grey20", "red2", "yellow"),
     labels = mylabels, breaks = mybreaks,na.value = NA)+  
-    ggspatial:: annotation_spatial(wsf_af, aes(fill = Prevalence, shape = Dataset),color='grey85', alpha = 0.95) +
+    ggspatial:: annotation_spatial(wsf_af, aes(fill = Prevalence, shape = Dataset),color='grey90', alpha = 0.95) +
     #scale_fill_gradientn(colours=mycol,labels = mylabels, breaks = mybreaks,na.value = NA)+  
     scale_shape_manual(values = myshape, name = "HbS dataset") +
-    ggspatial:: annotation_spatial(border,fill="transparent",col="grey65",linewidth=0.5)+ 
-    geom_sf(data=relevantctry, fill = "transparent", col = 'grey15',linewidth=0.5) +
-     theme_few(12) + 
-      theme(legend.position=c(0.55,0.12),
-            legend.key.width = unit(0.4,'cm'),
-            legend.key.height = unit(0.4,'cm'),
+    ggspatial:: annotation_spatial(border,fill="transparent",col="grey90",linewidth=0.5)+ 
+   # geom_sf(data=relevantctry, fill = "transparent", col = 'grey15',linewidth=0.5) +
+     cowplot::theme_minimal_grid()
+   #save legend separately 
+    fig1awithlegend <- fig1a + 
+    theme(legend.position='bottom',
+            legend.key.width = unit(0.75,'cm'),
+            legend.key.height = unit(0.5,'cm'),
             axis.title=element_blank(),
-            legend.title = element_text(size = 10), 
-            legend.text = element_text(size = 8),
+            legend.title = element_text(size = 12), 
+            legend.text = element_text(size = 9),
             #legend.title =element_blank(),
             legend.margin = unit(0.2, 'cm'),#reduce space between legends (vertical space)
-            legend.direction = "horizontal",
-            plot.title=element_text(hjust=0.5),
-            panel.border = element_blank(),
-            panel.background = element_blank() ,
-            panel.grid.major = element_line(color=gray(.65),linewidth=0.35))+
-              guides(fill=guide_legend(title="Observed and predicted mean HbS prevalence",title.position="top",
-                                  override.aes = list(alpha = 0.85)),
-                     shape=guide_legend(override.aes = list(alpha = 1,size = 3,col='black')))+
-                   coord_sf(crs = mycrs)
-    ggsave(paste0(savepath,"/fig1a.pdf"),fig1anew,width = mywidth,height = myheight)
-    ggsave(paste0(savepath,"/fig1a.svg"),fig1anew,width = mywidth,height = myheight)
-    
+            legend.direction = "horizontal"
+          #  plot.title=element_text(hjust=0.5),
+    )+
+    guides(fill=guide_legend(title="HbS allele frequency",title.position="top",
+            override.aes = list(alpha = 0.85),order=1),
+            shape=guide_legend(override.aes = list(alpha = 1,size = 2.5,col='black',order=2)))
+
+      legendfig1a <- ggpubr::get_legend(fig1awithlegend)  
+      legendfig1a <- ggpubr::as_ggplot(legendfig1a)
+      fig1a <- fig1a + coord_sf(crs = mycrs) +
+      theme(legend.position = "none",plot.background = element_rect(fill = "#BFD5E3"))
+       #panel.grid.major = element_line(color=gray(.65),linewidth=0.35),
+       #panel.border = element_rect(color=gray(.65),linewidth=0.35, fill = NA))
+   
+    ggsave(paste0(savepath,"/fig1a.pdf"),fig1a,width = mywidth,height = myheight)
+    ggsave(paste0(savepath,"/fig1a.svg"),fig1a,width = mywidth,height = myheight)
+    ggsave(file=paste0(savepath,"/legendfig1a.pdf"),legendfig1a, width = 12, height = 6)
+    ggsave(file=paste0(savepath,"/legendfig1a.svg"),legendfig1a, width = 12, height = 6)
+
     #Fig 1b (Pf)
     fig1b.plot(pfpt,border,scicopalette,savepath,allele=NULL,
                myheight=myheight,mywidth=mywidth,myproj=NA)   
@@ -1564,7 +1591,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   
   # Plot for all regions only
   # Create a color palette for different regions
-  mywidth1 <- 5
+  mywidth1 <- 12
   minsamp <- 49
   
   if (mymodname == 'country') {
@@ -1644,6 +1671,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
                      "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
     TRUE ~ continent # keep continent unchanged if conditions above not met
     ))
+    ptregion$continent <- as.factor(ptregion$continent)
   #keep only relevant columns for plots (and later spatial aggregation)
   #aggregate by adm1
   
@@ -1655,72 +1683,122 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   ctryline <- c('Africa','All','East Africa','West Africa')
   }
 #Here we aggregate points at adm1 level for plotting purposes 
-ptagg <- ptregion %>%
+adm1agg <- ptregion %>%
   dplyr::group_by(name) %>%
   dplyr::summarize(Y = sum(Y,na.rm=TRUE), N = sum(N,na.rm=TRUE),HbS = mean(HbS,na.rm=TRUE),
   continent = tail(sort(continent),1), country = tail(sort(country),1))
-  ptagg$country <- as.factor(ptagg$country)
-  ptagg$continent <- as.factor(ptagg$continent)
-  ptagg$name <- as.factor(ptagg$name)
+  adm1agg$country <- as.factor(adm1agg$country)
+  adm1agg$continent <- as.factor(adm1agg$continent)
+  adm1agg$name <- as.factor(adm1agg$name)
+adm0agg <- ptregion %>%
+  dplyr::group_by(continent) %>%
+  dplyr::summarize(Y = sum(Y,na.rm=TRUE), N = sum(N,na.rm=TRUE),HbS = mean(HbS,na.rm=TRUE),
+  #continent = tail(sort(continent),1))
+  country = tail(sort(country),1))
+  adm0agg$country <- as.factor(adm0agg$country)
+  adm0agg$continent <- as.factor(adm0agg$continent)
 #color scheme for plotting points
 point_region <- c(
-         "Africa" = "#8D021F", #Burgundyred
-         "East Africa" = "orange",
-         "West Africa" = "yellow", 
-         "DRC" = "purple", 
-         "South America" = "navyblue", 
+         "Africa" = "purple", #Burgundyred
+         "East Africa" = "red3",
+         "West Africa" = "royalblue2", 
+         "DRC" = "red2", 
+         "South America" = "yellow", 
          "Asia" = "grey35",     # Dark grey 
          "Oceania" = "green1"    #Burgundyred#8D021F, Orangered: #D9534F
        )
  #color scheme for plotting regression lines      
   region_colors <- c(
-         "Africa" = "#8D021F",   #Yale Blue; Royal Blue: "#4169E1"
+         "Africa" = "purple",   #Yale Blue; Royal Blue: "#4169E1"
          "Asia" = "grey35",      # Dark grey 
-         "South America" = "navyblue", 
+         "South America" = "yellow", 
          "Asia and South America" = "lightblue",
-         "East Africa" = "orange",
-         "West Africa" = "yellow", 
-         "All" = "black"     #Burgundyred#8D021F, Orangered: #D9534F    
+         "East Africa" = "red3",
+         "West Africa" = "royalblue2", 
+         "All" = "grey15"     #Burgundyred#8D021F, Orangered: #D9534F    
        )
+   region_ltype <- c(
+         "Africa" = "dotted",   #Yale Blue; Royal Blue: "#4169E1"
+         "East Africa" = "dashed",
+         "West Africa" = "twodash", 
+         "All" = "solid"     #Burgundyred#8D021F, Orangered: #D9534F    
+       )    
     selregionpred <- regionpred[regionpred$region %in% ctryline,]   
     plot3 <- ggplot(data = selregionpred)+
-    geom_point(data = ptagg[ptagg$N >= minsamp,], aes(x = HbS, y = Y/N, size = N, fill = continent), shape = 21, alpha = 0.75,color='gray15') +
-    scale_fill_manual(values = point_region) +  # Assign fill colors to regions
+    #geom_point(data = adm0agg, aes(x = HbS, y = Y/N, fill = continent), size = 8, shape = 21,alpha = 0.5,color='gray15') +
     #geom_smooth(data = regionpred, aes(x = x, y = y,group=region,linetype=region), se = FALSE, linewidth = 1.3) +
-    geom_line(data = selregionpred,aes(x=x,y=y,group=region,color=region),linewidth=1.5) +
+    geom_line(data = selregionpred,aes(x=x,y=y,group=region,linetype=region),color='black',linewidth=2,alpha=0.9) +
     #geom_ribbon(aes(x=x,y=y,ymin = y_lower, ymax = y_upper, group=region),fill = "grey", alpha = 0.2) +
-    scale_color_manual(values = region_colors)+
-    labs(x = "AS or SS freqency", y = paste0("Observed ", Pfalleles[l], " frequency")) +
+    scale_linetype_manual(values = region_ltype)+
+    geom_point(data = adm1agg[adm1agg$N >= minsamp,], aes(x = HbS, y = Y/N, size = N, fill = continent), shape = 21, alpha = 0.9) +
+    #geom_point(data = adm1agg[adm1agg$N >= minsamp,], aes(x = HbS, y = Y/N, fill = continent), size=2, shape = 21, alpha = 0.5,color='gray15') +
+    scale_fill_manual(values = point_region) +  # Assign fill colors to regions
     # coord_fixed(ratio = 0.35, xlim = c(0, max(regionoutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) +
-    scale_size_continuous(range = c(1, 8),breaks = scales::breaks_pretty(n = 6))+
+    scale_size_continuous(range = c(2, 12),breaks = c(50,500,1000,1500,2000))+
     #scale_linetype_manual(values=region_ltype,guide = "none")+
-            scale_x_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25), labels = c("0%", "5%", "10%", "15%", "20%", "25%"),limits=c(0,0.27)) +
-            scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75,1), labels = c("0%", "25%", "50%", "75%","100%"),limits=c(0,1))
-    #  geom_point(data = ptagg[ptagg$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+    scale_x_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25), 
+            labels = c("0%", "5%", "10%", "15%", "20%", "25%"),limits=c(0,0.25)) +
+    scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75,1), 
+            labels = c("0%", "25%", "50%", "75%","100%"),limits=c(0,1),
+            position = "right", sec.axis = sec_axis(~., labels = NULL))+
+            #coord_fixed() 
+            theme_minimal()
+    #  geom_point(data = adm1agg[adm1agg$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
    }
   
  
-  #if (l == length(Pfalleles)) {
+  if (l == length(Pfalleles)) {
     plot3 <- plot3 +
-      theme(legend.position = c(0.65, 0.88), 
-      legend.direction = 'horizontal',
-      legend.title = element_blank(),
-            legend.text = element_text(size=7),legend.spacing.y = unit(-1, "mm"),
-            legend.spacing.x = unit(-0.1, "mm"),
-            legend.margin = unit(-2, 'mm'),#reduce space between legends (vertical space)
-            legend.background = element_rect(fill = "transparent"),
-            text=element_text(size=18))+
-      guides(
-        fill = guide_legend(label.position = "right", nrow=2,order = 1),
-        color = guide_legend(label.position = "right", nrow=1,order = 2),
-        size = guide_legend(label.position = "right", nrow=1,order = 3)) 
+      labs(x = "AS or SS freqency", y = paste0(Pfalleles[l],"+\nfrequency"))+
+      theme(
+      axis.text.y.right = element_text(angle = -90, vjust = 0.5, hjust=0.5,
+      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      axis.ticks.y.right = element_line(linewidth = 0.5),
+      axis.line.x = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+      axis.line.y.right = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+      text=element_text(size=25))
     
-  # } else {
-  #   plot3 <- plot3 + theme(legend.position = "none")
-  # }
+     plot3withlegend <- plot3 +  theme(      
+            legend.position = c(0.5, 0.8), 
+            legend.direction = 'horizontal',
+            legend.title = element_blank(),
+            legend.text = element_text(size=17),
+            legend.spacing.y = unit(-1, "mm"),
+            legend.spacing.x = unit(-0.1, "mm"),
+            legend.key.width = unit(2.5, 'cm')
+          ) + guides(
+        fill = guide_legend(label.position = "right", nrow=2,order = 1,override.aes= list(size=5)),
+        linetype = guide_legend(label.position = "right", nrow=1,order = 2),
+        size = guide_legend(label.position = "right", nrow=1,order = 3))
+      legendplot3 <- ggpubr::get_legend(plot3withlegend)  
+      legendplot3 <- ggpubr::as_ggplot(legendplot3)
+      plot3 <- plot3 + theme(legend.position = "none") 
+   } else {
+     plot3 <- plot3 + 
+     labs(x = NULL, y = paste0(Pfalleles[l],"+\nfrequency"))+
+     theme(
+     panel.background = element_blank(),
+     panel.border = element_blank(),
+     axis.text.y.right = element_text(angle = -90, vjust = 0.5, hjust=0.5,
+     margin = margin(t = 0, r = 20, b = 0, l = 0)),
+     axis.text.x = element_blank(),
+     axis.ticks.x = element_blank(),
+     axis.ticks.y = element_blank(),
+     axis.ticks.y.right = element_line(linewidth = 0.5),
+     axis.line.y.right = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+     legend.position = "none",text=element_text(size=25))
+   }
   if (mymodname == 'regional'){mypath <- "output/fig1"} else {mypath <- savepath}
-  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
-  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = mywidth1*1/2)
+  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = mywidth1*1/2)
+  if (l == length(Pfalleles)) {
+  ggsave(file=paste0(mypath,"/legendHbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"),legendplot3, width = 8, height = 4)
+  ggsave(file=paste0(mypath,"/legendHbSeffect_all",mymodname,"_",Pfalleles[l],".svg"),legendplot3, width = 8, height = 4)
+  }
+  message('++ hbs.plot completed')
 }
 #Pf regression rob
 spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
@@ -1838,11 +1916,11 @@ diagnostic_plot_priors <- function(i) {
   predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
   posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
   
-  if(worldsel==FALSE){
+ # if(worldsel==FALSE){
     spatialdomain <- africa_sf
-  } else {
-    spatialdomain <- world_sf
-  }
+  #} else {
+   # spatialdomain <- world_sf
+  #}
   plots = generate_diagnostic_plot(
 	  xyt,
       modelfit,

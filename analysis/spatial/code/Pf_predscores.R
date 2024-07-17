@@ -278,14 +278,15 @@ for (l in 1:length(Pfalleles)){
   # Create a ggplot graph
   hbshatplot <- ggplot(hbsdata, aes(x = mean_beta_HbS, y = region)) +
     geom_pointrange(aes(xmin = mean_beta_HbS - 1.96*sd_beta_HbS, xmax = mean_beta_HbS + 1.96*sd_beta_HbS),
-                    color = "black", alpha = 1,linewidth=1.25) +
+                    color = "grey35", alpha = 1,linewidth=1) +
     geom_point(aes(color = region), size = 6) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey35",linewidth=1)+
+    geom_vline(xintercept = 0, linetype = "dashed", color = "grey35",linewidth=0.8)+
     scale_color_manual(values = unlist(allpalettes)) +
     labs(title = paste0("Estimated HbS effects on ",Pfalleles[l]), " prevalence") +
-     labs(x = "HbS effects [log odd-ratios]")+
-    theme_bw() +
-    theme(legend.position = "none",axis.title=element_blank(),
+     labs(x = "HbS effects [log odd-ratios]",y= NULL)+
+    theme_bw(base_family = "serif") +
+    theme(legend.position = "none",
+          title= element_text(size=20),
           axis.line = element_line(colour = "black"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
