@@ -42,10 +42,12 @@ calls = matrix(
 	)
 )
 
-calls[ counts / coverage >= 0.9 ] = 1
-calls[ counts / coverage <= 0.1 ] = 0
+threshold = 0.9
+calls[,] = NA
+calls[ counts / coverage >= threshold ] = 1
+calls[ counts / coverage <= (1-threshold) ] = 0
 calls[ coverage < 5 ] = NA
-table( calls[,2] )
+table( calls[,2], is.na( coverage[,2] ), useNA="always" )
 
 ratios = matrix(
 	nrow = nrow( samples ),
