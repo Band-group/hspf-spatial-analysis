@@ -24,10 +24,10 @@ export default class ComparisonDisplay {
 	geom: Geom ;
 	elt: SVGElement ;
 
-	constructor( counts: Array<PfsaCounts>, elt: SVGElement ) {
-		this.counts = counts ;
-		this.elt = elt ;
-		this.geom = {
+	constructor(
+		counts: Array<PfsaCounts>,
+		elt: SVGElement,
+		geom: Geom = {
 			'width': 500,
 			'height': 350,
 			margins: {
@@ -36,7 +36,12 @@ export default class ComparisonDisplay {
 				'top': 20,
 				'right': 20
 			}
-		} ;
+		},
+		left: number
+	) {
+		this.counts = counts ;
+		this.elt = elt ;
+		this.geom = geom ;
 		this.scales = {
 			// @ts-ignore 
 			x: new d3.scaleLinear()
@@ -54,6 +59,8 @@ export default class ComparisonDisplay {
 		} ;
 		let svg = d3.select(this.elt)
 			.attr( 'width', this.geom.width )
+			.attr( 'height', this.geom.height )
+			.attr( 'style', 'left: ' + left + 'px' )
 			.attr( 'height', this.geom.height )
 		;
 
