@@ -117,7 +117,7 @@ keypfcountries = data.frame(
 		"Colombia",                         "Uganda",                        
 		"Guinea",                           "Bangladesh",                    
 		"Democratic_Republic_of_the_Congo", "Nigeria" ,                        
-		"Cameroon",                        "Ethiopia" ,                      
+		"Cameroon",                         "Ethiopia" ,                      
 		"Cote_dIvoire",                     "Madagascar" ,                    
 		"Gabon",                            "Benin" ,                          
 		"Senegal",                          "Indonesia" ,                      
@@ -181,7 +181,7 @@ hbspolygons = sf::st_filter( ctrygrid, hbssurvey )
 hbsgridpoints = sf::st_intersection(ctrygrid, hbssurvey )
 
 hbsbuffer = sf::st_buffer( hbssurvey, 200000 )
-hbsbufferpolygons = sf::st_filter( drcgrid, hbsbuffer )
+hbsbufferpolygons = sf::st_filter( ctrygrid, hbsbuffer )
 dim(hbsbufferpolygons)
 
 
@@ -190,7 +190,7 @@ gridplot <- (
 	+ geom_sf(
 		data = world_sf,
 		mapping = aes(
-			fill = 0
+			colour = "grey"
 		)
 	)
 	+ geom_sf(
@@ -230,7 +230,7 @@ gridplot <- (
 ggsave(
 	gridplot,
 	file='output/gridplot_africa_fill_highlight_hbs.pdf',
-	width = 10,
-	height = 10
+	width = 16,
+	height = 16
 )
 

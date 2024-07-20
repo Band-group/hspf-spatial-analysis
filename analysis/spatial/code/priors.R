@@ -1,4 +1,37 @@
 
+make.prior <- function(
+	Prange, Psigma,
+	r0, sigma0,
+	covariate.prec = NULL,
+	intercept.prec = 0.00001,
+	covariates = NULL
+) {
+	if( is.null( Prange )) Prange = NA
+	if( is.null( Psigma )) Psigma = NA
+	if( is.na( Prange )) {
+		type = "fixed"
+	} else {
+		type = "variable"
+	}
+	covariates.name = switch( as.character( is.null( covariates ) ), 'TRUE' = "none", 'FALSE' = covariates )
+	return(
+		tibble::tibble(
+			name = sprintf( "%s-r0=%.1f-sigma0=%.1f-fc=%s", type, r0, sigma0, covariates.name ),
+			use_PC_prior = TRUE,       #using PC priors for HbS spatial parameters
+			Prange = Prange,          #if NA means that range0 is fixed
+			Psigma = Psigma,          #if NA means that sigma0 is fixed
+			r0 =  r0,           	    #5 means large range expected
+			sigma0 = sigma0, 	        #1 is a default value
+			#Define precision values for \betas
+			#Here we choose high precision for cov.coef -> shrink towards 0
+			#But low precision for intercept
+			covariate.prec = 0.001, #NULL if no covariate, 0.001 original value
+			intercept.prec = intercept.prec, #default 0.0
+			covariates = covariates
+		)
+	)
+}
+
 priors <- function() {
 	rangesigma = expand.grid(
 		r0 = c( 2.5, 5, 7.5, 10),
