@@ -67,7 +67,7 @@ parse_arguments <- function() {
 		"--number_of_posterior_samples",
 		type = "numeric",
 		help = "Number of posterior samples to output.",
-		default = 500
+		default = 50
 	)
 	parser$add_argument(
 		"--outdir",
@@ -83,12 +83,6 @@ parse_arguments <- function() {
 args = parse_arguments()
 print( args )
 
-if(0) {
-	args = list(
-		HbS = "input/cleanedHbSdata.csv",
-		world = "geodata/naturalearthdata.Rdata"
-	)
-}
 #install packages
 source( 'code/functions.R' )
 install.prerequisites()
@@ -106,6 +100,7 @@ prior = make.prior(
 	sigma0 = args$sigma0,
 	covariates = args$fixed_covariates
 )
+prior$covariates = args$covariates
 
 echo( "++ Using the following prior:" )
 print( prior )
@@ -210,20 +205,19 @@ verbose = TRUE
 		modelfit$mesh,
 #		pred_locs$locations,
 		covariates = prediction_covariates$values,
-		sf::st_coordinates( prediction_locations )[ prediction_covariates$nonmissing_rows, ],
-		args$number_of_posterior_samples
+		sf::st_coordinates( prediction_locations )[ prediction_covariates$nonmissing_rows, ]
 	)
 	#add prediction locations, mask etc to the object
-	predictions$prediction_locations <- prediction_locations
+	predictions$prediction_locations <- prediction_locations[ prediction_covariates$nonmissing_rows, ]
 
 	echo( "++ Great success!  Saving data to:" )
 	stub = sprintf( "%s/%s", args$outdir, prior$name )
 	filenames = list(
-		filenames = sprintf( "%s/filenames.tsv", args$outdir ),
+		catalogue = sprintf( "%s/catalogue.tsv", args$outdir ),
 		prior = sprintf( "%s_prior.tsv", stub ),
 		area = sprintf( "%s_area.rds", stub ),
 		xyt = sprintf( "%s_xyt.rds", stub ),
-		fit_covariates = sprintf( "%s_fit-covariates", stub ),
+		fit_covariates = sprintf( "%s_covariates.rds", stub ),
 		fit = sprintf( "%s_modelfit.rds", stub ),
 		predictions = sprintf( "%s_predictions.rds", stub ),
 		samples = sprintf( "%s_samples.rds", stub )
@@ -240,10 +234,14 @@ verbose = TRUE
 	saveRDS( predictions, filenames$predictions )
 	saveRDS( posterior.samples, filenames$samples )
 	# Save filenames last, as a useful checkpoint.
-	readr::write_tsv(
-		filenames_df,
-		file = filenames$filenames
-	)
+	readr::write_tsv( filenames_df, filenames$catalogue )
+#	write.table(
+#		filenames_df,
+#		file = filenames$filenames,
+#		col.names = TRUE,
+#		row.names = FALSE,
+#		sep = "\t"
+#	)
 }
 
 echo( "++ Results are in \"%s_*\"", stub )

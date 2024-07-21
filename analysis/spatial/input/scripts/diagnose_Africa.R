@@ -1,10 +1,59 @@
-library( tidyverse )
+library( argparse )
 library( dplyr )
-library( dbplyr )
-library( rbgen )
-library( ggplot2 )
-library( sf )
-library( viridis )
+
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
+missing = NA
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Aggregate HbS posterior samples (and mean) across polygons'
+	)
+	parser$add_argument(
+		"--world",
+		type = "character",
+		help = "path to world file",
+		default = "geodata/naturalearthdata.Rdata"
+	)
+	parser$add_argument(
+		"--cellsize",
+		type = "numeric",
+		help = "cell size (in degrees, possibly)",
+		default = 1
+	)	
+	parser$add_argument(
+		"--type",
+		type = "character",
+		help = "cell type (square or hexagon)",
+		default = "hexagon"
+	)	
+	parser$add_argument(
+		"--HbSfit",
+		type = "character",
+		help = "path to HbS fit folder"
+	)
+	parser$add_argument(
+		"--polygons",
+		type = "character",
+		help = "path to polygons"
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to output directory",
+		default = "output/HbSsensitivity/fits",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+print( args )
+
+#install packages
+source( 'code/functions.R' )
 
 load.entry.from.Rdata <- function( filename, what ) {
   env = new.env()
@@ -83,65 +132,57 @@ aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME
 	return( beehive_aggregated )
 }
 
-extract_hbs_map <- function( filename, polygons ) {
-	hbs = raster::raster( filename )
-	polygons$result <- exactextractr::exact_extract( hbs, polygons, fun="mean")# %>% st_as_sf()
-	return( polygons )
-}
-regress <- function( aggregated, hbs ) {
-	Pfsa1 = (aggregated$Pfsa1_call / aggregated$n_call)
-	g = glm(
-		Pfsa1 ~ hbs$AS_or_SS,
-		family = "binomial",
-		weight = aggregated$n_call
-	)
-	return( summary(g)$coeff )
-}
-
-world_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "africa_sf" )
+world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 
 keypfcountries = data.frame(
 	ISO3 = c(
-		'MLI',"BFA", "GMB", "TZA","LAO", "MMR","VNM", "THA","KHM","PER",
+		'MLI', "BFA", "GMB", "TZA","LAO", "MMR","VNM", "THA", "KHM", "PER",
 		"KEN", "GHA", "PNG", "MWI", "COL", "UGA", "GIN","BGD", "COD", "NGA", "CMR", "ETH",
 		"CIV", "MDG","GAB", "BEN", "SEN", "IDN", "SDN", "MRT","VEN", "IND", "MOZ", "ZMB"
 	),
 	fullname = c(
-		"Mali",                         "Burkina_Faso",                    
-		"Gambia",                           "Tanzania",                        
-		"Laos",                              "Myanmar",                        
-		"Vietnam",                          "Thailand",                        
-		"Cambodia",                         "Peru",                            
-		"Kenya",                            "Ghana" ,                          
-		"Papua_New_Guinea",                 "Malawi"  ,                        
-		"Colombia",                         "Uganda",                        
-		"Guinea",                           "Bangladesh",                    
-		"Democratic_Republic_of_the_Congo", "Nigeria" ,                        
-		"Cameroon",                         "Ethiopia" ,                      
-		"Cote_dIvoire",                     "Madagascar" ,                    
-		"Gabon",                            "Benin" ,                          
-		"Senegal",                          "Indonesia" ,                      
-		"Sudan" ,                           "Mauritania" ,                    
-		"Venezuela",                        "India" ,                          
+		"Mali",                         	"Burkina_Faso",
+		"Gambia",                           "Tanzania",
+		"Laos",                             "Myanmar",
+		"Vietnam",                          "Thailand",
+		"Cambodia",                         "Peru",
+		"Kenya",                            "Ghana",
+		"Papua_New_Guinea",                 "Malawi",
+		"Colombia",                         "Uganda",
+		"Guinea",                           "Bangladesh",
+		"Democratic_Republic_of_the_Congo", "Nigeria",
+		"Cameroon",                         "Ethiopia",
+		"Cote_dIvoire",                     "Madagascar",
+		"Gabon",                            "Benin",
+		"Senegal",                          "Indonesia",
+		"Sudan" ,                           "Mauritania",
+		"Venezuela",                        "India",
 		"Mozambique",                       "Zambia"
 	)
 )
-keypfcountries = keypfcountries %>% filter(
-	!(fullname %in% c( "Venezuela", "Peru", "Colombia", "India", "Papua_New_Guinea",
-	"Thailand", "Myanmar", "Laos", "Vietnam", "Indonesia", "Bangladesh", "Cambodia" ))
-)
+#keypfcountries = keypfcountries %>% filter(
+#	!(fullname %in% c( "Venezuela", "Peru", "Colombia", "India", "Papua_New_Guinea",
+#	"Thailand", "Myanmar", "Laos", "Vietnam", "Indonesia", "Bangladesh", "Cambodia" ))
+#)
+
 #if grid cells, create world map with pf relevant countries split into grid cells
-pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
-ctrygrid <-
-  sf::st_make_grid(pfrelevantctry,
-                   cellsize = 1,
-                   what = "polygons",
-                   square = FALSE)
-ctrygrid <- sf::st_sf(NAME_2 = 1:length(lengths(ctrygrid)),
-            ctrygrid)
-ctrygrid <-
-  sf::st_intersection(ctrygrid,
-                  pfrelevantctry %>% st_make_valid())
+pfrelevantctry <- world_sf[
+	world_sf$SOV_A3 %in% keypfcountries$ISO3,
+]
+grid <- sf::st_make_grid(
+	pfrelevantctry,
+	cellsize = args$cellsize,
+	what = "polygons",
+	square = switch( args$type, "square" = TRUE, "hexagon" = FALSE )
+)
+grid <- sf::st_sf(
+	NAME_2 = 1:length(lengths(grid)),
+	grid
+)
+grid <- sf::st_intersection(
+	grid,
+	pfrelevantctry %>% st_make_valid()
+)
 
 hbs = extract_hbs_map( "../../../results/output/2024-07-17 map/HbS_mean.tif", ctrygrid )
 

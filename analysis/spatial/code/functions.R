@@ -20,7 +20,7 @@ install.prerequisites <- function() {
   #basic packages and parallel computing packages (add more if needed)
   list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
                         "RColorBrewer","ggthemes", "ggmap", "dplyr",
-                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
+                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics", "lwgeom")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
   lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
@@ -902,9 +902,9 @@ predict_inla_binomial_model <- function(
     posterior.samples,
     mesh,
     prediction_locations,
-    covariates = NULL,
-    nn # number of posterior samples
+    covariates = NULL
 ) {
+  nn = length(posterior.samples)
   #Mapping between meshes and continuous space
   A.pred <- INLA::inla.spde.make.A( mesh = mesh, loc = prediction_locations )
   #get predictive locations based on covariate
@@ -967,7 +967,6 @@ predict_values <- function(
       linpred <- Reduce("+", linpred)
       lp <- drop(A.pred %*% field) + intercept + linpred
     }
-    
     pred[, i] <- link.function(lp)  # for binomial likelihood
   }
   # TODO:
@@ -2033,7 +2032,11 @@ compute.HbS.prediction.extent <- function(
 # Each row has at most one 1
 # Europe is the baseline.
 build.continent.covariates <- function( sf, world_sf ) {
-	result = sf::st_join( sf, world_sf[ c('CONTINENT', 'ADMIN')] )
+  if( 'CONTINENT' %in% colnames(sf)) {
+    result = sf
+  } else {
+  	result = sf::st_join( sf, world_sf[ c('CONTINENT', 'ADMIN')] )
+  }
 	continents = c( "Europe", "Africa", "Asia", "North America", "South America", "Oceania" )
 	result$CONTINENT = factor( result$CONTINENT, levels = continents )
 	nonmissing_rows = which(!is.na( result$CONTINENT ))
@@ -2047,4 +2050,127 @@ build.continent.covariates <- function( sf, world_sf ) {
 		missing_rows = missing_rows,
 		nonmissing_rows = nonmissing_rows
 	))
+}
+
+pf_adm2_agg <- function( pf_data, countries, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Filter the data for the specified country and other countries
+  pf_data_notCountry <- pf_data[!(pf_data$country %in% countries ), ]
+  pf_data_Country <- pf_data[(pf_data$country %in% countries), ]
+ 
+  # Convert the Country data to an sf object
+  pf_data_Country <- pf_data_Country %>%
+    sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+ 
+  # Perform the spatial join with the Country polygons
+  pf_data_Country <- sf::st_join( pf_data_Country, polygons, join = st_intersects, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::group_by(!!polyid, source) %>%
+    dplyr::summarize(dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+ 
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+ 
+  # Merge centroid coordinates with the aggregated data
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+ 
+  # Add / remove variables
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::mutate( site = NA, study = NA, country = NA )
+
+  pf_data_Country$geometry <- NULL
+ 
+  # Reorder columns to match pf_data_notCountry
+  pf_data_Country <- pf_data_Country[,names(pf_data_notCountry)]
+ 
+  # Combine the processed Country data with the non-Country data
+  pf_data <- rbind(pf_data_Country, pf_data_notCountry)
+ 
+  return(pf_data)
+}
+
+aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME_2" ) {
+	result = pf_adm2_agg(
+		data,
+		countries,
+		polygons,
+		polygon_id
+	) %>% filter( !is.na( latitude ))
+	print( result )
+	print( result[ is.na( result$latitude ), ])
+	result_spatial <- sf::st_as_sf( result, coords = c("longitude", "latitude" ), crs = sf::st_crs(polygons) )
+	result_spatial$longitude = sf::st_coordinates(result_spatial)[,1]
+	result_spatial$latitude = sf::st_coordinates(result_spatial)[,2]
+	beehive_aggregated = sf::st_join( polygons, result_spatial )
+	return( beehive_aggregated )
+}
+
+aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+  
+  # Merge centroid coordinates with the aggregated data
+  joined <- joined %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+
+  return(joined)
+}
+
+aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid, source)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+    %>% ungroup()
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+
+  return(joined)
 }
