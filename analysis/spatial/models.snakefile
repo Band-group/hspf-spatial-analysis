@@ -35,6 +35,15 @@ rule all:
 			type = [ 'hexagon', 'square' ],
 			divide = [ 'none' ],
 			size = cellsizes
+		),
+		plots = expand(
+			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			type = [ 'hexagon', 'square' ],
+			divide = [ 'none' ],
+			size = cellsizes
 		)
 
 rule fit_hbs_map:
@@ -64,7 +73,7 @@ rule fit_hbs_map:
 	--outdir {params.outdir}
 """
 
-rule create_hexagons:
+rule create_grid:
 	output:
 		rds = "output/grids/grid-type={type}-size={size}-division={divide}.rds"
 	input:
@@ -85,7 +94,7 @@ rule aggregate_HbS:
 	output:
 		tsv = "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
 	input:
-		polygons = rules.create_hexagons.output.rds,
+		polygons = rules.create_grid.output.rds,
 		model = rules.fit_hbs_map.output.fit,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
@@ -108,7 +117,7 @@ rule aggregate_pf:
 		tsv = "output/HbSsensitivity/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
 	input:
 		pf = "input/hbs-pf.sqlite",
-		polygons = rules.create_hexagons.output.rds,
+		polygons = rules.create_grid.output.rds,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		script = srcdir( "code/aggregate_pf_over_polygons.R" )
@@ -120,3 +129,23 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
+rule plot_hspf:
+	output:
+		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+	input:
+		grid = rules.create_grid.output.rds,
+		pf = rules.aggregate_pf.output.tsv,
+		hbs = rules.aggregate_HbS.output.tsv,
+		survey = "input/cleanHbSdata.csv"
+	params:
+		script = srcdir( "code/plot_hspf_by_polygon.R" ),
+		range_in_km = '100'
+	shell: """
+	Rscript --vanilla {params.script} \
+		--grid {input.grid} \
+		--HbS_aggregated {input.hbs} \
+		--pf_aggregated {input.pf} \
+		--HbS_survey {input.survey} \
+		--survey_range_km {params.range_in_km} \
+		--output {output.pdf}
+	"""
