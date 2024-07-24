@@ -27,13 +27,13 @@ rule all:
 			sigma0 = sigmas,
 			covariates = covariates,
 			type = [ 'hexagon', 'square' ],
-			divide = [ 'none' ],
+			divide = [ 'none', 'bycountry' ],
 			size = cellsizes
 		),
 		pf_aggregations = expand(
 			"output/HbSsensitivity/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
 			type = [ 'hexagon', 'square' ],
-			divide = [ 'none' ],
+			divide = [ 'none', 'bycountry' ],
 			size = cellsizes
 		),
 		plots = expand(
@@ -42,7 +42,7 @@ rule all:
 			sigma0 = sigmas,
 			covariates = covariates,
 			type = [ 'hexagon', 'square' ],
-			divide = [ 'none' ],
+			divide = [ 'none', 'bycountry' ],
 			size = cellsizes
 		)
 
