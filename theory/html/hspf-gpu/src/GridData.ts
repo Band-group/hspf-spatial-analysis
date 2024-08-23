@@ -39,7 +39,12 @@ export default class GridData {
 			throw new Error("arguments.length (" + coords.length + ") != m_dimensions.length (" + this.m_dimensions.length + ")");
 		}
 		let self = this;
-		return coords[coords.length - 1] + coords.slice(0, coords.length - 1).map((elt, i) => elt * self.m_dimensions[i + 1]).reduce((a, b) => a + b);
+		return (
+			coords[coords.length-1]
+			+ coords.slice(0, coords.length - 1)
+				.map((elt, i) => elt * self.m_dimensions[i+1])
+				.reduce((a, b) => a + b)
+		) ;
 	}
 
 	at(coords: number[]) {

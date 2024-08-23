@@ -1,3 +1,87 @@
+library( argparse )
+
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Make diagnostic plot for one HbS model'
+	)
+	parser$add_argument(
+		"--popmask",
+		type = "character",
+		help = "path to popmask TIFF",
+		default = "geodata/gpw4_2000_lowres.tif"
+	)
+	parser$add_argument(
+		"--HbS",
+		type = "character",
+		help = "path to (cleaned) HbS survery data",
+		default = "input/cleanHbSdata.csv"
+	)
+	parser$add_argument(
+		"--piel",
+		type = "character",
+		help = "path to Piels map, for extent",
+		default = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+	)
+	parser$add_argument(
+		"--fixed_covariates",
+		type = "character",
+		help = "string showing covariates to include as fixed effects.  Only 'continent' supported at the moment.",
+		default = NULL
+	)
+	parser$add_argument(
+		"--country_shapes",
+		type = "character",
+		help = "path to .shp file of country shapes",
+		default = "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp"
+	)
+	parser$add_argument(
+		"--Prange",
+		type = "numeric",
+		help = "prior Prange param"
+	)
+	parser$add_argument(
+		"--Psigma",
+		type = "numeric",
+		help = "prior Psigma param"
+	)
+	parser$add_argument(
+		"--r0",
+		type = "numeric",
+		help = "prior r0 param",
+		required = TRUE,
+		default = 10
+	)
+	parser$add_argument(
+		"--sigma0",
+		type = "numeric",
+		help = "prior sigma0 param",
+		required = TRUE,
+		default = 0.8
+	)
+	parser$add_argument(
+		"--number_of_posterior_samples",
+		type = "numeric",
+		help = "Number of posterior samples to output.",
+		default = 50
+	)
+	parser$add_argument(
+		"--outdir",
+		type = "character",
+		help = "path to output directory",
+		default = "output/HbSsensitivity/fits",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+print( args )
+
 library( RSQLite )
 library( ggplot2 )
 library( scico )
@@ -15,6 +99,7 @@ echo( "++ Welcome to insample_diagnosis.R" )
 echo( "++ Loading packages..." )
 install.prerequisites()
 
+
 mkdir_recursive(
   sprintf( "output/HbSraster" )
 )
@@ -22,11 +107,10 @@ mkdir_recursive(
   sprintf( "output/fig1" )
 )
 
-
-echo( "++ Loading population mask from %s...", "gpw-v4-population-density_2000.tif" )
+echo( "++ Loading population mask from %s...", args$popmask )
 #load data for prediction 
 #load pop raster for popmasking
-popmask <- raster("geodata/gpw4_2000_lowres.tif")
+popmask <- raster( args$popmask )
 # here we can define various thresholds for the mask
 # threshold unit in inhabitants per km2
 popmask[popmask <= 0.1] <- NA #orignal threshold: 0.05

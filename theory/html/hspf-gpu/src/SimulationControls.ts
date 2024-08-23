@@ -1,7 +1,6 @@
 import GridData from './GridData.js'
 import betaPDF from "./beta.js" ;
 import * as d3 from 'd3';
-console.log( "D3", d3 ) ;
 
 export default class SimulationControls {
 	elt: HTMLElement ;
@@ -57,6 +56,7 @@ export default class SimulationControls {
 			'<table class="playback-control">'
 			+ '<tr>'
 			+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
+			+ '<td><button class="transport-control" id="snapshot" state="inactive"></button></td>'
 			+ '</tr>'
 			+ '</table>'
 		) ;
@@ -99,12 +99,14 @@ export default class SimulationControls {
 		d3.select( this.spreadControl ).append( 'svg' ) ;
 		this.m_callbacks = {
 			playback: [],
+			snapshot: [],
 			fitness: [],
 			features: [],
 			spread: []
 		} ;
 		let self = this ;
 		let playpause = document.getElementById( "playpause" ) ;
+		let snapshot = document.getElementById( "snapshot" ) ;
 		if( !playpause ) {
 			throw Error( "Unable to create play/pause element" ) ;
 		}
@@ -115,7 +117,17 @@ export default class SimulationControls {
 				oldstate = oldstate ? oldstate : 'paused' ;
 				let newstate = ( oldstate == 'paused' ? 'playing' : 'paused' ) ;
 				playpause.setAttribute( 'state', newstate ) ;
+				snapshot.setAttribute(
+					'state',
+					(newstate == 'playing') ? 'inactive' : 'active'
+				) ;
 				self.trigger( 'playback' ) ;
+			}
+		) ;
+		snapshot.addEventListener(
+			'click',
+			function( _elt ) {
+				self.trigger( 'snapshot' ) ;
 			}
 		) ;
 		this.fitnessControl.addEventListener( 'input', _elt => self.trigger( 'fitness' )) ;
@@ -145,6 +157,10 @@ export default class SimulationControls {
 			return this.getFeatures() ;
 		} else if( what == 'spread' ) {
 			return this.getSpreadValues() ;
+		} else if( what == 'snapshot' ) {
+			return new GridData([1,1], [
+				(document.getElementById( "snapshot" ).getAttribute( "state" ) == 'active') ? 1 : 0
+			]) ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;
 		}

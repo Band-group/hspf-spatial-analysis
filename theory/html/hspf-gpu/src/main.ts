@@ -8,14 +8,20 @@ import Viridis from "./Viridis.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
+import { PfsaCounts, LatLong } from "./Types.js"
+//import { writeArrayBuffer } from 'geotiff';
+import { writeGeoTiff } from 'geotiff';
+import {writeGeotiffF32} from './writeGeoTiffF32.ts'
 
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: Tiff[] ;
 	displays: { [key:string]: MapDisplay } ;
+	comparisons: Map< string, ComparisonDisplay > ;
 	data: GridData[] ;
 	counts: Array<PfsaCounts> ;
+	barriers: Array< Barrier > ;
 	outerPadding: number ;
 	m_running: boolean ;
 	m_iteration: number ;
@@ -88,7 +94,7 @@ class Simulation {
 									latitude: parseFloat( d.p0_latitude ),
 									longitude: parseFloat( d.p0_longitude )
 								},
-								display: {
+								xy: {
 									x: 0,
 									y: 0
 								}
@@ -98,7 +104,7 @@ class Simulation {
 									latitude: parseFloat( d.p1_latitude ),
 									longitude: parseFloat( d.p1_longitude )
 								},
-								display: {
+								xy: {
 									x: 0,
 									y: 0
 								}
@@ -124,6 +130,8 @@ class Simulation {
 	) {
 		this.device = device ;
 		this.tiffs = tiffs ;
+		console.log( this.tiffs ) ;
+		console.log( this.tiffs[0].image.getGDALMetadata() ) ;
 		this.data = tiffs.map( elt => new GridData([ elt.height, elt.width ], elt.data )) ;
 		// Replace all NAs in HbS map are replaced with -1.
 		this.data.forEach( function( grid ) {
@@ -143,10 +151,9 @@ class Simulation {
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		this.data.unshift( this.hspf.pfsa ) ;
 
-		let self = this ;
-
-		// For a more sophisticated model, we add geographic barriers
+		// For the scatter plots, we just take high-
 		// as straight line segments from the array below.
+		// TODO: fix to use hexagons
 		for( let i = 0; i < this.counts.length; ++i ) {
 			this.counts[i].xy = this.toPixelCoords( this.counts[i].latlong ) ;
 		}
@@ -155,6 +162,8 @@ class Simulation {
 				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
 				&&
 				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+				&&
+				elt.pfsa1N >= 25
 			) ;
 		})
 		// For a more sophisticated model, we add geographic barriers
@@ -177,7 +186,10 @@ class Simulation {
 	
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
-		if( section ) {
+		if( !section ) {
+			throw Error( "No section found!" ) ;
+		}
+		{
 			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
 			{
 				const container = document.createElement( 'div' ) ;
@@ -195,15 +207,38 @@ class Simulation {
 					{ 'contours': true }
 				) ;
 				section.appendChild( container ) ;
-
-				let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-				overlay.setAttribute( "width", "400px" ) ;
-				overlay.setAttribute( "height", "300px" ) ;
-				overlay.setAttribute( "class", "comparison_display" ) ;
-				container.appendChild( overlay ) ;
-				this.displays.comparison = new ComparisonDisplay(
-					this.counts,
-					overlay
+				this.comparisons = new Map() ;
+				let left = 20 ;
+				[
+					['Gambia', 'Senegal', 'Mali' ],
+					[ 'Ghana' ],
+					[ 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo' ],
+					[ 'Tanzania', 'Kenya' ]
+				].forEach(
+					(countries:Array<string>) => {
+						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+						overlay.setAttribute( "class", "comparison_display" ) ;
+						container.appendChild( overlay ) ;
+						this.comparisons.set(
+							countries,
+							new ComparisonDisplay(
+								this.counts.filter( d => countries.includes(d.country) ),
+								overlay,
+								{
+									width: 250,
+									height: 200,
+									margins: {
+										'bottom': 45,
+										'left': 40,
+										'top': 20,
+										'right': 20
+									}
+								},
+								left
+							)
+						) ;
+						left += 270 ;
+					}
 				) ;
 			}
 			{
@@ -263,7 +298,9 @@ class Simulation {
 	render() {
 		this.displays.pf.draw( this.hspf.pfsa ) ;
 		this.displays.hs.draw( this.data[1] ) ;
-		this.displays.comparison.draw( this.hspf.pfsa ) ;
+		for (let comparison of this.comparisons.values()) {
+			comparison.draw( this.data[0] ) ;
+		}
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
@@ -291,6 +328,50 @@ class Simulation {
 		console.log( "Set playback to", values.at([0,0]) ) ;
 		this.m_running = ( values.at([0,0]) == 0 ) ? false : true ;
 	}
+
+	async takeSnapshot() {
+		console.log( "Taking snapshot..." ) ;
+		let pfsa = this.hspf.pfsa ;
+		let pad = this.outerPadding ;
+		let padded_dims = pfsa.m_dimensions ;
+		let dims = {
+			width: this.tiffs[0].width,
+			height: this.tiffs[0].height
+		} ;
+		console.log( "DIMS", dims ) ;
+
+		// Create an array containing just the
+		// parts of the map not including the padding
+		let data = new Int32Array( dims.width * dims.height ) ;
+		for( let i = 0; i < dims.height; ++i ) {
+			data.subarray( i*dims.width, (i+1)*dims.width ).set(
+				pfsa.m_data.subarray(
+					(pad+i)*padded_dims[1]+pad,
+					(pad+i)*padded_dims[1]+pad+dims.width
+				).map( elt => ( elt == -1 ? -1 : elt * 255 ))
+			) ;
+		}
+		let metadata = {
+			width: dims.width,
+			height: dims.height,
+			//NoData: "-1",
+			GDAL_NODATA: "-1",
+			SMinSampleValue: [0.0],
+			SMaxSampleValue: [1.0]
+		} ;
+		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
+		console.log( arrayBuffer ) ;
+		const dataView = new DataView(arrayBuffer) ;
+		console.log( "DATAVIEW", dataView ) ;
+		const blob = new Blob([dataView], { type: "image/tiff" } ) ;
+		const downloadUrl = URL.createObjectURL(blob);
+		const a = document.createElement( 'a' );
+		a.href = downloadUrl;
+		a.download = "pfsa.tiff";
+		a.click();
+		URL.revokeObjectURL(downloadUrl);
+		//setTimeout(resolve, 100);
+	}
 }
 
 async function run() {
@@ -301,11 +382,12 @@ async function run() {
 	controls.on( 'spread', function(values: GridData) { console.log( "SPREAD", values ) ; }) ;
 	controls.on( 'features', function(values: GridData) { console.log( "FEATURES", values ) ; }) ;
 	controls.on( 'playback', function(values: GridData) { console.log( "PLAYBACK", values ) ; }) ;
+	controls.on( 'snapshot', function(values: GridData) { console.log( "SNAPSHOT", values.at([0,0]) ) ; }) ;
 
 	let simulation = await Simulation.create(
-		"/2024-03-05-MEAN-nobarrier.tif",
-		"/counts_by_adm1.tsv",
-		"/geographic_barriers.tsv"
+		"./2024-03-05-MEAN-nobarrier.tif",
+		"./counts_by_adm1.tsv",
+		"./geographic_barriers.tsv"
 	) ;
 //	let simulation = await Simulation.create(
 //		"https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif"
@@ -315,6 +397,12 @@ async function run() {
 	controls.on( 'features', function(values: GridData) { simulation.setFeatures( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
 	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
+	controls.on( 'snapshot', function(values: GridData) {
+		let active = values.at([0,0]) ;
+		if( active ) {
+			simulation.takeSnapshot() ;
+		}
+	}) ;
 
 	controls.on( 'features', function(values:GridData) {
 		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;

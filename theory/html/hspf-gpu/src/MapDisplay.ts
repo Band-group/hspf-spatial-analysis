@@ -2,7 +2,8 @@ import * as d3 from 'd3';
 import GridData from "./GridData.js"
 import PaletteScale from "./PaletteScale.js"
 import TiffDisplay from "./TiffDisplay.js"
-import Battier from "./Barrier.js"
+import Barrier from "./Barrier.js"
+import { PfsaCounts } from "./Types.js"
 
 export interface Geom {
 	width: number,
@@ -21,6 +22,7 @@ export default class MapDisplay {
 	canvas: HTMLCanvasElement ;
 	context: GPUCanvasContext ;
 	legend: SVGElement ;
+	overlay: SVGElement ;
 
 	constructor(
 		elt: HTMLElement,
@@ -69,9 +71,10 @@ export default class MapDisplay {
 		let elts = svg.selectAll( 'circle.sample' )
 			.data( counts ) ;
 		let scales = {
+			// @ts-ignore 
 			fill: new d3.scaleThreshold(
-				[ 16.4, 30.9 ],
-				[ '#0500ce', '#2f3dc1', '#db624d' ]
+				[ -5, 3, 11, 19, 27 ],
+				[ '#0500ce', '#06b4cd', '#30504e', '#34cc33', '#2f3dc1', '#db624d' ]
 			)
 		} ;
 
@@ -84,15 +87,15 @@ export default class MapDisplay {
 			.exit()
 			.remove() ;
 		svg.selectAll( 'circle.sample' )
-			.attr( 'cx', elt => elt.xy.x )
-			.attr( 'cy', elt => elt.xy.y )
+			.attr( 'cx', (elt:any) => elt.xy.x )
+			.attr( 'cy', (elt:any) => elt.xy.y )
 			.attr( 'r', 5 )
 			.attr( 'stroke', 'black' )
-			.attr( 'fill', d => scales.fill( d.latlong.longitude ))
+			.attr( 'fill', (elt:any) => scales.fill( elt.latlong.longitude ))
 		;
 	}
 
-	annotate_barriers( barriers: Array< any > ) {
+	annotate_barriers( barriers: Array< Barrier > ) {
 		console.log( "annotate()", barriers ) ;
 		let svg = d3.select( this.overlay ) ;
 		let elts = svg.selectAll( 'line.barrier' )
@@ -106,10 +109,10 @@ export default class MapDisplay {
 			.exit()
 			.remove() ;
 		svg.selectAll( 'line.barrier' )
-			.attr( 'x1', elt => elt.p0.xy.x )
-			.attr( 'y1', elt => elt.p0.xy.y )
-			.attr( 'x2', elt => elt.p1.xy.x )
-			.attr( 'y2', elt => elt.p1.xy.y )
+			.attr( 'x1', (elt:any) => elt.p0.xy.x )
+			.attr( 'y1', (elt:any) => elt.p0.xy.y )
+			.attr( 'x2', (elt:any) => elt.p1.xy.x )
+			.attr( 'y2', (elt:any) => elt.p1.xy.y )
 			.attr( 'stroke-width', '6' )
 			.attr( 'stroke', 'rgba(205,80,81,0.8)' )
 		;

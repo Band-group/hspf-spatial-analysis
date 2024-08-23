@@ -20,7 +20,7 @@ install.prerequisites <- function() {
   #basic packages and parallel computing packages (add more if needed)
   list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
                         "RColorBrewer","ggthemes", "ggmap", "dplyr",
-                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
+                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics", "lwgeom")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
   lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
@@ -42,23 +42,20 @@ mkdir_recursive = function( path ) {
   dir.create( path, recursive = TRUE, showWarnings = FALSE )
 }
 
-check.excluded <- function( data, continents ) {
-  # This excludes points we potentially want:
-  #extpoly <- myarea[pt,]
-  # This doesn't:
-  extpoly <- continents[data,]
-  
-  #keep data in study area
-  #check points outside land areas
-  excluded <- data[is.na(over(data,geometry(extpoly))), ]
-  included <- data[!is.na(over(data,geometry(extpoly))), ]
-  return( list(
-    included = included,
-    excluded = excluded,
-    extpoly = extpoly
-  ))
-  #  plot(mycheck,col='red',pch='+',cex=3)
-  #  plot(extpoly,add=TRUE)
+check.excluded <- function( data_sf, continents_sf ) {
+  # Perform the spatial join to find points within continents
+  joined <- sf::st_join(data_sf, continents_sf, join = sf::st_intersects )
+  # Separate included and excluded points
+  included <- joined[ !is.na(joined$geometry), ]
+  excluded <- joined[  is.na(joined$geometry), ]
+  return(
+    list(
+      included = included,
+      excluded = excluded,
+      data_sf = data_sf,
+      continents_sf = continents_sf
+    )
+  )
 }
 
 get_prediction_locations = function(
@@ -413,38 +410,41 @@ HbSplottheme <- theme(axis.title.x=element_blank(),
 )
 
 #make spatial point from HbSdata
-dfToSpatialPts <- function( HBxy ) {
-  coordinates(HBxy) <- ~longitude+latitude
-  proj4string(HBxy) <- proj4string(africa)
-  return(HBxy)
+dfToSpatialPts <- function( data, projection ) {
+  result = sf::st_as_sf( data, coords = c( "longitude", "latitude" ))
+  sf::st_set_crs( result, projection )
+  return( result )
 }
 
-makemesh <- function(xyt,extpoly,boundary=TRUE){
-  max.edge = diff(range(st_coordinates(st_as_sf(xyt))[,1]))/(3*5)
-                     bound.outer = max.edge*5
-                     my.bdry <-  inla.sp2segment(extpoly)
-                     if (boundary==TRUE){
-                      my.bdry$loc <- INLA::inla.mesh.map(my.bdry$loc)
-                       mymesh <- INLA::inla.mesh.2d(loc=st_coordinates(st_as_sf(xyt)), 
-                                            boundary=my.bdry, 
-                                            max.edge=c(1,8),
-                                            offset=c(1,8),
-                                            cutoff = 1,
-                                            crs=st_crs(xyt),
-                                            max.n=c(6000, 6000), ## Safeguard against large meshes.
-                                            max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
-                     } else {
-                       mymesh <- inla.mesh.2d(loc=st_coordinates(st_as_sf(xyt)),
-                                              max.edge = c(0.5,0.9)*max.edge,
-                                              offset=c(max.edge, bound.outer),
-                                              cutoff =0.5,
-                                              crs=st_crs(xyt),
-                                              max.n=c(6000, 6000), ## Safeguard against large meshes.
-                                              max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
-                                              
-                     }
-                     return(mymesh)
-                     }
+makemesh <- function( xyt, extpoly, boundary=TRUE ){
+  max.edge = diff(range(st_coordinates(xyt)[,1]))/(3*5)
+  bound.outer = max.edge*5
+  my.bdry <-  inla.sp2segment(extpoly)
+  if( boundary==TRUE ) {
+    my.bdry$loc <- INLA::inla.mesh.map(my.bdry$loc)
+    mymesh <- INLA::inla.mesh.2d(
+      loc=st_coordinates(xyt), 
+      boundary=my.bdry, 
+      max.edge=c(1,8),
+      offset=c(1,8),
+      cutoff = 1,
+      crs=st_crs(xyt),
+      max.n=c(6000, 6000), ## Safeguard against large meshes.
+      max.n.strict=c(10000, 10000)
+    ) ## Don't build a huge mesh!)
+  } else {
+    mymesh <- inla.mesh.2d(
+      loc=st_coordinates(xyt),
+      max.edge = c(0.5,0.9)*max.edge,
+      offset=c(max.edge, bound.outer),
+      cutoff =0.5,
+      crs=st_crs(xyt),
+      max.n=c(6000, 6000), ## Safeguard against large meshes.
+      max.n.strict=c(10000, 10000)
+    ) ## Don't build a huge mesh!)                     
+  }
+  return(mymesh)
+}
 
 makespde <- function(
     mymesh,
@@ -471,7 +471,7 @@ makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
   )
   if(!is.null(covariate)) {
     effectList[[2]]$covariate = covariate
-  }
+  } 
   print(dim(A))
   print(length(Y))
   stk <- inla.stack(
@@ -484,93 +484,115 @@ makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
 
 makeinlaformula <- function(covariate=NULL){
   if(!is.null(covariate)){
-    myformula <- paste(c("Y ~ -1 + z.intercept + f(z.field, model=spde)", colnames(covariate)),
-            collapse = " + ")
+    myformula0 <- paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
+    myformula <- myformula0
+    for (i in 1:length(colnames(covariate))){
+      classcov <- class(covariate[,i])
+      covname <- ifelse(
+        classcov == "factor",
+        paste0('f(',colnames(covariate)[i],', model = "linear")'),
+        colnames(covariate)[i]
+      )
+      myformula <- paste(myformula, covname,sep = " + ")
+    }
   } else {
     myformula <-paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
   }
   return(formula(myformula))
 }
 
-runinla.binomial <- function(myformula,stk,spde,n,covariate.prec=0.001,intercept.prec=0.0){
+runinla.binomial <- function(
+  myformula,
+  stk,
+  spde,
+  n,
+  covariate.prec = 0.001,
+  intercept.prec = 0.0
+){
 #model fitting
   has_covariates = length(stk$effects$ncol) > 2#spatial and intercept only = 2 column names
-   if(has_covariates==TRUE){
+  if( has_covariates ){
     stopifnot( !is.null(covariate.prec))
     control.fixed = list( prec = covariate.prec, prec.intercept = intercept.prec )
   } else {
-    mycontrol.fixed = list( prec.intercept = intercept.prec )
+    control.fixed = list( prec.intercept = intercept.prec )
   }
   
-    inlafit <-  INLA::inla(myformula, # the formula
-                     #without barrier
-                     data = inla.stack.data(stk, spde = spde), # the data stack
-                     family = "binomial", # which family the data comes from
-                     Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
-                     control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
-                     control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                     control.fixed = mycontrol.fixed,
-                     control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
-                     verbose = FALSE) # can include verbose=TRUE to see the log of the model runs
-    #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
-    inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
-    
-    return(inlafit)
+  inlafit <-  INLA::inla(
+    myformula, # the formula
+    #without barrier
+    data = inla.stack.data(stk, spde = spde), # the data stack
+    family = "binomial", # which family the data comes from
+    Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
+    control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
+    control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+    control.fixed = control.fixed,
+    control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
+    verbose = FALSE
+  ) # can include verbose=TRUE to see the log of the model runs
+  #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
+  inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
+  
+  return(inlafit)
 }
 
 fit_inla_binomial_model <- function(
     xyt,
     extpoly,
-    priors,
+    prior,
+    covariate = NULL,
     verbose = FALSE
 ) {
   # 1. Mesh building
   mymesh <- makemesh( xyt, extpoly, boundary = TRUE)
-  
+
   # 2. Define RINLA objects
   # spde, iset, A matrix objects
   # message( "++ Fitting spatial model with prior parameters:" )
   # print( HbS.priors[1,] )
-  
-  spde <- makespde( mymesh, prior = priors )
-  
+
+  spde <- makespde( mymesh, prior = prior )
+
   if( verbose ) message( "++ Creating data-to-mesh map..." )
   A = INLA::inla.spde.make.A(
     mesh = mymesh,
-    loc = as.matrix( cbind( xyt@coords[,1], xyt@coords[,2]))
+    loc = as.matrix( sf::st_coordinates( xyt ))
   );
-  if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt@data), dim(A)[1], dim(A)[2] ))
+  if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt), dim(A)[1], dim(A)[2] ))
   if( verbose ) message( "++ Creating SPDE object..." )
-  
-  if ('Pfsanonref' %in% colnames(xyt@data)) {
-  Y = round(xyt@data$Pfsanonref,0)
-  N = round(xyt@data$Pfsanonref+xyt@data$Pfsaref,0)
-    } else {
-      Y = round(xyt@data$S,0)
-      N = round(xyt@data$N,0)
+
+  if ('Pfsanonref' %in% colnames(xyt)) {
+      Y = round( xyt$Pfsanonref, 0 )
+      N = round( xyt$Pfsanonref+xyt$Pfsaref, 0 )
+  } else {
+      Y = round( xyt$S, 0 )
+      N = round( xyt$N, 0 )
   }
   stk <- makeinlastack.binomial(
     Y = Y,
     n = N,
     A = A,
-    spde = spde
+    spde = spde,
+    covariate = covariate
   ) #if covariate [dataframe], add ",covariate=..."
-  #print( summary(stk))
-  
-  myformula <- makeinlaformula() #add covariate [dataframe] argument if you want covariates
+    #print( summary(stk))
+
+  myformula <- makeinlaformula( covariate = covariate ) #add covariate [dataframe] argument if you want covariates
   modelfit <- runinla.binomial(
     myformula,
     stk,
     spde,
     n=N,
-    intercept.prec = priors$intercept.prec,
-    covariate.prec = priors$covariate.prec
+    intercept.prec = prior$intercept.prec,
+    covariate.prec = prior$covariate.prec
   )#by default: [covariate.prec=0.001]; [intercept.prec=0.0]
-  return( list(
-    priors = priors,
-    mesh = mymesh,
-    A = A,
-    fit = modelfit )
+  return(
+    list(
+      prior = prior,
+      mesh = mymesh,
+      A = A,
+      fit = modelfit
+    )
   )
 }
 
@@ -880,16 +902,18 @@ predict_inla_binomial_model <- function(
     posterior.samples,
     mesh,
     prediction_locations,
-    nn # number of posterior samples
+    covariates = NULL
 ) {
+  nn = length(posterior.samples)
   #Mapping between meshes and continuous space
-  A.pred <- INLA::inla.spde.make.A( mesh = mesh, loc = prediction_locations)
+  A.pred <- INLA::inla.spde.make.A( mesh = mesh, loc = prediction_locations )
   #get predictive locations based on covariate
   #select layers from covariates based on the selected model
   mypred <- predict_values(
     nn,
     posterior.samples,
-    A.pred = A.pred
+    A.pred = A.pred,
+    covariates = covariates
   )
   #compute posterior summary for each pixel
   pred_mean <- rowMeans( mypred, na.rm = TRUE )
@@ -915,9 +939,10 @@ predict_values <- function(
     nn,
     posterior.samples,
     A.pred,
-    covariates = NULL # Optional dataframe of covariates
+    covariates = NULL, # Optional dataframe of covariates, numeric columns, nonsingular.
+    link.function = stats::plogis # logistic link by default
 ) {
-  pred <- matrix(NA, nrow = dim(A.pred)[1], ncol = nn)
+  pred <- matrix(NA, nrow = dim(A.pred)[1], ncol = nn )
   
   for (i in 1:nn) {
     field <- posterior.samples[[i]]$latent[grep('z.field', rownames(posterior.samples[[i]]$latent)), ]
@@ -931,7 +956,7 @@ predict_values <- function(
       linpred <- list()
       k <- ncol(covariates)
       for (j in 1:k) {
-        beta[j] <- posterior.samples[[i]]$latent[
+          beta[j] <- posterior.samples[[i]]$latent[
           grep(
             names(covariates)[j],
             rownames(posterior.samples[[i]]$latent)
@@ -942,10 +967,10 @@ predict_values <- function(
       linpred <- Reduce("+", linpred)
       lp <- drop(A.pred %*% field) + intercept + linpred
     }
-    
-    pred[, i] <- stats::plogis(lp)  # for binomial likelihood
+    pred[, i] <- link.function(lp)  # for binomial likelihood
   }
-  
+  # TODO:
+  # add thresholding?
   return(pred)
 }
 
@@ -1970,4 +1995,182 @@ diagnostic_plot_priors <- function(i) {
   plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
 
   return(plots$in.sample.summary)
+}
+
+compute.HbS.prediction.extent <- function(
+	world_sf,
+	map_filename = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+) {
+  HbSpredextent <- raster::raster( map_filename )
+  notpiel <- 0.005
+  HbSpredextent <- HbSpredextent >= notpiel
+  HbSpredextent[HbSpredextent >= notpiel] <- 1
+  HbSpredextent[HbSpredextent < notpiel] <- NA
+  HbSpredextent <- raster::aggregate(HbSpredextent,7)
+  HbSpredextent <- as(HbSpredextent, "SpatialPolygonsDataFrame")
+  HbSpredextent <- sf::st_as_sf(HbSpredextent)
+  HbSpredextent <- sf::st_geometry(HbSpredextent)
+  HbSpredextent <- sf::st_union(HbSpredextent,is_coverage = TRUE)
+  # Make sure that some countries are covered (where we have HbS data)
+  keepcountrynames <- c("Peru","Chile","Brazil","Bolivia","Venezuela","Colombia","Algeria","Ethiopia","Eritrea",
+  "South Africa", "Botzwana","Zimbabwe","United Kingdom","Turkey","Italy","Spain","Portugal","Germany","Thailand",
+  "France","Belgium","Netherlands","Slovakia","Nepal","Myanmar","Malaysia","Japan","India","Laos","Vietnam","Cambodia")
+  keepcountries <- world_sf[world_sf$NAME %in% keepcountrynames, ]
+  keepcountries <- sf::st_geometry(keepcountries)
+  keepcountries <- sf::st_union(keepcountries,is_coverage = TRUE)
+  keepcountries <- sf::st_difference(keepcountries,HbSpredextent)
+  HbSpredextent <- sf::st_union(HbSpredextent,keepcountries,is_coverage = TRUE)
+  HbSpredextent <- sf::st_as_sf(HbSpredextent)
+  HbSpredextent <- sf::st_make_valid(HbSpredextent)
+  HbSpredextent <- sf::st_simplify(HbSpredextent, preserveTopology = TRUE, dTolerance = 0.02)
+  HbSpredextent <- sf::st_make_valid(HbSpredextent)
+  return( HbSpredextent )
+}
+
+# Build matrix of continent covariates
+# Each column is 0's or 1's
+# Each row has at most one 1
+# Europe is the baseline.
+build.continent.covariates <- function( sf, world_sf ) {
+  if( 'CONTINENT' %in% colnames(sf)) {
+    result = sf
+  } else {
+  	result = sf::st_join( sf, world_sf[ c('CONTINENT', 'ADMIN')] )
+  }
+	continents = c( "Europe", "Africa", "Asia", "North America", "South America", "Oceania" )
+	result$CONTINENT = factor( result$CONTINENT, levels = continents )
+	nonmissing_rows = which(!is.na( result$CONTINENT ))
+	missing_rows = which(is.na( result$CONTINENT ))
+	result = as.data.frame(model.matrix( ~ CONTINENT - 1, data = result ))
+	colnames(result) = stringr::str_replace_all( colnames(result), "CONTINENT", "" )
+	colnames(result) = stringr::str_replace_all( colnames(result), "[^[:alnum:]]", "" )
+	result = result[,-1]
+	return( list(
+		values = result,
+		missing_rows = missing_rows,
+		nonmissing_rows = nonmissing_rows
+	))
+}
+
+pf_adm2_agg <- function( pf_data, countries, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Filter the data for the specified country and other countries
+  pf_data_notCountry <- pf_data[!(pf_data$country %in% countries ), ]
+  pf_data_Country <- pf_data[(pf_data$country %in% countries), ]
+ 
+  # Convert the Country data to an sf object
+  pf_data_Country <- pf_data_Country %>%
+    sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+ 
+  # Perform the spatial join with the Country polygons
+  pf_data_Country <- sf::st_join( pf_data_Country, polygons, join = st_intersects, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::group_by(!!polyid, source) %>%
+    dplyr::summarize(dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+ 
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+ 
+  # Merge centroid coordinates with the aggregated data
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+ 
+  # Add / remove variables
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::mutate( site = NA, study = NA, country = NA )
+
+  pf_data_Country$geometry <- NULL
+ 
+  # Reorder columns to match pf_data_notCountry
+  pf_data_Country <- pf_data_Country[,names(pf_data_notCountry)]
+ 
+  # Combine the processed Country data with the non-Country data
+  pf_data <- rbind(pf_data_Country, pf_data_notCountry)
+ 
+  return(pf_data)
+}
+
+aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME_2" ) {
+	result = pf_adm2_agg(
+		data,
+		countries,
+		polygons,
+		polygon_id
+	) %>% filter( !is.na( latitude ))
+	print( result )
+	print( result[ is.na( result$latitude ), ])
+	result_spatial <- sf::st_as_sf( result, coords = c("longitude", "latitude" ), crs = sf::st_crs(polygons) )
+	result_spatial$longitude = sf::st_coordinates(result_spatial)[,1]
+	result_spatial$latitude = sf::st_coordinates(result_spatial)[,2]
+	beehive_aggregated = sf::st_join( polygons, result_spatial )
+	return( beehive_aggregated )
+}
+
+aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+  
+  # Merge centroid coordinates with the aggregated data
+  joined <- joined %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+
+  return(joined)
+}
+
+aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid, source)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+    %>% ungroup()
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+
+  return(joined)
 }

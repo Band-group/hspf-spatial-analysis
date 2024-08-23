@@ -78,6 +78,9 @@
 			border-radius: 10px ;
 			width: 50px ;
 		}
+		#playpause:hover {
+			transform: scale(1.1,1.1) ;
+		}
 		#playpause[state="paused"] {
 			background-color: rgb(30, 196, 30) ;
 		}
@@ -89,6 +92,18 @@
 		}
 		#playpause[state="playing"]::after {
 			content: "⏸︎" ;
+		}
+		#snapshot::after {
+			content: "📷" ;
+		}
+		#snapshot[state="inactive"]::after {
+			opacity: 0.5 ;
+		}
+		#snapshot[state="inactive"] {
+			background-color: lightgrey ;
+		}
+		#snapshot[state="active"]:hover  {
+			transform: scale(1.1,1.1) ;
 		}
 		.control input {
 			width: 80px ;
