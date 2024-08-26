@@ -49,6 +49,56 @@ parse_arguments <- function() {
 	return( parser$parse_args() )
 }
 
+
+colours = list(
+	global = c(
+		"Africa" = "purple",
+		"Eastern Africa" = "orange",
+		"Western Africa" = "royalblue2",
+		"DRC" = "red2",
+		"South America" = "yellow",
+		"Asia" = "grey35",    
+		"Oceania" = "green1" ,  
+		"Asia and South America" = "lightblue",
+		"All" = "grey15"  
+	),
+	countries = c(
+		"Mauritania" = "#090953",
+		"Gambia" = "#0c0c83",
+		'Senegal' = "#2323f6",
+		'Guinea' = "#0000CD",
+		'Mauritania' = "#0000CD",
+		"Mali" = "#42426F",
+		"Burkina_Faso" = "#377EB8",
+		"IvoryCoast" = "#2ecdab",
+		"Cote_dIvoire" = "#2ecdab",
+		"Ghana" = "#03B4CC",
+		"Benin" = "#03cc53",
+		"Nigeria" = "#a57d0f",
+		"Cameroon" = "#E41A1C",
+		"Gabon" = "#E41A1C",
+		"Congo_DR" = "#E41A1C",
+		"Democratic_Republic_of_the_Congo" = "#E41A1C",
+		"Sudan" = "#66e20e",
+		"Uganda" = "#A65628",
+		"Malawi" = "#A65628",
+		"Tanzania" = "#EE5C42",
+		"Mozambique" = "#EE5C42",
+		"Kenya" = "#FF7F00",
+		"Ethiopia" = "#f1ed0c",
+		"Madagascar" = "#c800ff",
+		'Bangladesh' = "#444444",
+		'Myanmar' = "#444444",
+		'Laos' = "#444444",
+		'Thailand' = "#444444",
+		'Cambodia' = "#444444",
+		'Vietnam' = "#444444",
+		'Indonesia' = "#444444",
+		'PNG' = "#444444"
+	)
+)
+
+
 args = parse_arguments()
 print( args )
 
@@ -65,14 +115,17 @@ hbs = readr::read_tsv( HbS_aggregated )
 echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
 
 echo( "++ Loading HbS survey data from %s...\n", args$HbS_survey )
-survey = readr::read_csv( args$HbS_survey )
+survey = readr::read_csv(
+	args$HbS_survey,
+	col_types = "cddddddddcdddcdd"
+)
 echo( "++ ...ok, %d points loaded.\n", nrow( survey ))
 
 echo( "++ Loading polygon grid from %s...\n", args$grid )
 grid = readRDS( args$grid )
 echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
 
-# we limit to polygons near hbs survey points
+# limit analysis to polygons near hbs survey points
 survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = 4326 )
 survey$longitude = sf::st_coordinates(survey)[,1]
 survey$latitude = sf::st_coordinates(survey)[,2]
@@ -113,18 +166,19 @@ levels(joined$in_range) = c(
 	sprintf( ">%dkm", args$survey_range_km ),
 	sprintf( "<%dkm", args$survey_range_km )
 )
+filterstring = sprintf( "<%dkm", args$survey_range_km )
 
 # TODO REMOVE THIS, just for testing
-joined = joined %>% filter( NAME == 'Dem. Rep. Congo' )
+#joined = joined %>% filter( NAME == 'Dem. Rep. Congo' )
 
 {
-	J = joined %>% filter( in_range == '<100km' )
+	J = joined %>% filter( in_range == filterstring )
 	links = c( "logit", "identity", "log" )
 	result = tibble::tibble()
 	for( link in links ) {
 		start = NULL
 		if( link == 'identity' ) {
-			start = c( 0, 2 )
+			start = c( 0, 1.5 )
 		}
 		g = glm(
 			Pfsa1_frequency ~ HbAS_or_SS,
@@ -146,7 +200,7 @@ joined = joined %>% filter( NAME == 'Dem. Rep. Congo' )
 		)
 	}
 	# Let's try generalised logistic
-	g = glogisfit(
+	g = glogis::glogisfit(
 		Pfsa1_frequency ~ HbAS_or_SS,
 		data = J,
 		weights = J$Pfsa1_N
@@ -184,7 +238,7 @@ get.hbs.posterior.slope.estimates <- function( data, hbs_samples ) {
 	)
 }
 
-get.posterior.slope.estimates <- function( data, hbs_samples, polynumber_of_slope_samples ) {
+get.posterior.slope.estimates <- function( data, hbs_samples, number_of_slope_samples ) {
 	# This function samples from the posterior of the HbS map (uniformly amont the provided samples),
 	# fits a logistic regression,
 	# and then samples from the posterior of the parameter estimates.
@@ -217,8 +271,8 @@ get.posterior.slope.estimates <- function( data, hbs_samples, polynumber_of_slop
 		}
 	)
 }
-J = joined %>% filter( in_range == '<100km' )
 
+J = joined %>% filter( in_range == filterstring )
 estimate.type = "full.posterior" # or "hbs.posterior"
 if( estimate.type == "full.posterior" ) {
 	estimates = get.posterior.slope.estimates(
@@ -234,7 +288,6 @@ if( estimate.type == "full.posterior" ) {
 } else {
 	stop( "Unrecognised posterior type")
 }
-
 
 logistic = function(x) { exp(x) / (1+exp(x)) }
 xs = seq( from = 0, to = max(joined$HbAS_or_SS), by = 0.01 )
@@ -267,20 +320,8 @@ if( all_lines ) {
 }
 
 
-colour_scheme <- c(
-	"Africa" = "purple",
-	"Eastern Africa" = "orange",
-	"Western Africa" = "royalblue2",
-	"DRC" = "red2",
-	"South America" = "yellow",
-	"Asia" = "grey35",    
-	"Oceania" = "green1" ,  
-	"Asia and South America" = "lightblue",
-	"All" = "grey15"  
-)
-
 p = (
-	ggplot( data = joined %>% filter( `Pfsa1_N` >= 20 ) %>% filter( NAME == 'Dem. Rep. Congo'))
+	ggplot( data = joined %>% filter( `Pfsa1_N` >= 20 ))
 	+ geom_segment(
 		mapping = aes(
 			x = HbS_lower^2 + 2*HbS_lower*(1-HbS_lower),
@@ -389,12 +430,6 @@ gridplot <- (
 		)
 	)
 	+ geom_sf(
-		data = hbsbuffer %>% filter( polygon_id %in% africagrid$polygon_id ),
-		fill = NA,
-		col = "grey",
-		linewidth = 0.5
-	)
-	+ geom_sf(
 		data = in_range_grid %>% filter( polygon_id %in% africagrid$polygon_id ),
 		fill = NA,
 		col = "orange",
@@ -417,7 +452,7 @@ gridplot <- (
 	+ scale_fill_viridis( alpha = 1 )
 )
 
-cowplot::plot_grid( gridplot, p, labels = c( 'A', 'B' ))
+cowplot::plot_grid( gridplot, p, labels = c( 'A', 'B' ), rel_widths = c( 0.5, 1 ))
 
 ggsave(
 	gridplot,

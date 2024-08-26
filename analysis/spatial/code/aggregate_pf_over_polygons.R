@@ -71,7 +71,8 @@ aggregation_data = (
 )
 aggregation_data = sf::st_as_sf(
 	aggregation_data,
-	coords = c( "longitude", "latitude" ), crs = sf::st_crs( world_sf )
+	coords = c( "longitude", "latitude" ),
+	crs = sf::st_crs( world_sf )
 )
 
 # Now aggregated version
