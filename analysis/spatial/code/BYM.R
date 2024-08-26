@@ -159,7 +159,7 @@ fitbym <- function(
   fitted.parameters = tibble()
   sampled.parameters = tibble()
   # Pray this works
-  for( sample in grep( "posterior_sample", colnames(hbs))) {
+  for( sample in grep( "posterior_sample", colnames(hbs), value = T )) {
     regression.data <- data.frame(
       countrydfi,
       y.intercept = rep(1, length(countrydfi$Y)),
