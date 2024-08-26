@@ -5,6 +5,7 @@
 .snakemake
 analysis/spatial/geodata
 analysis/spatial/output
+analysis/spatial/outputgavin
 analysis/spatial/codeold
 analysis/haplotypes/outputs
 analysis/haplotypes/logs
