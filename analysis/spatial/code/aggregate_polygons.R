@@ -68,7 +68,7 @@ world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 # Take a new set of posterior samples
 posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_samples, modelfit$fit )
 
-# Find prediction locations\
+# Find prediction locations
 # these are either: polygon centroids (fast mode)
 # or a random sample from each polygon (slower)
 slowok = TRUE

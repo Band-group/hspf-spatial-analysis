@@ -108,6 +108,7 @@ grid <- sf::st_sf(
 	polygon_id = 1:length(lengths(grid)),
 	grid
 )
+grid$centroid = sf::st_centroid(grid$grid)
 if( args$bycountry ) {
 	# Use st_intersection, which cuts / splits each grid polygon
 	# at country boundaries
@@ -119,6 +120,16 @@ if( args$bycountry ) {
 } else {
 	# Intersect with the prediction extents
 	grid = sf::st_intersection( grid, extents )
+
+	# Add in country variable for centroid.  This turns out slightly tricky but here goes
+	A = sf::st_intersects( grid$centroid, world_sf, sparse = FALSE )
+	# The above returns a true/false matrix.  Convert to a vector for indexing
+	B = sapply( 1:nrow(A), function(i) { w = which( A[i,] == TRUE ); if( length(w) == 1 ) { return(w) } else { return(NA) }} )
+	grid$NAME = world_sf$NAME[B]
+	grid$CONTINENT = world_sf$CONTINENT[B]
+	grid$SOVEREIGNT = world_sf$SOVEREIGNT[B]
+	grid$SOV_A3 = world_sf$SOV_A3[B]
+	grid$SUBREGION = world_sf$SUBREGION[B]
 }
 
 echo( "++ Created %d grid points.", nrow( grid ))
