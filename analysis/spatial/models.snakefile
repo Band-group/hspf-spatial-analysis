@@ -129,23 +129,61 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
-rule plot_hspf:
+#rule plot_hspf:
+#	output:
+#		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+#	input:
+#		grid = rules.create_grid.output.rds,
+#		pf = rules.aggregate_pf.output.tsv,
+#		hbs = rules.aggregate_HbS.output.tsv,
+#		survey = "input/cleanHbSdata.csv"
+#	params:
+#		script = srcdir( "code/plot_hspf_by_polygon.R" ),
+#		range_in_km = '100'
+#	shell: """
+#	Rscript --vanilla {params.script} \
+#		--grid {input.grid} \
+#		--HbS_aggregated {input.hbs} \
+#		--pf_aggregated {input.pf} \
+#		--HbS_survey {input.survey} \
+#		--survey_range_km {params.range_in_km} \
+#		--output {output.pdf}
+#	"""
+
+rule fit_hspf:
 	output:
-		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+		rds = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km.rds"
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
 		hbs = rules.aggregate_HbS.output.tsv,
 		survey = "input/cleanHbSdata.csv"
 	params:
-		script = srcdir( "code/plot_hspf_by_polygon.R" ),
-		range_in_km = '100'
+		script = srcdir( "code/BYM.R" )
+	threads: 8
 	shell: """
-	Rscript --vanilla {params.script} \
+		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
-		--HbS_aggregated {input.hbs} \
-		--pf_aggregated {input.pf} \
-		--HbS_survey {input.survey} \
-		--survey_range_km {params.range_in_km} \
+		--model {wildcards.regression_model} \
+		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
+		--output {output.rds} \
+		--threads {threads}
+	"""
+
+rule plot_hspf2:
+	output:
+		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km.pdf"
+	input:
+		fit = rules.fit_hspf.output.rds,
+		grid = rules.create_grid.output.rds,
+		pf = rules.aggregate_pf.output.tsv,
+		hbs = rules.aggregate_HbS.output.tsv
+	params:
+		script = srcdir( "code/plot_hspf_fit.R" )
+	shell: """
+		Rscript --vanilla {params.script} \
+		--grid {input.grid} \
+		--fit {input.fit} \
 		--output {output.pdf}
 	"""
+
