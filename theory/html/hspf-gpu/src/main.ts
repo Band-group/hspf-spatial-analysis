@@ -1,25 +1,36 @@
+import * as d3 from 'd3';
 import GridData from "./GridData.js" ;
 import Tiff from "./Tiff.js" ;
-import TiffDisplay from "./TiffDisplay.js" ;
 import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
-
-type LatLon = { latitude: number, longitude: number } ;
+import PaletteScale from "./PaletteScale.js"
+import Viridis from "./Viridis.js"
+import MapDisplay from "./MapDisplay.js"
+import Barrier from "./Barrier.js"
+import ComparisonDisplay from "./ComparisonDisplay.js"
+import { PfsaCounts, LatLong } from "./Types.js"
+//import { writeArrayBuffer } from 'geotiff';
+import { writeGeoTiff } from 'geotiff';
+import {writeGeotiffF32} from './writeGeoTiffF32.ts'
 
 class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: Tiff[] ;
-	display: TiffDisplay ;
+	displays: { [key:string]: MapDisplay } ;
+	comparisons: Map< string, ComparisonDisplay > ;
 	data: GridData[] ;
+	counts: Array<PfsaCounts> ;
+	barriers: Array< Barrier > ;
 	outerPadding: number ;
-	canvasses: { [key: string]: HTMLCanvasElement } ;
-	contexts: { [key: string]: GPUCanvasContext } ;
 	m_running: boolean ;
 	m_iteration: number ;
 
-	static async create( map_url: string ) {
-		//let tiff = await Tiff.load( "https://www.chg.ox.ac.uk/~gav/projects/tmp/MEAN.tif" ) ;
+	static async create(
+		map_url: string,
+		counts_url: string,
+		barriers_url: string
+	) {
 		if (!navigator.gpu) {
 			throw new Error("WebGPU not supported on this browser.");
 		}
@@ -37,20 +48,92 @@ class Simulation {
 				elt => Tiff.load( elt )
 			)
 		) ;
+		let counts = await Promise.all(
+			[ counts_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						return {
+							country: d.Country,
+							admin1: d['Admin level 1'],
+							latlong: {
+								latitude: parseFloat(d['Admin level 1 latitude']),
+								longitude: parseFloat(d['Admin level 1 longitude']),
+							},
+							xy: {
+								x: 0,
+								y: 0
+							},
+							pfsa1p: parseInt(d['pfsa1+']),
+							pfsa1m: parseInt(d['pfsa1-']),
+							pfsa1N: parseInt(d['pfsa1+']) + parseInt(d['pfsa1-']),
+							pfsa2p: parseInt(d['pfsa2+']),
+							pfsa2m: parseInt(d['pfsa2-']),
+							pfsa2N: parseInt(d['pfsa2+']) + parseInt(d['pfsa2-']),
+							pfsa3p: parseInt(d['pfsa3+']),
+							pfsa3m: parseInt(d['pfsa3-']),
+							pfsa3N: parseInt(d['pfsa3+']) + parseInt(d['pfsa3-']),
+							pfsa4p: parseInt(d['pfsa4+']),
+							pfsa4m: parseInt(d['pfsa4-']),
+							pfsa4N: parseInt(d['pfsa4+']) + parseInt(d['pfsa4-'])
+						}
+					}
+				)
+			)
+		) ;
+		let barriers = await Promise.all(
+			[ barriers_url ].map(
+				elt => d3.tsv(
+					elt,
+					(d:any) => {
+						return {
+							name: d.name,
+							type: "segment",
+							p0: {
+								latlong: {
+									latitude: parseFloat( d.p0_latitude ),
+									longitude: parseFloat( d.p0_longitude )
+								},
+								xy: {
+									x: 0,
+									y: 0
+								}
+							},
+							p1: {
+								latlong: {
+									latitude: parseFloat( d.p1_latitude ),
+									longitude: parseFloat( d.p1_longitude )
+								},
+								xy: {
+									x: 0,
+									y: 0
+								}
+							}
+						}
+					}
+				)
+			)
+		) ;
 		return new Simulation(
 			device,
-			tiffs
+			tiffs,
+			counts[0],
+			barriers[0]
 		) ;
 	}
 
 	constructor(
 		device: GPUDevice,
-		tiffs: Tiff[]
+		tiffs: Tiff[],
+		counts: Array< PfsaCounts >,
+		barriers: Array< Barrier >
 	) {
 		this.device = device ;
 		this.tiffs = tiffs ;
-		this.display = new TiffDisplay( device ) ;
+		console.log( this.tiffs ) ;
+		console.log( this.tiffs[0].image.getGDALMetadata() ) ;
 		this.data = tiffs.map( elt => new GridData([ elt.height, elt.width ], elt.data )) ;
+		// Replace all NAs in HbS map are replaced with -1.
 		this.data.forEach( function( grid ) {
 			grid.data.forEach( function( value, i ) {
 				if( value < 0 || isNaN( value )) {
@@ -58,102 +141,153 @@ class Simulation {
 				}
 			})
 		}) ;
-		this.outerPadding = 64 ;
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
+		this.counts = counts ;
+		console.log( "COUNTS", this.counts ) ;
 
+		this.barriers = barriers ;
+		this.outerPadding = 64 ;
+
+		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
-		// let self = this ; // unneeded with arrow function, different rules about `this`.
-		// get pixel coords of lat/long, with padding.
-		let toPixelCoords = ( pt: LatLon ) => {
-			let xy = this.tiffs[0].toPixelCoords( pt ) ;
-			xy.x += this.outerPadding ;
-			xy.y += this.outerPadding ;
-			console.log( "toPixelCoords (global)", pt, xy, this.tiffs[0].width, this.tiffs[0].height  ) ;
-			return xy ;
+		this.data.unshift( this.hspf.pfsa ) ;
+
+		// For the scatter plots, we just take high-
+		// as straight line segments from the array below.
+		// TODO: fix to use hexagons
+		for( let i = 0; i < this.counts.length; ++i ) {
+			this.counts[i].xy = this.toPixelCoords( this.counts[i].latlong ) ;
 		}
+		this.counts = this.counts.filter( (elt:PfsaCounts) => {
+			return (
+				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
+				&&
+				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+				&&
+				elt.pfsa1N >= 25
+			) ;
+		})
+		// For a more sophisticated model, we add geographic barriers
+		// as straight line segments from the array below.
 		{
+			for( var i = 0; i < this.barriers.length; ++i ) {
+				this.barriers[i].p0.xy = this.toPixelCoords( this.barriers[i].p0.latlong ) ;
+				this.barriers[i].p1.xy = this.toPixelCoords( this.barriers[i].p1.latlong ) ;
+			}
 			this.hspf.addBarriers(
-				[
+				this.barriers.map( (elt:Barrier) => (
 					{
-						name: "rift valley 1",
-						p1: toPixelCoords({ longitude: 39, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 37, latitude: -7 })
-					},
-					{
-						name: "rift valley 2",
-						p1: toPixelCoords({ longitude: 37, latitude: 6 }),
-						p0: toPixelCoords({ longitude: 35, latitude: -7 })
+						name: elt.name,
+						p0: elt.p0.xy,
+						p1: elt.p1.xy
 					}
-				]
+				))
 			) ;
 		}
-		this.data.unshift( this.hspf.pfsa ) ;
 	
+		this.displays = {} ;
 		const section = document.querySelector("section") ;
-		if( section ) {
-			this.data.forEach( function( datum, index ) {
-				const canvas = document.createElement( 'canvas' ) ;
-				const container = document.createElement( 'div' ) ;
-				container.classList.add('map_container');
-				container.classList.add('c' + (index+1) );
-				canvas.setAttribute( "width", "" + datum.width ) ;
-				canvas.setAttribute( "height", "" + datum.height ) ;
-				container.appendChild( canvas ) ;
-				section.appendChild( container ) ;
-			}) ;
+		if( !section ) {
+			throw Error( "No section found!" ) ;
 		}
-
-		this.canvasses = {
-			'hs': (<HTMLCanvasElement> document.querySelector( '.c2 > canvas' ))!,
-			'pfsa': (<HTMLCanvasElement> document.querySelector( '.c1 > canvas' ))!
-		} ;
-		console.log( "CANVASSES", this.canvasses ) ;
-		//slightly nicer to use another `!` rather than ts-ignore
-		// this.contexts = {
-		// 	'hs': this.canvasses.hs!.getContext( 'webgpu' )!,
-		// 	'pfsa': this.canvasses.pfsa!.getContext( 'webgpu' )!
-		// } ;
-		//...or this (after SIDENOTE)...
-		//<SIDENOTE>:: also took out ! which isn't really doing anything, but sort-of signals there could be something dodgy...
-		//which there could - `{ [key: string]: HTMLCanvasElement }` isn't terribly strict; 
-		//as far as ts is concerned all keys of this.canvasses return HTMLCanvasElement:
-		// const oops = this.canvasses.notACanvas.getContext( 'webgpu' );
-		//                                       ^^ ts doesn't care if we put ! here or not...
-		// ...it thinks everything is ok, and maybe the result could be null...
-		// but what would actually happen is an error calling `getContext` on `undefined`.
-		//Not actually a particular problem here really though, nevermind...
-		//</SIDENOTE>
-		const hs = this.canvasses.hs.getContext( 'webgpu' ) ;
-		const pfsa =  this.canvasses.pfsa.getContext( 'webgpu' ) ;
-		//typescript knows at this point that if either hs or pfsa is null...
-		if (!hs || !pfsa) throw 'failed to create webgpu contexts'
-		//we'd throw an error and not reach this point of execution...
-		//so it narrows the types from `GPUCanvasContext | null` to `GPUCanvasContext`.
-		//So now we're not just telling ts to stop bothering us 
-		//- we're actually checking for the error in a way that is meaningful at runtime
-		//and ts is clever enough to know that we can now be confident our assertions are valid
-
-		//syntax sugar: we can make an object with our variable names as object keys
-		this.contexts = { hs, pfsa } ; 
-
-		this.display.draw( this.data[0], this.contexts.hs ) ;
-		this.display.draw( this.data[1], this.contexts.pfsa ) ;
+		{
+			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
+			{
+				const container = document.createElement( 'div' ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'pf_map' );
+				this.displays.pf = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
+					new PaletteScale(
+						new Viridis( 20 ),
+						0, 1.0,
+						function(v) { return nf.format(v * 100) + '%' ; }
+					),
+					this.device,
+					{ 'contours': true }
+				) ;
+				section.appendChild( container ) ;
+				this.comparisons = new Map() ;
+				let left = 20 ;
+				[
+					['Gambia', 'Senegal', 'Mali' ],
+					[ 'Ghana' ],
+					[ 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo' ],
+					[ 'Tanzania', 'Kenya' ]
+				].forEach(
+					(countries:Array<string>) => {
+						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+						overlay.setAttribute( "class", "comparison_display" ) ;
+						container.appendChild( overlay ) ;
+						this.comparisons.set(
+							countries,
+							new ComparisonDisplay(
+								this.counts.filter( d => countries.includes(d.country) ),
+								overlay,
+								{
+									width: 250,
+									height: 200,
+									margins: {
+										'bottom': 45,
+										'left': 40,
+										'top': 20,
+										'right': 20
+									}
+								},
+								left
+							)
+						) ;
+						left += 270 ;
+					}
+				) ;
+			}
+			{
+				const container = document.createElement( 'div' ) ;
+				container.classList.add( 'map_container' );
+				container.classList.add( 'hs_map' );
+				this.displays.hs = new MapDisplay(
+					container,
+					{ 'width': this.data[0].width, 'height': this.data[0].height },
+					new PaletteScale(
+						new Viridis( 10 ),
+						0, 0.4,
+						function(v) { return nf.format(v * 100) + '%' ; }
+					),
+					this.device,
+					{ 'contours': false }
+				) ;
+				section.appendChild( container ) ;
+			}
+		}
+		this.render() ;
 
 		this.m_running = false ;
 		this.m_iteration = 0 ;
 	}
 
+	// get pixel coords of lat/long.
+	// this is in simulation grid coordinates, i.e. including the padding added to the map.
+	toPixelCoords( pt: LatLong ) {
+		let xy = this.tiffs[0].toPixelCoords( pt ) ;
+		xy.x = Math.round(xy.x) + this.outerPadding ;
+		xy.y = Math.round(xy.y) + this.outerPadding ;
+		return xy ;
+	} ;
+
 	async run() {
-		this.m_running = true ;
+		//this.m_running = true ;
+		this.render() ;
 		this.renderLoop() ;
 	}
 
 	async renderLoop() {
-		while( this.m_running ) {
-			await this.hspf.step() ;
-			this.render() ;
+		while( 1 ) {
+			if( this.m_running ) {
+				await this.hspf.step() ;
+				this.render() ;
+				++this.m_iteration ;
+			}
 			await this.sleep() ;
-			++this.m_iteration ;
 		}
 	}
 
@@ -162,8 +296,11 @@ class Simulation {
 	}
 
 	render() {
-		this.display.draw( this.hspf.pfsa, this.contexts.pfsa ) ;
-		this.display.draw( this.data[1], this.contexts.hs ) ;
+		this.displays.pf.draw( this.hspf.pfsa ) ;
+		this.displays.hs.draw( this.data[1] ) ;
+		for (let comparison of this.comparisons.values()) {
+			comparison.draw( this.data[0] ) ;
+		}
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
@@ -178,23 +315,101 @@ class Simulation {
 		this.hspf.setFitness( values ) ;
 	}
 
+	setFeatures( values: GridData ) {
+		console.log( "setFeatures()", values ) ;
+		this.hspf.setFeatures( values ) ;
+	}
+
 	setSpread( values: GridData ) {
 		this.hspf.setSpread( values ) ;
+	}
+
+	setPlayback( values: GridData ) {
+		console.log( "Set playback to", values.at([0,0]) ) ;
+		this.m_running = ( values.at([0,0]) == 0 ) ? false : true ;
+	}
+
+	async takeSnapshot() {
+		console.log( "Taking snapshot..." ) ;
+		let pfsa = this.hspf.pfsa ;
+		let pad = this.outerPadding ;
+		let padded_dims = pfsa.m_dimensions ;
+		let dims = {
+			width: this.tiffs[0].width,
+			height: this.tiffs[0].height
+		} ;
+		console.log( "DIMS", dims ) ;
+
+		// Create an array containing just the
+		// parts of the map not including the padding
+		let data = new Int32Array( dims.width * dims.height ) ;
+		for( let i = 0; i < dims.height; ++i ) {
+			data.subarray( i*dims.width, (i+1)*dims.width ).set(
+				pfsa.m_data.subarray(
+					(pad+i)*padded_dims[1]+pad,
+					(pad+i)*padded_dims[1]+pad+dims.width
+				).map( elt => ( elt == -1 ? -1 : elt * 255 ))
+			) ;
+		}
+		let metadata = {
+			width: dims.width,
+			height: dims.height,
+			//NoData: "-1",
+			GDAL_NODATA: "-1",
+			SMinSampleValue: [0.0],
+			SMaxSampleValue: [1.0]
+		} ;
+		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
+		console.log( arrayBuffer ) ;
+		const dataView = new DataView(arrayBuffer) ;
+		console.log( "DATAVIEW", dataView ) ;
+		const blob = new Blob([dataView], { type: "image/tiff" } ) ;
+		const downloadUrl = URL.createObjectURL(blob);
+		const a = document.createElement( 'a' );
+		a.href = downloadUrl;
+		a.download = "pfsa.tiff";
+		a.click();
+		URL.revokeObjectURL(downloadUrl);
+		//setTimeout(resolve, 100);
 	}
 }
 
 async function run() {
 	let controls = new SimulationControls( document.getElementsByTagName( 'nav' )[0] ) ;
-	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; })
-	controls.on( 'spread', function(values: GridData) { console.log( "FITNESS", values ) ; })
 
-	// let simulation = await Simulation.create( "https://cors-anywhere.herokuapp.com/https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif" ) ;
-	let simulation = await Simulation.create( "/2024-03-05-MEAN-nobarrier.tif" ) ;
+	// debug
+	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; }) ;
+	controls.on( 'spread', function(values: GridData) { console.log( "SPREAD", values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { console.log( "FEATURES", values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { console.log( "PLAYBACK", values ) ; }) ;
+	controls.on( 'snapshot', function(values: GridData) { console.log( "SNAPSHOT", values.at([0,0]) ) ; }) ;
+
+	let simulation = await Simulation.create(
+		"./2024-03-05-MEAN-nobarrier.tif",
+		"./counts_by_adm1.tsv",
+		"./geographic_barriers.tsv"
+	) ;
+//	let simulation = await Simulation.create(
+//		"https://www.chg.ox.ac.uk/~gav/projects/tmp/2024-03-05-MEAN-nobarrier.tif"
+//	)
 
 	controls.on( 'fitness', function(values: GridData) { simulation.setFitness( values ) ; }) ;
+	controls.on( 'features', function(values: GridData) { simulation.setFeatures( values ) ; }) ;
 	controls.on( 'spread', function(values: GridData) { simulation.setSpread( values ) ; }) ;
+	controls.on( 'playback', function(values: GridData) { simulation.setPlayback( values ) ; }) ;
+	controls.on( 'snapshot', function(values: GridData) {
+		let active = values.at([0,0]) ;
+		if( active ) {
+			simulation.takeSnapshot() ;
+		}
+	}) ;
 
-	console.log( simulation ) ;
+	controls.on( 'features', function(values:GridData) {
+		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.pf.annotate_counts( simulation.counts ) ;
+		simulation.displays.hs.annotate_counts( simulation.counts ) ;
+	}) ;
 	await simulation.run() ;
 }
 

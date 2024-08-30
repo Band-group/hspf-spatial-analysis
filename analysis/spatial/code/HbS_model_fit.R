@@ -1,4 +1,3 @@
-
 #install packages
 source( 'code/Functions.R' )
 install.prerequisites()
@@ -62,14 +61,45 @@ for( i in 1:nrow( HbS.priors )) {
 
     message( "++ Fitting INLA binomial model with these parameters:" )
     print(prior)
-
+    
+    #Prepare domain for mesh (finer mesh in countries with HbS points)
+      xytsf <- sf::st_as_sf(xyt);
+      myarea1 <- world_sf[!(world_sf$NAME %in% c('United States of America', 'Canada','Australia')),]
+      myarea <- st_intersects(myarea1, xytsf, sparse = FALSE)
+      # Select polygons that intersect with any points
+      myarea <- myarea1[apply(myarea, 1, any), ]
     modelfit <- fit_inla_binomial_model(
       xyt,
-      extpoly=as(HbSpredextent,"Spatial"),#here we set mesh based on where we want to predict
+      extpoly=as(myarea,"Spatial"),#here we set mesh based on where we want to predict
       prior,
       verbose = verbose
     )
-
+    if (i == 1) {
+      ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
+      #mesh construction of Pf Model
+      HbSmesh <- makemesh( xyt, as(myarea,"Spatial"), boundary = TRUE )
+      #HbSmesh$n#mesh without external boundary for plotting purpose only (not necessary)
+      #plot mesh
+      if(worldsel==TRUE){
+       myheight=5;mywidth=16
+       } else {
+       myheight=8;mywidth=8
+       }
+       #mycrs <- "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+       HbSpmesh <-  ggplot()+
+       geom_sf(data = world_sf,fill='gray85',col='transparent') +
+       geom_sf(data = myarea,fill='gray45',col='transparent') +
+       inlabru::gg(HbSmesh,edge.color="navy",int.color="navy",
+                alpha=0.3,size=0.01)+
+       geom_sf(data = ocean_sf,fill='white',col='transparent') +
+       geom_sf(data = continents_sf,fill='transparent',col='black',size=0.5)+
+       #coord_sf(crs=mycrs)+
+       coord_sf()+xlab("")+ylab("")+
+       xlim(-180,180)+ylim(-60,85)#+
+       #theme(panel.ontop = TRUE)
+       ggsave(HbSpmesh,file=paste0("output/HbSsensitivity/HbSmesh.pdf"),width = mywidth,height=myheight)
+       ggsave(HbSpmesh,file=paste0("output/HbSsensitivity/HbSmesh.svg"),width = mywidth,height=myheight)
+    }
     posterior.samples = INLA::inla.posterior.sample( nn, modelfit$fit )
 
     predictions = predict_inla_binomial_model(

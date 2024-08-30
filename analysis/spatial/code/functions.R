@@ -20,7 +20,7 @@ install.prerequisites <- function() {
   #basic packages and parallel computing packages (add more if needed)
   list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
                         "RColorBrewer","ggthemes", "ggmap", "dplyr",
-                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics")
+                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics", "lwgeom")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
   lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
@@ -42,23 +42,20 @@ mkdir_recursive = function( path ) {
   dir.create( path, recursive = TRUE, showWarnings = FALSE )
 }
 
-check.excluded <- function( data, continents ) {
-  # This excludes points we potentially want:
-  #extpoly <- myarea[pt,]
-  # This doesn't:
-  extpoly <- continents[data,]
-  
-  #keep data in study area
-  #check points outside land areas
-  excluded <- data[is.na(over(data,geometry(extpoly))), ]
-  included <- data[!is.na(over(data,geometry(extpoly))), ]
-  return( list(
-    included = included,
-    excluded = excluded,
-    extpoly = extpoly
-  ))
-  #  plot(mycheck,col='red',pch='+',cex=3)
-  #  plot(extpoly,add=TRUE)
+check.excluded <- function( data_sf, continents_sf ) {
+  # Perform the spatial join to find points within continents
+  joined <- sf::st_join(data_sf, continents_sf, join = sf::st_intersects )
+  # Separate included and excluded points
+  included <- joined[ !is.na(joined$geometry), ]
+  excluded <- joined[  is.na(joined$geometry), ]
+  return(
+    list(
+      included = included,
+      excluded = excluded,
+      data_sf = data_sf,
+      continents_sf = continents_sf
+    )
+  )
 }
 
 get_prediction_locations = function(
@@ -146,6 +143,7 @@ generate_diagnostic_plot <- function(
   library(ggplot2)
   library(sf)
   library(ggspatial)
+  library(fasterize)
   #predictions on transect across Africa
   # Define the coordinates for the transect (here, a simple straight line)
   # transect_sf <- matrix(c(39.3, -14.3, -11, 25), ncol = 2) %>%
@@ -168,6 +166,8 @@ generate_diagnostic_plot <- function(
   # 
   myraster <- generate_raster_maps(predictions=predictions,saveraster=saveraster,saverastername = saverastername)
   b <- raster::brick(myraster)
+  b <- raster::crop(b, features$spatialdomain)
+  b <- raster::mask(b, features$spatialdomain)
   bmask <- raster::projectRaster(b,popmask,method='bilinear')
   #mask predictions
   bmask <- bmask*popmask
@@ -206,9 +206,9 @@ generate_diagnostic_plot <- function(
   
   in.sample.summary <- (
     xytdf %>% 
-      group_by( type ) %>% 
-      filter( !is.na(mean) & !is.na(n)) %>% 
-      summarise(
+      dplyr::group_by( type ) %>% 
+      dplyr::filter( !is.na(mean) & !is.na(n)) %>% 
+      dplyr::summarise(
         rmse = round( Metrics::rmse( mean,prev ), 4 ),
         mae = round( Metrics::mae( mean, prev ), 4 )
       ) 
@@ -234,8 +234,8 @@ generate_diagnostic_plot <- function(
   
   comparison = tibble::tibble(
     type = "sampling points",
-    ours = (xytdf %>% filter( type == 'ours' ))$mean,
-    piel = (xytdf %>% filter( type == 'piel' ))$mean
+    ours = (xytdf %>% dplyr::filter( type == 'ours' ))$mean,
+    piel = (xytdf %>% dplyr::filter( type == 'piel' ))$mean
   )
   # transect_comparison = tibble(
   #   type = "transect",
@@ -248,14 +248,14 @@ generate_diagnostic_plot <- function(
   grid_xy <- raster::xyFromCell(aggregated_mask,1:ncell(aggregated_mask))
   grid_xy <- grid_xy[!w,]
   colnames(grid_xy) <- c('longitude','latitude')
-  grid_comparison = tibble(
+  grid_comparison = tibble::tibble(
     type = "grid (aggregated)",
     piel = raster::extract(HbSPiel, grid_xy ),
     ours = raster::extract(b[['mean']], grid_xy )
   )
   p3 <- (
     ggplot(
-      data= bind_rows( grid_comparison, comparison ),
+      data= dplyr::bind_rows( grid_comparison, comparison ),
       aes( x = ours, y = piel, shape = type, colour = type )
     ) + 
     #ggplot( data= comparison, aes( x = ours, y = piel ) )+ 
@@ -277,13 +277,13 @@ generate_diagnostic_plot <- function(
 
   p1 <- (
     ggplot()+ # labs(title = "HbS allele frequency data",
-      geom_sf(data = features$spatialdomain, fill='white', size=0.2 ) +
+      geom_sf(data = world_sf, fill='white', size=0.2 ) +
       geom_sf(data = xytc,aes( shape = Dataset, colour = prev_bins ),alpha=0.95 )+
     #  geom_sf(data = transect_pt,colour = "green2",alpha=0.95)+
       scale_color_manual(values = color.scheme$color[-1], labels = color.scheme$name[-1], drop = FALSE )+
-      geom_sf(data = features$spatialdomain, fill='transparent',size=0.5) +
+      geom_sf(data = world_sf, fill='transparent',size=0.5) +
                               coord_sf(crs = mycrs) +
-    theme_few(14) +
+    ggthemes::theme_few(14) +
     theme(legend.box = "vertical",
           legend.direction = "horizontal",
           legend.position = "bottom",
@@ -351,17 +351,16 @@ stackplots <- function(
   #   )
 myhbsr <- mystack[[j]]
 myhbsr <- myhbsr + 0.00001#to avoid break from negative values
-
 p[[j]] <- (
 ggplot()+ 
     ggspatial:: annotation_spatial(features$spatialdomain,fill="white",col='transparent')+
     ggspatial::layer_spatial(myhbsr ,aes(fill= after_stat(band1))) +
     #scico::scale_fill_scico(palette = 'tokyo',breaks = scales::breaks_extended(10),na.value = NA)+   
-    scale_fill_gradientn(colours=ocean.balance(100),breaks = scales::breaks_extended(10),na.value = NA)+  
+    scale_fill_gradientn(colours=pals::ocean.balance(100),breaks = scales::breaks_extended(10),na.value = NA)+  
     ggspatial:: annotation_spatial(features$spatialdomain,fill="transparent",col='grey',size=0.2)+
     #ylim(-60,89)+xlim(-179,179)+
     guides(fill=guide_legend(title="", ncol = 2 ))+
-    coord_sf(crs = mycrs) +
+  #  coord_sf(crs = mycrs) +
     ggthemes::theme_few(14) 
 )
     if (j == names(mystack)[1]) {
@@ -411,38 +410,41 @@ HbSplottheme <- theme(axis.title.x=element_blank(),
 )
 
 #make spatial point from HbSdata
-dfToSpatialPts <- function( HBxy ) {
-  coordinates(HBxy) <- ~longitude+latitude
-  proj4string(HBxy) <- proj4string(africa)
-  return(HBxy)
+dfToSpatialPts <- function( data, projection ) {
+  result = sf::st_as_sf( data, coords = c( "longitude", "latitude" ))
+  sf::st_set_crs( result, projection )
+  return( result )
 }
 
-makemesh <- function(xyt,extpoly,boundary=TRUE){
-  max.edge = diff(range(st_coordinates(st_as_sf(xyt))[,1]))/(3*5)
-                     bound.outer = max.edge*5
-                     my.bdry <-  inla.sp2segment(extpoly)
-                     if (boundary==TRUE){
-                       my.bdry <-  inla.sp2segment(extpoly)
-                       mymesh <- inla.mesh.2d(boundary = my.bdry,
-                                            loc=st_coordinates(st_as_sf(xyt)),
-                                            max.edge = c(1,3)*max.edge,
-                                            offset=c(max.edge, bound.outer),
-                                            cutoff =0.7,
-                                            crs=st_crs(xyt),
-                                            max.n=c(6000, 6000), ## Safeguard against large meshes.
-                                            max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
-                     } else {
-                       mymesh <- inla.mesh.2d(loc=st_coordinates(st_as_sf(xyt)),
-                                              max.edge = c(1,3)*max.edge,
-                                              offset=c(max.edge, bound.outer),
-                                              cutoff =0.7,
-                                              crs=st_crs(xyt),
-                                              max.n=c(6000, 6000), ## Safeguard against large meshes.
-                                              max.n.strict=c(10000, 10000)) ## Don't build a huge mesh!)
-                                              
-                     }
-                     return(mymesh)
-                     }
+makemesh <- function( xyt, extpoly, boundary=TRUE ){
+  max.edge = diff(range(st_coordinates(xyt)[,1]))/(3*5)
+  bound.outer = max.edge*5
+  my.bdry <-  inla.sp2segment(extpoly)
+  if( boundary==TRUE ) {
+    my.bdry$loc <- INLA::inla.mesh.map(my.bdry$loc)
+    mymesh <- INLA::inla.mesh.2d(
+      loc=st_coordinates(xyt), 
+      boundary=my.bdry, 
+      max.edge=c(1,8),
+      offset=c(1,8),
+      cutoff = 1,
+      crs=st_crs(xyt),
+      max.n=c(6000, 6000), ## Safeguard against large meshes.
+      max.n.strict=c(10000, 10000)
+    ) ## Don't build a huge mesh!)
+  } else {
+    mymesh <- inla.mesh.2d(
+      loc=st_coordinates(xyt),
+      max.edge = c(0.5,0.9)*max.edge,
+      offset=c(max.edge, bound.outer),
+      cutoff =0.5,
+      crs=st_crs(xyt),
+      max.n=c(6000, 6000), ## Safeguard against large meshes.
+      max.n.strict=c(10000, 10000)
+    ) ## Don't build a huge mesh!)                     
+  }
+  return(mymesh)
+}
 
 makespde <- function(
     mymesh,
@@ -469,7 +471,7 @@ makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
   )
   if(!is.null(covariate)) {
     effectList[[2]]$covariate = covariate
-  }
+  } 
   print(dim(A))
   print(length(Y))
   stk <- inla.stack(
@@ -482,93 +484,115 @@ makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
 
 makeinlaformula <- function(covariate=NULL){
   if(!is.null(covariate)){
-    myformula <- paste(c("Y ~ -1 + z.intercept + f(z.field, model=spde)", colnames(covariate)),
-            collapse = " + ")
+    myformula0 <- paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
+    myformula <- myformula0
+    for (i in 1:length(colnames(covariate))){
+      classcov <- class(covariate[,i])
+      covname <- ifelse(
+        classcov == "factor",
+        paste0('f(',colnames(covariate)[i],', model = "linear")'),
+        colnames(covariate)[i]
+      )
+      myformula <- paste(myformula, covname,sep = " + ")
+    }
   } else {
     myformula <-paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
   }
   return(formula(myformula))
 }
 
-runinla.binomial <- function(myformula,stk,spde,n,covariate.prec=0.001,intercept.prec=0.0){
+runinla.binomial <- function(
+  myformula,
+  stk,
+  spde,
+  n,
+  covariate.prec = 0.001,
+  intercept.prec = 0.0
+){
 #model fitting
   has_covariates = length(stk$effects$ncol) > 2#spatial and intercept only = 2 column names
-   if(has_covariates==TRUE){
+  if( has_covariates ){
     stopifnot( !is.null(covariate.prec))
     control.fixed = list( prec = covariate.prec, prec.intercept = intercept.prec )
   } else {
-    mycontrol.fixed = list( prec.intercept = intercept.prec )
+    control.fixed = list( prec.intercept = intercept.prec )
   }
   
-    inlafit <-  INLA::inla(myformula, # the formula
-                     #without barrier
-                     data = inla.stack.data(stk, spde = spde), # the data stack
-                     family = "binomial", # which family the data comes from
-                     Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
-                     control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
-                     control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
-                     control.fixed = mycontrol.fixed,
-                     control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
-                     verbose = FALSE) # can include verbose=TRUE to see the log of the model runs
-    #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
-    inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
-    
-    return(inlafit)
+  inlafit <-  INLA::inla(
+    myformula, # the formula
+    #without barrier
+    data = inla.stack.data(stk, spde = spde), # the data stack
+    family = "binomial", # which family the data comes from
+    Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
+    control.predictor = list(A = inla.stack.A(stk), compute = TRUE), # compute gives you the marginals of the linear predictor
+    control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+    control.fixed = control.fixed,
+    control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
+    verbose = FALSE
+  ) # can include verbose=TRUE to see the log of the model runs
+  #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
+  inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
+  
+  return(inlafit)
 }
 
 fit_inla_binomial_model <- function(
     xyt,
     extpoly,
-    priors,
+    prior,
+    covariate = NULL,
     verbose = FALSE
 ) {
   # 1. Mesh building
   mymesh <- makemesh( xyt, extpoly, boundary = TRUE)
-  
+
   # 2. Define RINLA objects
   # spde, iset, A matrix objects
   # message( "++ Fitting spatial model with prior parameters:" )
   # print( HbS.priors[1,] )
-  
-  spde <- makespde( mymesh, prior = priors )
-  
+
+  spde <- makespde( mymesh, prior = prior )
+
   if( verbose ) message( "++ Creating data-to-mesh map..." )
   A = INLA::inla.spde.make.A(
     mesh = mymesh,
-    loc = as.matrix( cbind( xyt@coords[,1], xyt@coords[,2]))
+    loc = as.matrix( sf::st_coordinates( xyt ))
   );
-  if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt@data), dim(A)[1], dim(A)[2] ))
+  if( verbose ) message( sprintf( "++ Dimensions of data and mesh mapping are: %d, and %d x %d.", nrow(xyt), dim(A)[1], dim(A)[2] ))
   if( verbose ) message( "++ Creating SPDE object..." )
-  
-  if ('Pfsanonref' %in% colnames(xyt@data)) {
-  Y = round(xyt@data$Pfsanonref,0)
-  N = round(xyt@data$Pfsanonref+xyt@data$Pfsaref,0)
-    } else {
-      Y = round(xyt@data$S,0)
-      N = round(xyt@data$N,0)
+
+  if ('Pfsanonref' %in% colnames(xyt)) {
+      Y = round( xyt$Pfsanonref, 0 )
+      N = round( xyt$Pfsanonref+xyt$Pfsaref, 0 )
+  } else {
+      Y = round( xyt$S, 0 )
+      N = round( xyt$N, 0 )
   }
   stk <- makeinlastack.binomial(
     Y = Y,
     n = N,
     A = A,
-    spde = spde
+    spde = spde,
+    covariate = covariate
   ) #if covariate [dataframe], add ",covariate=..."
-  #print( summary(stk))
-  
-  myformula <- makeinlaformula() #add covariate [dataframe] argument if you want covariates
+    #print( summary(stk))
+
+  myformula <- makeinlaformula( covariate = covariate ) #add covariate [dataframe] argument if you want covariates
   modelfit <- runinla.binomial(
     myformula,
     stk,
     spde,
     n=N,
-    intercept.prec = priors$intercept.prec,
-    covariate.prec = priors$covariate.prec
+    intercept.prec = prior$intercept.prec,
+    covariate.prec = prior$covariate.prec
   )#by default: [covariate.prec=0.001]; [intercept.prec=0.0]
-  return( list(
-    priors = priors,
-    mesh = mymesh,
-    A = A,
-    fit = modelfit )
+  return(
+    list(
+      prior = prior,
+      mesh = mymesh,
+      A = A,
+      fit = modelfit
+    )
   )
 }
 
@@ -878,16 +902,18 @@ predict_inla_binomial_model <- function(
     posterior.samples,
     mesh,
     prediction_locations,
-    nn # number of posterior samples
+    covariates = NULL
 ) {
+  nn = length(posterior.samples)
   #Mapping between meshes and continuous space
-  A.pred <- INLA::inla.spde.make.A( mesh = mesh, loc = prediction_locations)
+  A.pred <- INLA::inla.spde.make.A( mesh = mesh, loc = prediction_locations )
   #get predictive locations based on covariate
   #select layers from covariates based on the selected model
   mypred <- predict_values(
     nn,
     posterior.samples,
-    A.pred = A.pred
+    A.pred = A.pred,
+    covariates = covariates
   )
   #compute posterior summary for each pixel
   pred_mean <- rowMeans( mypred, na.rm = TRUE )
@@ -913,9 +939,10 @@ predict_values <- function(
     nn,
     posterior.samples,
     A.pred,
-    covariates = NULL # Optional dataframe of covariates
+    covariates = NULL, # Optional dataframe of covariates, numeric columns, nonsingular.
+    link.function = stats::plogis # logistic link by default
 ) {
-  pred <- matrix(NA, nrow = dim(A.pred)[1], ncol = nn)
+  pred <- matrix(NA, nrow = dim(A.pred)[1], ncol = nn )
   
   for (i in 1:nn) {
     field <- posterior.samples[[i]]$latent[grep('z.field', rownames(posterior.samples[[i]]$latent)), ]
@@ -929,7 +956,7 @@ predict_values <- function(
       linpred <- list()
       k <- ncol(covariates)
       for (j in 1:k) {
-        beta[j] <- posterior.samples[[i]]$latent[
+          beta[j] <- posterior.samples[[i]]$latent[
           grep(
             names(covariates)[j],
             rownames(posterior.samples[[i]]$latent)
@@ -940,10 +967,10 @@ predict_values <- function(
       linpred <- Reduce("+", linpred)
       lp <- drop(A.pred %*% field) + intercept + linpred
     }
-    
-    pred[, i] <- stats::plogis(lp)  # for binomial likelihood
+    pred[, i] <- link.function(lp)  # for binomial likelihood
   }
-  
+  # TODO:
+  # add thresholding?
   return(pred)
 }
 
@@ -960,8 +987,8 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
     fig1bpfpt$Pf <- round(fig1bpfpt$`Pfsanonref`/fig1bpfpt$N,2)
   }
   if(is.null(allele)){
-    legendname <- "Pfsa1+ \nprevalence"
-  } else {legendname <-paste0(allele,"+ \nprevalence")
+    legendname <- "Pfsa1+"
+  } else {legendname <-paste0(allele,"+")
   }
   fig1bpfpt$logN <- log(fig1bpfpt$N)
   fig1bpfpt <- st_as_sf(fig1bpfpt)
@@ -995,8 +1022,9 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
           plot.background = element_blank() ,
           #plot.background = element_rect(size=1,linetype="solid",color="black"),
           panel.grid.major = element_blank())#element_line(color=gray(.65),linewidth=0.35))
-    guidei <- guides(fill = guide_legend(title.position = "top",override.aes = list(alpha = 1,size=4)),#ncol = 1,title.position="left"
-           size = guide_legend(title.position = "top",override.aes = list(alpha = 1,color='black')))  #ncol = 1,title.position="left"
+ guidei <- guides(fill = guide_legend(title.position = "top",override.aes = list(alpha = 1,size=4,shape=21)),#ncol = 1,title.position="left"
+                  size = guide_legend(title.position = "top",override.aes = list(alpha = 1)),
+                  shape = guide_legend(title.position = "top",override.aes = list(alpha = 1,size = 2.5)))  #ncol = 1,title.position="left"
  themel <- theme(
           legend.position = "none",
           panel.background = element_blank() ,
@@ -1005,6 +1033,9 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
           panel.grid.major = element_blank())#element_line(color=gray(.65),linewidth=0.35))
     rel.ctri <- borders[fig1bpfpt,]
     pfpti <- fig1bpfpt[borders,]
+  pfsource <- c("MalariaGEN Pf7" = 21, 
+                "Moser et al. MIP typing" = 22,
+                "Verity et al. MIP typing" = 24)  
     #sf::sf_use_s2(FALSE)
     library(ggplot2);library(gridExtra)
     fig1bl <- list()
@@ -1016,26 +1047,38 @@ fig1b.plot <- function(pfpt,border,scicopalette,savepath,allele=NULL,
  
      if (mycont == 'Africa') {myymin <- -35} else { myymin <- st_bbox(myborder)$ymin-0.5}
     fig1bl[[i]] <- ggplot() + #original: ggplot(fig1bpfpt)
-    geom_sf(data = myborder, fill = "gray85", col = 'grey65',linewidth=0.5) + geom_sf(data = rel.ctri, fill = 'white', col =  'gray15',linewidth=0.5) +
-    geom_sf(data = pfpti, aes(size = N, fill = Pf),color= 'grey85',alpha = 0.5, shape = 21) +
+    geom_sf(data = myborder, fill = "gray85", col = 'grey95',linewidth=0.5) + 
+    geom_sf(data = rel.ctri, fill = 'white', col =  'gray15',linewidth=0.5) +
+    geom_sf(data = pfpti, aes(size = N, fill = Pf,shape=source),color= 'black',alpha = 0.5) +
+    scale_shape_manual(values = pfsource, name = paste0(legendname," dataset")) +
     scale_size_continuous(range=c(1,12),breaks = myquant,
                           limits = c(0, max(mys)),
-                          name="Pfsa1+\nsample size") +#,guide=guide_legend(title.position = "left")                     
-    scico::scale_fill_scico(name = legendname,palette = scicopalette)+#,guide = guide_legend(title.position = "left")  
+                          name=paste0(legendname,"\nsample size")) +#,guide=guide_legend(title.position = "left")                     
+    scico::scale_fill_scico(name = paste0(legendname,"\nprevalence"),palette = scicopalette)+#,guide = guide_legend(title.position = "left")  
     coord_sf(xlim=c(st_bbox(myborder)$xmin-0.5, st_bbox(myborder)$xmax+0.5),ylim=c(myymin,st_bbox(myborder)$ymax+0.5),expand=FALSE) + 
     theme_void(14)
-    if (mycont == 'South America') {fig1bl[[i]] <- fig1bl[[i]] + themei + guidei } else {fig1bl[[i]] <- fig1bl[[i]] + themel}
+    if (mycont == 'South America') {
+      figwithlegend <- fig1bl[[i]] + themei + guidei
+      legendfig1b <- ggpubr::get_legend(figwithlegend)  
+      legendfig1b <- ggpubr::as_ggplot(legendfig1b)
+      fig1bl[[i]] <- fig1bl[[i]] + themel
+       } else {
+        fig1bl[[i]] <- fig1bl[[i]] + themel}
     }
    
     fig1b <- gridExtra::grid.arrange(fig1bl[[1]],NULL, fig1bl[[2]],NULL,fig1bl[[3]], nrow = 1,widths = c(1, 0.05, 1,0.05, 1))
+    
   # Save the modified plot
   if(is.null(allele)){
   ggsave(file=paste0(savepath,"/fig1b.pdf"),fig1b, width = 22, height = 7 )
   ggsave(file=paste0(savepath,"/fig1b.svg"),fig1b, width = 22, height = 7)
+  ggsave(file=paste0(savepath,"/legendfig1b.pdf"),legendfig1b, width = 3, height = 8)
+  ggsave(file=paste0(savepath,"/legendfig1b.svg"),legendfig1b, width = 3, height = 8)
   } else {
     ggsave(file=paste0(savepath,"/",allele,"_fig1b.pdf"),fig1b, width = 22, height = 7 )
     ggsave(file=paste0(savepath,"/",allele,"_fig1b.svg"),fig1b, width = 22, height = 7 )
-    
+    ggsave(file=paste0(savepath,"/",allele,"_legendfig1b.pdf"),legendfig1b, width = 3, height = 8)
+    ggsave(file=paste0(savepath,"/",allele,"_legendfig1b.svg"),legendfig1b, width = 3, height = 8)
   }
 #}
 }
@@ -1057,7 +1100,7 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,
     wsf$Prevalence <- wsf$S/wsf$N
     wsf$Samples <- log(wsf$N)
     wsf_af <- wsf[border,]
-    myshape <- c("original" = 21, "extended" = 23)
+    myshape <- c("original" = 21, "extended" = 24)
   
   fig1apfpt <- pfpt 
   fig1apfpt$lon <- fig1apfpt@coords[,1]
@@ -1076,39 +1119,48 @@ fig1.plot <- function(datasource,pfpt,xyt,hbsraster,border,river,lake,
     #mycol <- pals::ocean.balance(length(mybreaks)-1)
     mycol <- greyredyellowpal(2,3,(length(mybreaks)-1-2-3))
     
-    fig1anew <- ggplot()+ 
+    fig1a <- ggplot()+ 
     #replace the line below with the second line below to show all continents (to be tested)
     geom_sf(data=border,fill=mycol[1],col="transparent",linewidth=0.5)+ 
     ggspatial::layer_spatial(hbsclip,aes(fill= after_stat(band1)),alpha=0.75) +
     #scico::scale_fill_scico(palette = 'tokyo',breaks = scales::breaks_extended(10),na.value = NA)+   
     scale_fill_gradientn(colours=c("grey80", "grey20", "red2", "yellow"),
     labels = mylabels, breaks = mybreaks,na.value = NA)+  
-    ggspatial:: annotation_spatial(wsf_af, aes(fill = Prevalence, shape = Dataset),color='grey85', alpha = 0.95) +
+    ggspatial:: annotation_spatial(wsf_af, aes(fill = Prevalence, shape = Dataset),color='grey90', alpha = 0.95) +
     #scale_fill_gradientn(colours=mycol,labels = mylabels, breaks = mybreaks,na.value = NA)+  
     scale_shape_manual(values = myshape, name = "HbS dataset") +
-    ggspatial:: annotation_spatial(border,fill="transparent",col="grey65",linewidth=0.5)+ 
-    geom_sf(data=relevantctry, fill = "transparent", col = 'grey15',linewidth=0.5) +
-     theme_few(12) + 
-      theme(legend.position=c(0.55,0.12),
-            legend.key.width = unit(0.4,'cm'),
-            legend.key.height = unit(0.4,'cm'),
+    ggspatial:: annotation_spatial(border,fill="transparent",col="grey90",linewidth=0.5)+ 
+   # geom_sf(data=relevantctry, fill = "transparent", col = 'grey15',linewidth=0.5) +
+     cowplot::theme_minimal_grid()
+   #save legend separately 
+    fig1awithlegend <- fig1a + 
+    theme(legend.position='bottom',
+            legend.key.width = unit(0.75,'cm'),
+            legend.key.height = unit(0.5,'cm'),
             axis.title=element_blank(),
-            legend.title = element_text(size = 10), 
-            legend.text = element_text(size = 8),
+            legend.title = element_text(size = 12), 
+            legend.text = element_text(size = 9),
             #legend.title =element_blank(),
             legend.margin = unit(0.2, 'cm'),#reduce space between legends (vertical space)
-            legend.direction = "horizontal",
-            plot.title=element_text(hjust=0.5),
-            panel.border = element_blank(),
-            panel.background = element_blank() ,
-            panel.grid.major = element_line(color=gray(.65),linewidth=0.35))+
-              guides(fill=guide_legend(title="Observed and predicted mean HbS prevalence",title.position="top",
-                                  override.aes = list(alpha = 0.85)),
-                     shape=guide_legend(override.aes = list(alpha = 1,size = 3,col='black')))+
-                   coord_sf(crs = mycrs)
-    ggsave(paste0(savepath,"/fig1a.pdf"),fig1anew,width = mywidth,height = myheight)
-    ggsave(paste0(savepath,"/fig1a.svg"),fig1anew,width = mywidth,height = myheight)
-    
+            legend.direction = "horizontal"
+          #  plot.title=element_text(hjust=0.5),
+    )+
+    guides(fill=guide_legend(title="HbS allele frequency",title.position="top",
+            override.aes = list(alpha = 0.85),order=1),
+            shape=guide_legend(override.aes = list(alpha = 1,size = 2.5,col='black',order=2)))
+
+      legendfig1a <- ggpubr::get_legend(fig1awithlegend)  
+      legendfig1a <- ggpubr::as_ggplot(legendfig1a)
+      fig1a <- fig1a + coord_sf(crs = mycrs) +
+      theme(legend.position = "none",plot.background = element_rect(fill = "#BFD5E3"))
+       #panel.grid.major = element_line(color=gray(.65),linewidth=0.35),
+       #panel.border = element_rect(color=gray(.65),linewidth=0.35, fill = NA))
+   
+    ggsave(paste0(savepath,"/fig1a.pdf"),fig1a,width = mywidth,height = myheight)
+    ggsave(paste0(savepath,"/fig1a.svg"),fig1a,width = mywidth,height = myheight)
+    ggsave(file=paste0(savepath,"/legendfig1a.pdf"),legendfig1a, width = 12, height = 6)
+    ggsave(file=paste0(savepath,"/legendfig1a.svg"),legendfig1a, width = 12, height = 6)
+
     #Fig 1b (Pf)
     fig1b.plot(pfpt,border,scicopalette,savepath,allele=NULL,
                myheight=myheight,mywidth=mywidth,myproj=NA)   
@@ -1564,7 +1616,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   
   # Plot for all regions only
   # Create a color palette for different regions
-  mywidth1 <- 5
+  mywidth1 <- 12
   minsamp <- 49
   
   if (mymodname == 'country') {
@@ -1644,6 +1696,7 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
                      "Madagascar", "Mozambique", "Zambia") ~ "East Africa",
     TRUE ~ continent # keep continent unchanged if conditions above not met
     ))
+    ptregion$continent <- as.factor(ptregion$continent)
   #keep only relevant columns for plots (and later spatial aggregation)
   #aggregate by adm1
   
@@ -1655,72 +1708,122 @@ plot.hbs <- function(finaloutput,mymodname,savepath) {
   ctryline <- c('Africa','All','East Africa','West Africa')
   }
 #Here we aggregate points at adm1 level for plotting purposes 
-ptagg <- ptregion %>%
+adm1agg <- ptregion %>%
   dplyr::group_by(name) %>%
   dplyr::summarize(Y = sum(Y,na.rm=TRUE), N = sum(N,na.rm=TRUE),HbS = mean(HbS,na.rm=TRUE),
   continent = tail(sort(continent),1), country = tail(sort(country),1))
-  ptagg$country <- as.factor(ptagg$country)
-  ptagg$continent <- as.factor(ptagg$continent)
-  ptagg$name <- as.factor(ptagg$name)
+  adm1agg$country <- as.factor(adm1agg$country)
+  adm1agg$continent <- as.factor(adm1agg$continent)
+  adm1agg$name <- as.factor(adm1agg$name)
+adm0agg <- ptregion %>%
+  dplyr::group_by(continent) %>%
+  dplyr::summarize(Y = sum(Y,na.rm=TRUE), N = sum(N,na.rm=TRUE),HbS = mean(HbS,na.rm=TRUE),
+  #continent = tail(sort(continent),1))
+  country = tail(sort(country),1))
+  adm0agg$country <- as.factor(adm0agg$country)
+  adm0agg$continent <- as.factor(adm0agg$continent)
 #color scheme for plotting points
 point_region <- c(
-         "Africa" = "#8D021F", #Burgundyred
-         "East Africa" = "orange",
-         "West Africa" = "yellow", 
-         "DRC" = "purple", 
-         "South America" = "navyblue", 
+         "Africa" = "purple", #Burgundyred
+         "East Africa" = "red3",
+         "West Africa" = "royalblue2", 
+         "DRC" = "red2", 
+         "South America" = "yellow", 
          "Asia" = "grey35",     # Dark grey 
          "Oceania" = "green1"    #Burgundyred#8D021F, Orangered: #D9534F
        )
  #color scheme for plotting regression lines      
   region_colors <- c(
-         "Africa" = "#8D021F",   #Yale Blue; Royal Blue: "#4169E1"
+         "Africa" = "purple",   #Yale Blue; Royal Blue: "#4169E1"
          "Asia" = "grey35",      # Dark grey 
-         "South America" = "navyblue", 
+         "South America" = "yellow", 
          "Asia and South America" = "lightblue",
-         "East Africa" = "orange",
-         "West Africa" = "yellow", 
-         "All" = "black"     #Burgundyred#8D021F, Orangered: #D9534F    
+         "East Africa" = "red3",
+         "West Africa" = "royalblue2", 
+         "All" = "grey15"     #Burgundyred#8D021F, Orangered: #D9534F    
        )
+   region_ltype <- c(
+         "Africa" = "dotted",   #Yale Blue; Royal Blue: "#4169E1"
+         "East Africa" = "dashed",
+         "West Africa" = "twodash", 
+         "All" = "solid"     #Burgundyred#8D021F, Orangered: #D9534F    
+       )    
     selregionpred <- regionpred[regionpred$region %in% ctryline,]   
     plot3 <- ggplot(data = selregionpred)+
-    geom_point(data = ptagg[ptagg$N >= minsamp,], aes(x = HbS, y = Y/N, size = N, fill = continent), shape = 21, alpha = 0.75,color='gray15') +
-    scale_fill_manual(values = point_region) +  # Assign fill colors to regions
+    #geom_point(data = adm0agg, aes(x = HbS, y = Y/N, fill = continent), size = 8, shape = 21,alpha = 0.5,color='gray15') +
     #geom_smooth(data = regionpred, aes(x = x, y = y,group=region,linetype=region), se = FALSE, linewidth = 1.3) +
-    geom_line(data = selregionpred,aes(x=x,y=y,group=region,color=region),linewidth=1.5) +
+    geom_line(data = selregionpred,aes(x=x,y=y,group=region,linetype=region),color='black',linewidth=2,alpha=0.9) +
     #geom_ribbon(aes(x=x,y=y,ymin = y_lower, ymax = y_upper, group=region),fill = "grey", alpha = 0.2) +
-    scale_color_manual(values = region_colors)+
-    labs(x = "AS or SS freqency", y = paste0("Observed ", Pfalleles[l], " frequency")) +
+    scale_linetype_manual(values = region_ltype)+
+    geom_point(data = adm1agg[adm1agg$N >= minsamp,], aes(x = HbS, y = Y/N, size = N, fill = continent), shape = 21, alpha = 0.9) +
+    #geom_point(data = adm1agg[adm1agg$N >= minsamp,], aes(x = HbS, y = Y/N, fill = continent), size=2, shape = 21, alpha = 0.5,color='gray15') +
+    scale_fill_manual(values = point_region) +  # Assign fill colors to regions
     # coord_fixed(ratio = 0.35, xlim = c(0, max(regionoutput$HbS, na.rm = TRUE)), ylim = c(0, 1)) +
-    scale_size_continuous(range = c(1, 8),breaks = scales::breaks_pretty(n = 6))+
+    scale_size_continuous(range = c(2, 12),breaks = c(50,500,1000,1500,2000))+
     #scale_linetype_manual(values=region_ltype,guide = "none")+
-            scale_x_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25), labels = c("0%", "5%", "10%", "15%", "20%", "25%"),limits=c(0,0.27)) +
-            scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75,1), labels = c("0%", "25%", "50%", "75%","100%"),limits=c(0,1))
-    #  geom_point(data = ptagg[ptagg$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
+    scale_x_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25), 
+            labels = c("0%", "5%", "10%", "15%", "20%", "25%"),limits=c(0,0.25)) +
+    scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75,1), 
+            labels = c("0%", "25%", "50%", "75%","100%"),limits=c(0,1),
+            position = "right", sec.axis = sec_axis(~., labels = NULL))+
+            #coord_fixed() 
+            theme_minimal()
+    #  geom_point(data = adm1agg[adm1agg$N < 5,], aes(x = HbS, y = Y/N, fill = region), size = 0.25, shape = 21, stroke = 1.1, alpha = 0.5) 
    }
   
  
-  #if (l == length(Pfalleles)) {
+  if (l == length(Pfalleles)) {
     plot3 <- plot3 +
-      theme(legend.position = c(0.65, 0.88), 
-      legend.direction = 'horizontal',
-      legend.title = element_blank(),
-            legend.text = element_text(size=7),legend.spacing.y = unit(-1, "mm"),
-            legend.spacing.x = unit(-0.1, "mm"),
-            legend.margin = unit(-2, 'mm'),#reduce space between legends (vertical space)
-            legend.background = element_rect(fill = "transparent"),
-            text=element_text(size=18))+
-      guides(
-        fill = guide_legend(label.position = "right", nrow=2,order = 1),
-        color = guide_legend(label.position = "right", nrow=1,order = 2),
-        size = guide_legend(label.position = "right", nrow=1,order = 3)) 
+      labs(x = "AS or SS freqency", y = paste0(Pfalleles[l],"+\nfrequency"))+
+      theme(
+      axis.text.y.right = element_text(angle = -90, vjust = 0.5, hjust=0.5,
+      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      axis.ticks.y.right = element_line(linewidth = 0.5),
+      axis.line.x = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+      axis.line.y.right = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+      text=element_text(size=25))
     
-  # } else {
-  #   plot3 <- plot3 + theme(legend.position = "none")
-  # }
+     plot3withlegend <- plot3 +  theme(      
+            legend.position = c(0.5, 0.8), 
+            legend.direction = 'horizontal',
+            legend.title = element_blank(),
+            legend.text = element_text(size=17),
+            legend.spacing.y = unit(-1, "mm"),
+            legend.spacing.x = unit(-0.1, "mm"),
+            legend.key.width = unit(2.5, 'cm')
+          ) + guides(
+        fill = guide_legend(label.position = "right", nrow=2,order = 1,override.aes= list(size=5)),
+        linetype = guide_legend(label.position = "right", nrow=1,order = 2),
+        size = guide_legend(label.position = "right", nrow=1,order = 3))
+      legendplot3 <- ggpubr::get_legend(plot3withlegend)  
+      legendplot3 <- ggpubr::as_ggplot(legendplot3)
+      plot3 <- plot3 + theme(legend.position = "none") 
+   } else {
+     plot3 <- plot3 + 
+     labs(x = NULL, y = paste0(Pfalleles[l],"+\nfrequency"))+
+     theme(
+     panel.background = element_blank(),
+     panel.border = element_blank(),
+     axis.text.y.right = element_text(angle = -90, vjust = 0.5, hjust=0.5,
+     margin = margin(t = 0, r = 20, b = 0, l = 0)),
+     axis.text.x = element_blank(),
+     axis.ticks.x = element_blank(),
+     axis.ticks.y = element_blank(),
+     axis.ticks.y.right = element_line(linewidth = 0.5),
+     axis.line.y.right = element_line(linewidth = 0.5, linetype = "solid",colour = "black"),
+     legend.position = "none",text=element_text(size=25))
+   }
   if (mymodname == 'regional'){mypath <- "output/fig1"} else {mypath <- savepath}
-  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = 5)
-  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = 5)
+  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"), plot = plot3, width = mywidth1, height = mywidth1*1/2)
+  ggsave(filename = paste0(mypath,"/HbSeffect_all",mymodname,"_",Pfalleles[l],".svg"), plot = plot3, width = mywidth1, height = mywidth1*1/2)
+  if (l == length(Pfalleles)) {
+  ggsave(file=paste0(mypath,"/legendHbSeffect_all",mymodname,"_",Pfalleles[l],".pdf"),legendplot3, width = 8, height = 4)
+  ggsave(file=paste0(mypath,"/legendHbSeffect_all",mymodname,"_",Pfalleles[l],".svg"),legendplot3, width = 8, height = 4)
+  }
+  message('++ hbs.plot completed')
 }
 #Pf regression rob
 spatial_model <- function(i,mydf, A, myspde,mymesh,r0,sigma0,mymodname) {
@@ -1838,11 +1941,11 @@ diagnostic_plot_priors <- function(i) {
   predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
   posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
   
-  if(worldsel==FALSE){
+ # if(worldsel==FALSE){
     spatialdomain <- africa_sf
-  } else {
-    spatialdomain <- world_sf
-  }
+  #} else {
+   # spatialdomain <- world_sf
+  #}
   plots = generate_diagnostic_plot(
 	  xyt,
       modelfit,
@@ -1892,4 +1995,182 @@ diagnostic_plot_priors <- function(i) {
   plots$in.sample.summary$waic <- ifelse(plots$in.sample.summary$type == 'piel', NA, modelfit$fit$waic$waic)
 
   return(plots$in.sample.summary)
+}
+
+compute.HbS.prediction.extent <- function(
+	world_sf,
+	map_filename = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+) {
+  HbSpredextent <- raster::raster( map_filename )
+  notpiel <- 0.005
+  HbSpredextent <- HbSpredextent >= notpiel
+  HbSpredextent[HbSpredextent >= notpiel] <- 1
+  HbSpredextent[HbSpredextent < notpiel] <- NA
+  HbSpredextent <- raster::aggregate(HbSpredextent,7)
+  HbSpredextent <- as(HbSpredextent, "SpatialPolygonsDataFrame")
+  HbSpredextent <- sf::st_as_sf(HbSpredextent)
+  HbSpredextent <- sf::st_geometry(HbSpredextent)
+  HbSpredextent <- sf::st_union(HbSpredextent,is_coverage = TRUE)
+  # Make sure that some countries are covered (where we have HbS data)
+  keepcountrynames <- c("Peru","Chile","Brazil","Bolivia","Venezuela","Colombia","Algeria","Ethiopia","Eritrea",
+  "South Africa", "Botzwana","Zimbabwe","United Kingdom","Turkey","Italy","Spain","Portugal","Germany","Thailand",
+  "France","Belgium","Netherlands","Slovakia","Nepal","Myanmar","Malaysia","Japan","India","Laos","Vietnam","Cambodia")
+  keepcountries <- world_sf[world_sf$NAME %in% keepcountrynames, ]
+  keepcountries <- sf::st_geometry(keepcountries)
+  keepcountries <- sf::st_union(keepcountries,is_coverage = TRUE)
+  keepcountries <- sf::st_difference(keepcountries,HbSpredextent)
+  HbSpredextent <- sf::st_union(HbSpredextent,keepcountries,is_coverage = TRUE)
+  HbSpredextent <- sf::st_as_sf(HbSpredextent)
+  HbSpredextent <- sf::st_make_valid(HbSpredextent)
+  HbSpredextent <- sf::st_simplify(HbSpredextent, preserveTopology = TRUE, dTolerance = 0.02)
+  HbSpredextent <- sf::st_make_valid(HbSpredextent)
+  return( HbSpredextent )
+}
+
+# Build matrix of continent covariates
+# Each column is 0's or 1's
+# Each row has at most one 1
+# Europe is the baseline.
+build.continent.covariates <- function( sf, world_sf ) {
+  if( 'CONTINENT' %in% colnames(sf)) {
+    result = sf
+  } else {
+  	result = sf::st_join( sf, world_sf[ c('CONTINENT', 'ADMIN')] )
+  }
+	continents = c( "Europe", "Africa", "Asia", "North America", "South America", "Oceania" )
+	result$CONTINENT = factor( result$CONTINENT, levels = continents )
+	nonmissing_rows = which(!is.na( result$CONTINENT ))
+	missing_rows = which(is.na( result$CONTINENT ))
+	result = as.data.frame(model.matrix( ~ CONTINENT - 1, data = result ))
+	colnames(result) = stringr::str_replace_all( colnames(result), "CONTINENT", "" )
+	colnames(result) = stringr::str_replace_all( colnames(result), "[^[:alnum:]]", "" )
+	result = result[,-1]
+	return( list(
+		values = result,
+		missing_rows = missing_rows,
+		nonmissing_rows = nonmissing_rows
+	))
+}
+
+pf_adm2_agg <- function( pf_data, countries, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Filter the data for the specified country and other countries
+  pf_data_notCountry <- pf_data[!(pf_data$country %in% countries ), ]
+  pf_data_Country <- pf_data[(pf_data$country %in% countries), ]
+ 
+  # Convert the Country data to an sf object
+  pf_data_Country <- pf_data_Country %>%
+    sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326)
+ 
+  # Perform the spatial join with the Country polygons
+  pf_data_Country <- sf::st_join( pf_data_Country, polygons, join = st_intersects, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::group_by(!!polyid, source) %>%
+    dplyr::summarize(dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+ 
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+ 
+  # Merge centroid coordinates with the aggregated data
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+ 
+  # Add / remove variables
+  pf_data_Country <- pf_data_Country %>%
+    dplyr::mutate( site = NA, study = NA, country = NA )
+
+  pf_data_Country$geometry <- NULL
+ 
+  # Reorder columns to match pf_data_notCountry
+  pf_data_Country <- pf_data_Country[,names(pf_data_notCountry)]
+ 
+  # Combine the processed Country data with the non-Country data
+  pf_data <- rbind(pf_data_Country, pf_data_notCountry)
+ 
+  return(pf_data)
+}
+
+aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME_2" ) {
+	result = pf_adm2_agg(
+		data,
+		countries,
+		polygons,
+		polygon_id
+	) %>% filter( !is.na( latitude ))
+	print( result )
+	print( result[ is.na( result$latitude ), ])
+	result_spatial <- sf::st_as_sf( result, coords = c("longitude", "latitude" ), crs = sf::st_crs(polygons) )
+	result_spatial$longitude = sf::st_coordinates(result_spatial)[,1]
+	result_spatial$latitude = sf::st_coordinates(result_spatial)[,2]
+	beehive_aggregated = sf::st_join( polygons, result_spatial )
+	return( beehive_aggregated )
+}
+
+aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+  # Compute centroids of the polygons
+  polygon_centroids <- polygons %>%
+    sf::st_centroid() %>%
+    sf::st_coordinates() %>%
+    as.data.frame() %>%
+    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
+  
+  # Merge centroid coordinates with the aggregated data
+  joined <- joined %>%
+    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
+    dplyr::rename( longitude = X, latitude = Y )
+
+  return(joined)
+}
+
+aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
+  library(dplyr)
+  library(sf)
+
+  #convert polyID vector into symbol
+  polyid = sym( polygon_id_column )
+
+  # Perform the spatial join with the polygons
+  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+ 
+  # Aggregate the data by shapeName and source, summing all numeric variables
+  # Here shapeName is the name used to describe ADM2 regions
+  joined <- (
+    joined
+    %>% dplyr::group_by(!!polyid, source)
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+    %>% ungroup()
+  )
+  joined = joined[,c(polygon_id_column, colnames(data))]
+
+  return(joined)
 }

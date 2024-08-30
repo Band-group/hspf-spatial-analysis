@@ -1,11 +1,12 @@
 import GridData from './GridData.js'
 import betaPDF from "./beta.js" ;
 import * as d3 from 'd3';
-console.log( "D3", d3 ) ;
 
 export default class SimulationControls {
 	elt: HTMLElement ;
+	playbackControl: HTMLDivElement ;
 	fitnessControl: HTMLDivElement ;
+	featuresControl: HTMLDivElement ;
 	spreadControl: HTMLDivElement ;
 	m_callbacks: { [key: string]: Function[] } ;
 
@@ -13,12 +14,17 @@ export default class SimulationControls {
 		this.elt = elt ;
 		this.elt.innerHTML = `
 <div class="controls">
+	<div class="playback">
+	</div>
+	<div class="control fitness">
+	</div>
+	<div class="control features">
+	</div>
 	<div class="control fitness">
 	</div>
 	<div class="control spread">
 	</div>
 </div>` ;
-		this.fitnessControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[0] ;
 
 		let buildTable = function(
 			idtag: string,
@@ -45,6 +51,17 @@ export default class SimulationControls {
 			return table ;
 		}
 
+		this.playbackControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[0] ;
+		this.playbackControl.innerHTML = (
+			'<table class="playback-control">'
+			+ '<tr>'
+			+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
+			+ '<td><button class="transport-control" id="snapshot" state="inactive"></button></td>'
+			+ '</tr>'
+			+ '</table>'
+		) ;
+
+		this.fitnessControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[1] ;
 		this.fitnessControl.innerHTML = '<h2>Fitness</h2>' + buildTable(
 			'fitness',
 			['A', 'S'],
@@ -53,7 +70,7 @@ export default class SimulationControls {
 				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
 				"A:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"A:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"A:++": { value: 0.81, min: 0, max: 1, step: 0.01 },
+				"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
 				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
 				"S:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
 				"S:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
@@ -61,7 +78,13 @@ export default class SimulationControls {
 			}
 		) ;
 
-		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[1] ;
+		this.featuresControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
+		this.featuresControl.innerHTML = (
+			'<h2>Features</h2>'
+			+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
+			+ '<label for="barrier_checkbox">Use barriers?</label>'
+		) ;
+		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[3] ;
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
 			'spread',
 			[ 'value' ],
@@ -69,17 +92,46 @@ export default class SimulationControls {
 			{
 				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
-				'value:concentration':  { value: 9, min: 0.5, max: 30, step: 0.5 },
-				'value:n': { value: 5000, min: 1000, max: 25000, step: 500 }
+				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
+				'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
 			}
 		) ;
 		d3.select( this.spreadControl ).append( 'svg' ) ;
 		this.m_callbacks = {
+			playback: [],
+			snapshot: [],
 			fitness: [],
+			features: [],
 			spread: []
 		} ;
 		let self = this ;
+		let playpause = document.getElementById( "playpause" ) ;
+		let snapshot = document.getElementById( "snapshot" ) ;
+		if( !playpause ) {
+			throw Error( "Unable to create play/pause element" ) ;
+		}
+		playpause.addEventListener(
+			'click',
+			function( _elt ) {
+				let oldstate = playpause.getAttribute( 'state' ) ;
+				oldstate = oldstate ? oldstate : 'paused' ;
+				let newstate = ( oldstate == 'paused' ? 'playing' : 'paused' ) ;
+				playpause.setAttribute( 'state', newstate ) ;
+				snapshot.setAttribute(
+					'state',
+					(newstate == 'playing') ? 'inactive' : 'active'
+				) ;
+				self.trigger( 'playback' ) ;
+			}
+		) ;
+		snapshot.addEventListener(
+			'click',
+			function( _elt ) {
+				self.trigger( 'snapshot' ) ;
+			}
+		) ;
 		this.fitnessControl.addEventListener( 'input', _elt => self.trigger( 'fitness' )) ;
+		this.featuresControl.addEventListener( 'input', _elt => self.trigger( 'features' )) ;
 		this.spreadControl.addEventListener( 'input', _elt => self.trigger( 'spread' )) ;
 		this.on( 'spread', function( values: GridData ) { self.drawSpreadDisplay( values ) ; }) ;
 	}
@@ -97,13 +149,29 @@ export default class SimulationControls {
 	}
 
 	getValues( what: string ): GridData {
-		if( what == 'fitness' ) {
+		if( what == 'playback' ) {
+			return this.getPlayState() ;
+		} else if( what == 'fitness' ) {
 			return this.getFitnessValues() ;
+		} else if( what == 'features' ) {
+			return this.getFeatures() ;
 		} else if( what == 'spread' ) {
 			return this.getSpreadValues() ;
+		} else if( what == 'snapshot' ) {
+			return new GridData([1,1], [
+				(document.getElementById( "snapshot" ).getAttribute( "state" ) == 'active') ? 1 : 0
+			]) ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;
 		}
+	}
+
+	getPlayState(): GridData {
+		let playpause = document.getElementById( "playpause" ) ;
+		let oldstate = playpause!.getAttribute( 'state' ) ;
+		oldstate = oldstate ? oldstate : 'paused' ;
+		const value = ( oldstate == 'paused' ? 0 : 1 ) ;
+		return new GridData( [1,1], [ value ] ) ;
 	}
 
 	getSpreadValues(): GridData {
@@ -152,6 +220,15 @@ export default class SimulationControls {
 			}
 		}) ;
 		return result ;
+	}
+
+	getFeatures(): GridData {
+		let checkbox = <HTMLInputElement> document.querySelector("#barrier_checkbox") ;
+		let value = 0.0 ;
+		if( checkbox ) {
+			value = checkbox.checked ? 1.0 : 0.0 ;
+		}
+		return new GridData( [1,1], [ value ] ) ;
 	}
 
 	drawSpreadDisplay( values: GridData ) {

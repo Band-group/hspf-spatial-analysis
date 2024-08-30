@@ -7,20 +7,6 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
 
-#read HbS data from best model
-bestHbSmodel <- readr::read_csv(file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv")
-bestHbSmodel <- bestHbSmodel$best_model         
- 
-# modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", bestHbSmodel ))
-# predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", bestHbSmodel ))
-#posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", bestHbSmodel ))
-
-
-#load naturalearth boundaries and robin projection
-#load("geodata/naturalearthdata.Rdata")
-#load HbS data
-#load(file=paste0("output/dataprep.Rdata"))
-
 #load Pf data
 pf7path <- "input/hbs-pf.sqlite"
 mydb <- DBI::dbConnect(drv=RSQLite::SQLite(), dbname=pf7path)

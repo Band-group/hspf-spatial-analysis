@@ -1,3 +1,87 @@
+library( argparse )
+
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Make diagnostic plot for one HbS model'
+	)
+	parser$add_argument(
+		"--popmask",
+		type = "character",
+		help = "path to popmask TIFF",
+		default = "geodata/gpw4_2000_lowres.tif"
+	)
+	parser$add_argument(
+		"--HbS",
+		type = "character",
+		help = "path to (cleaned) HbS survery data",
+		default = "input/cleanHbSdata.csv"
+	)
+	parser$add_argument(
+		"--piel",
+		type = "character",
+		help = "path to Piels map, for extent",
+		default = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+	)
+	parser$add_argument(
+		"--fixed_covariates",
+		type = "character",
+		help = "string showing covariates to include as fixed effects.  Only 'continent' supported at the moment.",
+		default = NULL
+	)
+	parser$add_argument(
+		"--country_shapes",
+		type = "character",
+		help = "path to .shp file of country shapes",
+		default = "geodata/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp"
+	)
+	parser$add_argument(
+		"--Prange",
+		type = "numeric",
+		help = "prior Prange param"
+	)
+	parser$add_argument(
+		"--Psigma",
+		type = "numeric",
+		help = "prior Psigma param"
+	)
+	parser$add_argument(
+		"--r0",
+		type = "numeric",
+		help = "prior r0 param",
+		required = TRUE,
+		default = 10
+	)
+	parser$add_argument(
+		"--sigma0",
+		type = "numeric",
+		help = "prior sigma0 param",
+		required = TRUE,
+		default = 0.8
+	)
+	parser$add_argument(
+		"--number_of_posterior_samples",
+		type = "numeric",
+		help = "Number of posterior samples to output.",
+		default = 50
+	)
+	parser$add_argument(
+		"--outdir",
+		type = "character",
+		help = "path to output directory",
+		default = "output/HbSsensitivity/fits",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+print( args )
+
 library( RSQLite )
 library( ggplot2 )
 library( scico )
@@ -5,12 +89,16 @@ library( scales )
 library( fasterize )
 library( DBI )
 library( dplyr)
+library( stringr)
+library( ggpubr)
+library( cowplot)
 source( 'code/Functions.R' )
 source( 'code/Priors.R' )
 
 echo( "++ Welcome to insample_diagnosis.R" )
 echo( "++ Loading packages..." )
 install.prerequisites()
+
 
 mkdir_recursive(
   sprintf( "output/HbSraster" )
@@ -19,11 +107,10 @@ mkdir_recursive(
   sprintf( "output/fig1" )
 )
 
-
-echo( "++ Loading population mask from %s...", "gpw-v4-population-density_2000.tif" )
+echo( "++ Loading population mask from %s...", args$popmask )
 #load data for prediction 
 #load pop raster for popmasking
-popmask <- raster("geodata/gpw4_2000_lowres.tif")
+popmask <- raster( args$popmask )
 # here we can define various thresholds for the mask
 # threshold unit in inhabitants per km2
 popmask[popmask <= 0.1] <- NA #orignal threshold: 0.05
@@ -56,6 +143,10 @@ echo( "++ Loading pf data from %s, by_site table...", "input/hbs-pf.sqlite" )
 db = DBI::dbConnect(DBI::dbDriver( "SQLite" ), "input/hbs-pf.sqlite" )
 pf = DBI::dbGetQuery( db, "SELECT * FROM by_site" )
 DBI::dbDisconnect(db)
+# replace source for better readibility
+pf <- pf %>% mutate(source = str_replace(source, "Verity_et_al_2021", "Verity et al. MIP typing"))
+pf <- pf %>% mutate(source = str_replace(source, "Moser et al 2021", "Moser et al. MIP typing"))
+pf$source <- as.factor(pf$source)
 pf = (
 	pf
 	%>% mutate(
@@ -152,54 +243,58 @@ HbS.priors = priors()
   #ONLY FOR BEST MODEL###########################################################
   #at the end of the procedure makes HbS map for figure 1 based on the best performing model
 
-# library(foreach)
-# library(doParallel)
-# nbcores <- pmin(maxRcores, availableCores(omit = freecores),nrow(HbS.priors)*2)
-# cl <- makeCluster(nbcores)
-# registerDoParallel(cl)
-# list.of.packages <- c("terra", "raster","sf","stats", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
-#                       "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","ggdist","inlabru","mapproj","scico","scales",
-#                       "parallelly","parallel","foreach","dplyr","rbenchmark","gridExtra","tibble","tidyr","elevatr","INLAspacetime","fmesher","fields","readr", "Metrics")
-#all.summary <- foreach(i = 1:nrow(HbS.priors), .packages = list.of.packages,.combine = rbind) %dopar% {
-#  diagnostic_plot_priors(i)
-#}
-# stopCluster(cl)
-# registerDoSEQ() 
-# gc()
-
-all.summary <- foreach(i = 1:nrow(HbS.priors), .packages = list.of.packages,.combine='rbind') %do% {
-  diagnostic_plot_priors(i)
+library(foreach)
+library(doParallel)
+gc()
+nbcores <- pmin(maxRcores, availableCores(omit = freecores),2*nrow(HbS.priors))
+cl <- makeCluster(nbcores)
+registerDoParallel(cl)
+list.of.packages <- c("terra", "raster","sf","stats","pals", "ggspatial","fasterize", "rasterVis","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "readxl","ggplot2",
+                      "RColorBrewer","ggthemes", "ggmap", "rgdal", "rgeos","maptools", "tmap","gtools","purrr","ggdist","inlabru","mapproj","scico","scales",
+                      "parallelly","parallel","foreach","dplyr","rbenchmark","gridExtra","tibble","tidyr","elevatr","INLAspacetime","fmesher","fields","readr", "Metrics")
+exports <- c('cposel', 'r0_manuscript', 'sigma0_manuscript', 'worldsel', 'pf')# 'fig1.plot',
+#maybe these packages are enough, not sure <- c( "dplyr","stats", "ggplot2","sf","ggspatial", "fasterize","raster","terra", "ggthemes","tibble", "Metrics","cowplot","scales","pals")
+all.summary <- foreach(i = 1:nrow(HbS.priors), .packages = list.of.packages, .export=exports,.combine = rbind) %dopar% {
+ source('code/Functions.R')
+ diagnostic_plot_priors(i)
 }
+stopCluster(cl)
+registerDoSEQ() 
+gc()
+# all.summary <- foreach(i = 1:nrow(HbS.priors), .packages = list.of.packages,.combine='rbind') %do% {
+#   diagnostic_plot_priors(i)
+#   if(i == nrow( HbS.priors ))
+#   {
 message("++ Great success! Loop of diagnostic plots computation completed." )
-  # if(i == nrow( HbS.priors ))
-  # {
-   if(cposel == FALSE){
-      in.sample.summary <- all.summary %>% arrange (waic) 
+  if(cposel == FALSE){
+    in.sample.summary <- all.summary %>% arrange (waic) 
     } else {
-      in.sample.summary <- all.summary %>% arrange (cpo)
+    in.sample.summary <- all.summary %>% arrange (cpo)
     }
-  readr::write_csv(
-      (
-        in.sample.summary
-        %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
+readr::write_csv(
+    (
+      in.sample.summary
+      %>% filter( type == 'ours' | name == paste0('fixed-r0=',r0_manuscript,'-sigma0=',sigma0_manuscript))
       ),
       file = "output/HbSsensitivity/diagnostics/metrics.csv"
-    )
-    
-    if (cposel == FALSE) {
-      message("++ Models ordered by waic are:")
-    } else {
-      message("++ Models ordered by cpo are:")
-    }
-    print(
-      (
-        in.sample.summary
-        %>% filter( type == 'ours' | name == 'fixed-r0=2.5-sigma0=0.1' )
-      )
-    )
-  #identify where cpo or waic is lowest
-    best_model <- in.sample.summary[1,]$name#first row is best model cause (increasing by CPO or WAIC)
-    best_id <- in.sample.summary[1,]$priorid
+    )    
+    # if (cposel == FALSE) {
+    #   message("++ Models ordered by waic are:")
+    #   message("++ Models ordered by waic are:")
+    # } else {
+    #   message("++ Models ordered by cpo are:")
+    # }
+    # print(
+    #   (
+    #     in.sample.summary
+    #     %>% filter( type == 'ours' | name == paste0('fixed-r0=',r0_manuscript,'-sigma0=',sigma0_manuscript))
+    #   )
+    # )
+     #identify where cpo or waic is lowest
+    message(paste0('++ Manual selection of HbS map (priors) using fixed-r0=',HbSr0,'-sigma0=',HbSsigma0))
+    sel.sample <-  in.sample.summary %>% filter(type == 'ours' & name == paste0('fixed-r0=',HbSr0,'-sigma0=',HbSsigma0)) 
+    best_model <- sel.sample$name#use sel.sample[1,]$name if selection with best model cause (increasing by CPO or WAIC)
+    best_id <- sel.sample$priorid#use sel.sample[1,]$priorid if selection with best model cause (increasing by CPO or WAIC)
     prior = HbS.priors[best_id,]
     message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))
     modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
@@ -230,8 +325,12 @@ message("++ Great success! Loop of diagnostic plots computation completed." )
     readr::write_csv( ( as.data.frame( best_model ) ),
       file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv"
     )
-
+gc()    
 message("++ Great success! Diagnostic and figure 1 (left panels) plots completed." )
 #save(xyt,A,spde,iset,extpoly,mymesh,file=paste0("output/HbS_Fig1.Rdata"))
 message("End HbS_model_diagnosis.R")
 #END
+
+# stopCluster(cl)
+# registerDoSEQ() 
+# gc()

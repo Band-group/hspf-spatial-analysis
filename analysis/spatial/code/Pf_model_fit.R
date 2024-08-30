@@ -81,8 +81,11 @@ for (l in 1:length(Pfalleles)){
  # proj4string(CP) <- CRS(proj4string(africa))
   
   ggplot2::theme_set(ggthemes::theme_few(base_size = 14, base_family = "serif"))
- 
-  
+  #prepare spatial domain for Pf mesh 
+  myarea1 <- world_sf[!(world_sf$NAME %in% c('United States of America', 'Canada','Australia')),]
+  myarea <- st_intersects(myarea1, wsf, sparse = FALSE)
+  # Select polygons that intersect with any points
+  myarea <- myarea1[apply(myarea, 1, any), ]
   #mesh construction of Pf Model
   pfmesh <- makemesh( wsf, myarea, boundary = TRUE )
   #pfmesh$n#mesh without external boundary for plotting purpose only (not necessary)
