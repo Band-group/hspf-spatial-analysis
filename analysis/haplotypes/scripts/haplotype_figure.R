@@ -129,16 +129,17 @@ args = list(
 	pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen",
 	margin = 20000,
 	min_maf = 0.005,
-	focus_margin = 5000,
 	#focus = "Pf3D7_02_v3:631190",
 	#split = c( 0.5, 1.5 ),
 	#stat.countries = c( "Gambia", "Mali", "Ghana", "Benin", "Democratic_Republic_of_the_Congo", "Cameroon", "Tanzania", "Kenya" ),
+	#focus_margin = 5000,
 	focus = "Pf3D7_02_v3:814288",
 	split = c( 0.25, 1.5 ),
 	stat.countries = c( "Democratic_Republic_of_the_Congo", "Malawi", "Tanzania", "Kenya" ),
-	focus = "Pf3D7_11_v3:1058035",
-	split = c( 0.5, 1.5 ),
-	stat.countries = c( "Gambia", "Mali", "Ghana", "Benin", "Democratic_Republic_of_the_Congo", "Cameroon", "Tanzania", "Kenya" ),
+	focus_margin = 10000,
+#	focus = "Pf3D7_11_v3:1058035",
+#	split = c( 0.5, 1.5 ),
+#	stat.countries = c( "Gambia", "Mali", "Ghana", "Benin", "Democratic_Republic_of_the_Congo", "Cameroon", "Tanzania", "Kenya" ),
 	genes = "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7.gff.gz",
 	gaf = "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
 	beta = "outputs/pf7/betascan/advanced/pf7.betascan.window=5000.p=50.annotated.tsv.gz",
@@ -161,7 +162,6 @@ echo( "++ Loading samples from %s...\n", args$samples )
 samples = read_tsv( args$samples )
 echo( "++ Ok, %d samples loaded.\n", nrow( samples ))
 
-
 echo( "++ focussing on region:\n" )
 print(focus)
 
@@ -182,7 +182,7 @@ H = bgen.load(
 H$variants$name = sprintf( "%s:%d:%s>%s", H$variants$chromosome, H$variants$position, H$variants$allele0, H$variants$allele1 )
 rownames(H$variants) = H$variants$name
 
-# The data is fake diploid (homozygous) so we 
+# The data is haploid, just take the alt / 2nd allele calls 
 HD = H$data[,,2]
 variants = as_tibble(H$variants)
 variants$freq = rowSums( HD, na.rm = T ) / rowSums( !is.na( HD ))
@@ -240,15 +240,14 @@ source("scripts/load.plasmodb.genes.R")
 genes = load.plasmodb.genes( gff = args$genes, gaf = args$gaf )
 genes = genes %>% filter( start <= focus$end & end >= focus$start )
 
+ihs = load.ihs( args$ihs )
+
 beta = readr::read_tsv( args$beta )
 beta = beta[ beta$chromosome == focus$chromosome , ]
-
-ihs = load.ihs( args$ihs )
 
 beta = (
 	beta
 	%>% left_join( ihs[, c( 'country', 'chromosome', 'position', 'iHS' )], by = c( "country", "chromosome", "position" ))
-	%>% mutate( frequency_bin = cut( ))
 )
 
 normalise.by.bin <- function( beta, column, breaks = c( -0.01, seq( from = 0.05, to = 1, by = 0.05 ))) {
@@ -268,7 +267,7 @@ normalise.by.bin <- function( beta, column, breaks = c( -0.01, seq( from = 0.05,
 		list(
 			normalisation = beta_normalised,
 			normalised = (beta[[column]] - beta2$norm_mean)/beta2$norm_sd,
-			frequency_bin = frequency_bin
+			frequency_bin = beta$frequency_bin
 		)
 	)
 }
@@ -285,9 +284,14 @@ source( "balancing/scripts/rank_metrics.R" )
 source( "scripts/plot.genes.R" )
 source( "scripts/haplotype_figure_impl.R" )
 
+gene.region = focus
+gene.region$start = focus$position - 7500
+gene.region$end = focus$position + 4000
+
 figure_3(
 	variants,
 	focus,
+	gene.region,
 	args$split,
 	plot.samples,
 	plot.HD,

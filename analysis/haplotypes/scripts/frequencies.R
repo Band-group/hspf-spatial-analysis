@@ -113,9 +113,9 @@ samples$pfsa2 = data$H[2,]
 samples$pfsa4 = 1 - data$H[3,]
 samples$pfsa3 = data$H[4,]
 
-frequencies = (
+readr::write_tsv(
 	samples
-	%>% group_by( Country )
+	%>% group_by( Country, `Country latitude`, `Country longitude` )
 	%>% summarise(
 		`pfsa1-` = length( which( pfsa1 == 0 )),
 		`pfsa1+` = length( which( pfsa1 == 1 )),
@@ -125,42 +125,38 @@ frequencies = (
 		`pfsa3+` = length( which( pfsa3 == 1 )),
 		`pfsa4-` = length( which( pfsa4 == 0 )),
 		`pfsa4+` = length( which( pfsa4 == 1 ))
-	)
-)
-
-readr::write_tsv( frequencies, "outputs/pf7/pfsa/counts.tsv" )
-
-pdf( file = "tmp/frequencies.pdf", width = 8, height = 8 )
-par( mar = c( 0, 0, 0, 0))
-layout(
-	matrix(
-		c(
-			0, 0, 0,
-			0, 1, 0,
-			0, 2, 0,
-			0, 3, 0,
-			0, 4, 0,
-			0, 5, 0,
-			0, 0, 0
-		),
-		byrow = T,
-		ncol = 3
 	),
-	widths = c( 0.1, 1, 0.1 ),
-	heights = c( 0.1, 1, 1, 1, 1, 1, 0.1 )
+	"outputs/pf7/pfsa/counts_by_country.tsv"
 )
 
-for( col in c( "pfsa1", "pfsa2", "pfsa3", "pfsa4" )) {
-	blank.plot(
-		xlim = c( 0.5, length( levels( samples$Country )) + 0.5 ),
-		ylim = c( 0, 1 )
-	)
-	rect(
-		xleft = as.integer(frequencies$Country) - 0.4,
-		xright = as.integer(frequencies$Country) + 0.4,
-		ybottom = 0,
-		ytop = frequencies[[sprintf( "%s+", col)]] / (frequencies[[sprintf( "%s+", col)]]+frequencies[[sprintf( "%s-", col)]]),
-		col = colours$country[ frequencies$Country ]
-	)
-}
-dev.off()
+readr::write_tsv(
+	samples
+	%>% group_by( Country, `Admin level 1`, `Admin level 1 latitude`, `Admin level 1 longitude` )
+	%>% summarise(
+		`pfsa1-` = length( which( pfsa1 == 0 )),
+		`pfsa1+` = length( which( pfsa1 == 1 )),
+		`pfsa2-` = length( which( pfsa2 == 0 )),
+		`pfsa2+` = length( which( pfsa2 == 1 )),
+		`pfsa3-` = length( which( pfsa3 == 0 )),
+		`pfsa3+` = length( which( pfsa3 == 1 )),
+		`pfsa4-` = length( which( pfsa4 == 0 )),
+		`pfsa4+` = length( which( pfsa4 == 1 ))
+	),
+	"outputs/pf7/pfsa/counts_by_adm1.tsv"
+)
+
+readr::write_tsv(
+	samples
+	%>% group_by( Country, `Admin level 1`, `Admin level 1 latitude`, `Admin level 1 longitude`, Sample )
+	%>% summarise(
+		`pfsa1-` = length( which( pfsa1 == 0 )),
+		`pfsa1+` = length( which( pfsa1 == 1 )),
+		`pfsa2-` = length( which( pfsa2 == 0 )),
+		`pfsa2+` = length( which( pfsa2 == 1 )),
+		`pfsa3-` = length( which( pfsa3 == 0 )),
+		`pfsa3+` = length( which( pfsa3 == 1 )),
+		`pfsa4-` = length( which( pfsa4 == 0 )),
+		`pfsa4+` = length( which( pfsa4 == 1 ))
+	),
+	"outputs/pf7/pfsa/counts_by_sample.tsv"
+)

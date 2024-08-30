@@ -132,6 +132,13 @@ countries = [
 #	"Madagascar
 ]
 
+country_sets = {
+	'east': [ 'Kenya', 'Malawi', 'Tanzania', 'Uganda', 'Mozambique' ],
+	'west': [ 'Gambia', 'Senegal', 'Guinea', 'Mauritania', 'Cote_dIvoire', 'Burkina_Faso', 'Ghana', 'Benin', 'Mali' ],
+	'central_west': [ 'Nigeria', 'Cameroon', 'Gabon', 'Democratic_Republic_of_the_Congo' ],
+	'north_east': [ 'Sudan', 'Ethiopia' ]
+}
+
 wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
 	Ne = '[0-9]+'
@@ -148,7 +155,7 @@ rule all:
 		popsize = expand( "outputs/pf7/relate/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.popsize.pdf", chromosome_or_region = chromosomes, Ne = [ "100000" ]),
 		betascan = expand(
 			"outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz",
-			window = ["5000", "10000" ],
+			window = [ "5000", "10000" ],
 			p = [ "20", "50" ]
 		),
 		selscan = expand(
@@ -165,9 +172,10 @@ rule filter_samples:
 		samples = "%s/data/samples/Pf7_samples.txt" % data['pf7'],
 		fws = "%s/data/samples/Pf7_fws.txt" % data['pf7']
 	params:
-		script = srcdir( "scripts/filter_pf7_samples.R" )
+		script = srcdir( "scripts/filter_pf7_samples.R" ),
+		fws_threshold = 0.9
 	shell: """
-		Rscript --vanilla {params.script} --samples {input.samples} --fws {input.fws} --output {output.samples}
+		Rscript --vanilla {params.script} --samples {input.samples} --fws {input.fws} --fws_threshold {params.fws_threshold} --output {output.samples}
 		tail -n +2 {output.samples} | cut -f1 > {output.list}
 	"""
 
@@ -221,7 +229,7 @@ rule split_vcf:
 	tabix -p vcf {output.multi}
 """
 
-rule remove_rare_alleles:
+rule remove_rare_alleles_from_multis:
 	output:
 		vcf = temp( "outputs/pf7/vcf/03_norare/{chromosome}.norare.vcf.gz" ),
 		tbi = temp( "outputs/pf7/vcf/03_norare/{chromosome}.norare.vcf.gz.tbi" ),
@@ -247,7 +255,7 @@ rule merge_vcf:
 		intermediate = temp("outputs/pf7/vcf/04_merged/tmp/{chromosome}.unordered.vcf.gz"),
 	input:
 		bi = rules.split_vcf.output.bi,
-		multi = rules.remove_rare_alleles.output.bi
+		multi = rules.remove_rare_alleles_from_multis.output.bi
 	params:
 		tmpdir = "outputs/pf7/vcf/04_merged/tmp"
 	shell: """
@@ -819,6 +827,11 @@ rule prepare_to_run_selscan:
 		samples = "outputs/pf7/samples/filtered_samples.sample",
 		cM = "ancestral/pf_simple_genetic_map_0.017Mb_per_cM.txt"
 	params:
+		thefilter = lambda w: (
+			' '.join(
+				[ '-incl-samples-where Country=%s' % country for country in country_sets.get(w.country, [w.country]) ]
+			)
+		),
 		transpose = srcdir( "scripts/transpose_matrix.py" ),
 		sed_cmd = ' '.join(
 			[
@@ -831,7 +844,6 @@ rule prepare_to_run_selscan:
 				]
 			]
 		)
-
 	shell: """
 		set +o pipefail
 		# This horrendous bit of code is to prepare .hap/.map files for selscan.
@@ -842,7 +854,7 @@ rule prepare_to_run_selscan:
 		qctool_v2.2.4 \
 		-g {input.vcf} \
 		-s {input.samples} \
-		-incl-samples-where 'Country="{wildcards.country}"' \
+		{params.thefilter} \
 		-og - | \
 		grep -v '^#' | \
 		cut -f10- | \
@@ -892,12 +904,13 @@ rule run_selscan:
 
 rule combine_selscan:
 	output:
+		tmp = temp( "outputs/pf7/selscan/output/tmp/pf7.selscan.{mode}.tsv" ),
 		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv.gz"
 	input:
 		selscan = expand(
 			rules.run_selscan.output.selscan,
 			chromosome = chromosomes,
-			country = countries,
+			country = countries + list(country_sets.keys()),
 			mode = '{mode}'
 		)
 	params:
@@ -905,12 +918,12 @@ rule combine_selscan:
 			"ihs": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tihh1\\tihh0\\tuIHS\\tihh1_left\\tihh1_right\\tihh0_left\\tihh0_right",
 			"ihh12": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tuiHH12"
 		}[w.mode]),
-		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv"
+		stats = lambda w: ({"ihh12": "uiHH12", "ihs": "uIHS"}[w.mode])
 	run:
-		shell( """echo -e '{params.header}' > {params.tsv}""" )
+		shell( """echo -e '{params.header}' > {output.tmp}""" )
 		for chromosome in chromosomes:
 			for country in countries:
 				print( "Doing country %s, chromosome %s..." % ( country, chromosome ))
 				filename = rules.run_selscan.output.selscan.format( chromosome = chromosome, country = country, mode = wildcards.mode )
-				shell( """cat {filename} | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {params.tsv}""" )
-		shell( """gzip {params.tsv}""" )
+				shell( """cat {filename} | tail -n +2 | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {output.tmp}""" )
+		shell( """Rscript --vanilla balancing/scripts/normalise.R --input {output.tmp} --statistics {params.stats} --frequency frequency --output {output.tsv}""" )

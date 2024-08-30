@@ -37,6 +37,7 @@ plot.hjoiners <- function( as, bs, ys = c( 0, 0.25, 0.5, 0.75, 1 ), ... ) {
 figure_3 <- function(
 	variants,
 	focus,
+	gene.region,
 	split = c( 0.5, 1.5 ),
 	samples,
 	plot.HD,
@@ -234,7 +235,7 @@ figure_3 <- function(
 		#col = c( "grey", "black" )
 	)
 	ld = cor( t( plot.HD[wPlotV,]))
-	wAnnotate = which( ld[ variants$position[wPlotV] == 631190, ] > 0.5 )
+	wAnnotate = which( ld[ variants$position[wPlotV] == focus$position, ] > 0.5 )
 	points(
 		wAnnotate,
 		rep( ncol(plot.HD) + 3, length(wAnnotate)),
@@ -243,11 +244,17 @@ figure_3 <- function(
 		cex = 2,
 		col = 'black'
 	)
+	text(
+		wAnnotate,
+		length(hoplus)+2,
+		format( variants$position[wPlotV[wAnnotate]], big.mark = "," ),
+		srt = -60,
+		adj = c( 1, 0.5 ),
+		cex = 0.5,
+		xpd = NA
+	)
 
 #	blank.plot()
-	gene.region = focus
-	gene.region$start = focus$position - 7500
-	gene.region$end = focus$position + 4000
 	limits = plot.genes( genes, region = gene.region, verbose = TRUE )
 
 	# Variant location segments
@@ -332,7 +339,18 @@ figure_3 <- function(
 		bty = 'n'
 		#col = c( "grey", "black" )
 	)
-
+	wAnnotate = which( ld[ variants$position[wPlotV] == focus$position, ] < -0.5 )
+	if( length(wAnnotate) > 0 ) {
+		text(
+			wAnnotate,
+			-1,
+			format( variants$position[wPlotV[wAnnotate]], big.mark = "," ),
+			srt = 60,
+			adj = c( 1, 0.5 ),
+			cex = 0.5,
+			xpd = NA
+		)
+	}
 	# Plot regional Beta
 	beta.margin = 100000
 	display = list(

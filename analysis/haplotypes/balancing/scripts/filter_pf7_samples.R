@@ -23,6 +23,18 @@ parse_arguments <- function() {
 		default = "../pf7/data/samples/Pf7_fws.txt"
 	)
 	parser$add_argument(
+		"--fws_threshold",
+		type = "double",
+		help = "minimum fws to allow",
+		default = 0.9
+	)
+	parser$add_argument(
+		"--populations",
+		type = "character",
+		nargs = "+",
+		help = "populations to study, e.g. AF-E"
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "path to output file",
@@ -40,16 +52,21 @@ samples = samples %>% inner_join( fws, by = "Sample" )
 echo( "++ Loaded %d samples of which %d have non-missing Fws values.\n", nrow( samples ), length( which( !is.na( samples$Fws ))))
 
 echo( "++ Ok, filtering...\n" )
-filtered1 = (
-	samples
-	%>% filter( Population %in% c( "AF-E", "AF-NE", "AF-W", "AF-C" ))
-)
+
+if( is.null(args$populations)) {
+	filtered1 = samples
+} else {
+	filtered1 = (
+		samples
+		%>% filter( Population %in% c( "AF-E", "AF-NE", "AF-W", "AF-C" ))
+	)
+}
 filtered2 = (
 	filtered1
-	%>% filter( Fws > 0.9 )
+	%>% filter( Fws > args$fws_threshold )
 )
 echo(
-	"++ Ok, %d samples are in African populations, of which %d (%.0f%%) have Fws > 0.9.\n",
+	"++ Ok, %d samples are in chosen populations, of which %d (%.0f%%) have Fws > 0.9.\n",
 	nrow(filtered1),
 	nrow(filtered2),
 	100 * nrow(filtered2) / nrow(filtered1)
