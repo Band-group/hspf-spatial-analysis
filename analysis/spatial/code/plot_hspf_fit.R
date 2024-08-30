@@ -71,7 +71,6 @@ hbsm = as.matrix( hbs[,grep("posterior_sample", colnames(hbs))])
 hbs_mean = rowMeans(hbsm)
 hbs_median = sapply( 1:nrow( hbsm ), function(i) { median(hbsm[i,])})
 
-
 fit$data$hbs_mean = hbs_mean[ match( fit$data$polygon_id, hbs$polygon_id )]
 fit$data$hbs_median = hbs_median[ match( fit$data$polygon_id, hbs$polygon_id )]
 
@@ -106,6 +105,7 @@ plot(
 	cex = sqrt(fit$data$n)/10,
 	pch = 19,
 	xlim = c( 0, 0.3 ),
+	ylim = c( 0, 1.0 ),
 	bty = 'n',
 	xaxt = 'n',
 	yaxt = 'n',
@@ -126,7 +126,8 @@ points(
 polygon(
 	c( curves$x, rev(curves$x)),
 	c( curves$lower_2.5, rev( curves$upper_97.5 )),
-	col = rgb( 0, 0, 0, 0.1 )
+	col = rgb( 0, 0, 0, 0.1 ),
+	border = NA
 )
 
 mean_beta = mean( fit$sampled.parameters$beta )

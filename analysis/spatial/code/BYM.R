@@ -20,6 +20,10 @@ echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
 }
 
+get.name <- function(x) {
+	deparse( substitute( x ))
+}
+
 parse_arguments <- function() {
 	parser = ArgumentParser(
 		description = 'Regress aggregated Pf against aggregated HbS, using a BYM2 or other models.'
@@ -103,7 +107,10 @@ fitbym_to_posterior_samples <- function(
 	grid, hbs, pf,
 	y_name = "Pfsa1_+",
 	n_name = "Pfsa1_N",
+	hbs_columns = "posterior_mean",
 	model = "bym2", # or "iid" or "norandom" or "besag"
+	transform = "identity",
+	link = "logit",
 	# TODO: Priors currently only work with bym2 model, fix this.
 	prior = list(
 	prec = list(
@@ -165,32 +172,33 @@ fitbym_to_posterior_samples <- function(
 	spdep::nb2INLA( tempfile, nb)
 	g <- INLA::inla.read.graph(filename = tempfile )
 
+	transform.fn = get( transform )
 	#formula for BYM model with pc priors (without  F.E., to be updated)
 	if( model == 'norandom' ) {
 		myformula <- (
 			Y ~ -1
 			+ y.intercept
-			+ HbAS_or_SS
+			+ transform.fn(HbAS_or_SS)
 		)
 	} else if( model == 'iid' ) {
 		myformula <- (
 			Y ~ -1
 			+ y.intercept
-			+ HbAS_or_SS
+			+ transform.fn(HbAS_or_SS)
 			+ f( ID, model = "iid" )
 		)
 	} else if( model == 'bym2' ) {
 		myformula <- (
 			Y ~ -1
 			+ y.intercept
-			+ HbAS_or_SS
+			+ transform.fn(HbAS_or_SS)
 			+ f( ID, model = model, graph = g, hyper = prior, scale.model = TRUE, constr = TRUE )
 		)
 	} else if( model == 'besag' ) {
 		myformula <- (
 			Y ~ -1
 			+ y.intercept
-			+ HbAS_or_SS
+			+ transform.fn(HbAS_or_SS)
 			+ f( ID, model = model, graph = g )
 		)
 	} else {
@@ -199,8 +207,10 @@ fitbym_to_posterior_samples <- function(
 
 	fitted.parameters = tibble()
 	sampled.parameters = tibble()
-	# Pray this works
-	for( sample in grep( "posterior_sample", colnames(hbs), value = T )) {
+	summary = tibble()
+
+	# This works. There is no need to pray.
+	for( sample in hbs_columns ) {
 		regression.data <- data.frame(
 			countrydfi,
 			y.intercept = rep(1, length(countrydfi$Y)),
@@ -210,6 +220,7 @@ fitbym_to_posterior_samples <- function(
 		fit <- INLA::inla(
 			myformula,
 			family = "binomial",
+			control.family = list( control.link = list( model = link )),
 			data = regression.data,
 			Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
 			control.predictor = list(compute = TRUE), # compute gives you the marginals of the linear predictor
@@ -222,7 +233,6 @@ fitbym_to_posterior_samples <- function(
 		#summary of results
 		s = summary(fit)
 		print( s )
-
 		# We store BOTH the parameter fits
 		# and also a sample of posterior parameters from the model
 		# for later visualisation
@@ -233,6 +243,18 @@ fitbym_to_posterior_samples <- function(
 				model = model,
 				parameter = c( rownames(s$fixed), rownames(s$hyperpar) ),
 				rbind( s$fixed[,1:6], s$hyperpar[,1:6] )
+			)
+		)
+
+		summary = bind_rows(
+			summary,
+			tibble(
+				hbs.sample = sample,
+				model = model,
+				cpo = -1*mean( log(fit$cpo$cpo+0.1), na.rm = TRUE),
+				waic = fit$waic$waic,
+				marginal_ll_integration = s$mlik[1],
+				marginal_ll_gaussian = s$mlik[2]
 			)
 		)
 
@@ -256,17 +278,23 @@ fitbym_to_posterior_samples <- function(
 				)
 			)
 		)
+		echo( "... ++ Ok, successfully fit model for %s..\n", sample )
 	}
-  return(
-	list(
-		model = model,
-		data = countrydfi,
-		prior = prior,
-		allele = y_name,
-		fitted.parameters = fitted.parameters,
-		sampled.parameters = sampled.parameters
+	# fix parameter name for the transform
+	fitted.parameters$parameter = gsub( "^transform[.]fn[(]", sprintf( "%s(", transform ), fitted.parameters$parameter )
+	return(
+		list(
+			model = model,
+			data = countrydfi,
+			transform = transform,
+			link = link,
+			prior = prior,
+			allele = y_name,
+			fitted.parameters = fitted.parameters,
+			sampled.parameters = sampled.parameters,
+			summary = summary
+		)
 	)
-  )
 }
 
 args = parse_arguments()
@@ -306,12 +334,15 @@ echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
 # country-split grid versions for this.  (But I quite like the overlaps.)
 if( !is.null( args$areas )) {
 	echo( "++ Loading world from %s...\n", args$world )
+	source( "code/functions.R" )
 	world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 
 	echo( "++ focussing on these areas: %s.\n", paste( args$areas, collapse = ", " ))
 	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
 	intersection = sf::st_intersects( grid$grid, focus_area )
 	grid = grid[ which( sapply( intersection, length ) > 0 ), ]
+	echo( "++ Ok, %d grid cells retained:\n", nrow( grid ) )
+	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 
 echo( "++ Finding grid cells within %d km of HbS survey points...\n", args$min_km_to_survey_pt )
@@ -335,7 +366,11 @@ result = fitbym_to_posterior_samples(
 	hbs, pf,
 	y_name = sprintf( "%s_+", args$locus ),
 	n_name = sprintf( "%s_N", args$locus ),
+	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
 	model = args$model,
+	transform = "identity",
+#	transform = "logit",
+	link = "logit",
 	# TODO: Priors currently only work with bym2 model, fix this.
 	prior = list(
 		prec = list(
@@ -355,6 +390,9 @@ echo(
 	nrow( result$fitted.parameters %>% filter( parameter == 'y.intercept' ) ),
 	nrow( result$sampled.parameters )
 )
+
+result$areas = args$areas
+result$min_km_to_survey_pt = args$min_km_to_survey_pt
 
 echo( "++ Writing results to %s...\n", args$output )
 saveRDS( result, args$output )
