@@ -20,19 +20,6 @@ areas = {
 	'global': None
 }
 
-areas = {
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo' ],
-	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-	'maf': [ 'Republic of the Congo', 'Democratic Republic of the Congo', 'Central African Republic', 'Angola', 'Cameroon', 'Gabon' ],
-	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-	'gambia': [ 'Gambia', 'Senegal' ],
-	'ghana': [ 'Ghana' ],
-	'mali': [ 'Mali' ],
-	'tanzania': [ 'United Republic of Tanzania' ],
-	'DRC': [ 'Democratic Republic of the Congo' ],
-	'global': None
-}
-
 # dict_product from StackOverflow:
 # https://stackoverflow.com/questions/5228158/cartesian-product-of-a-dictionary-of-lists/40623158#40623158
 import itertools
@@ -160,7 +147,7 @@ rule aggregate_HbS:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		modeldir = rules.fit_hbs_map.params.outdir,
-		script = srcdir( "code/aggregate_polygons.R" ),
+		script = srcdir( "code/aggregate_pf_over_polygons.R" ),
 		number_of_posterior_samples = 100,
 		samples_per_polygon = 10
 	shell: """
