@@ -14,6 +14,7 @@ areas = {
 	'gambia+senegal': [ 'Gambia', 'Senegal' ],
 	'gambia': [ 'Gambia', 'Senegal' ],
 	'ghana': [ 'Ghana' ],
+	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
 	'mali': [ 'Mali' ],
 	'tanzania': [ 'United Republic of Tanzania' ],
 	'DRC': [ 'Democratic Republic of the Congo' ],
@@ -43,11 +44,13 @@ master_hspf_analyses = list(dict_product(
 		"divide": [ 'none' ],
 		"size": [ '1' ],
 		"locus": [ 'Pfsa1' ],
-		"regression_model": [ 'bym2', 'norandom', 'besag' ],
+		"regression_model": [ 'bym2', 'norandom' ],
 		"min_km_to_survey_pt": [ '100', '200'],
 		"area": areas.keys()
 	}
 ))
+
+localrules: summarise_hspf
 
 rule all:
 	input:
@@ -92,8 +95,12 @@ rule all:
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],
-		hspf_summary = "output/HbSsensitivity/hspf/all_hspf_analyses_summary.tsv"
-
+		hspf_summary = expand(
+			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
+			r0 = [ '10.0' ],
+			sigma0 = [ '1.0' ],
+			covariates = [ 'none' ]
+		)
 rule fit_hbs_map:
 	output:
 		filenames	= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
@@ -147,7 +154,7 @@ rule aggregate_HbS:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		modeldir = rules.fit_hbs_map.params.outdir,
-		script = srcdir( "code/aggregate_pf_over_polygons.R" ),
+		script = srcdir( "code/aggregate_HbS_over_polygons.R" ),
 		number_of_posterior_samples = 100,
 		samples_per_polygon = 10
 	shell: """
@@ -276,15 +283,22 @@ rule plot_hspf:
 
 rule summarise_hspf:
 	output:
-		tsv = "output/HbSsensitivity/hspf/all_hspf_analyses_summary.tsv"
+		tsv = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
 	input:
-		fits = [
+		fits = lambda w: ([
 			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
 			.format(**elt)
-			for elt in master_hspf_analyses
-		]		
+			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['covariates'] == w.covariates) ]
+		])
 	params:
-		script = srcdir( "code/combine_hspf_summaries.R" )
-	shell: """
-		Rscript --vanilla {params.script} --fits {input.fits} --output {output.tsv}
-	"""
+		script = srcdir( "code/summarise_hspf_fits.R" )
+	run:
+		template = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['covariates'] == wildcards.covariates) ]:
+			print(x)
+			area = x['area']
+			shell(
+				"""Rscript --vanilla {params.script} --area {area} --fit '%s' --output {output.tsv}""" % (
+					template.format( **x )
+				)
+			)
