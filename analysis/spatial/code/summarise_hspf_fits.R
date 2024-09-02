@@ -10,10 +10,16 @@ parse_arguments <- function() {
 		description = 'Collate hspf fit output into one file'
 	)
 	parser$add_argument(
-		"--fits",
+		"--fit",
 		type = "character",
 		nargs = "+",
-		help = "Fit objects, from BYM.R, to summarise",
+		help = "Fit object, from BYM.R, to summarise",
+		required = TRUE
+	)
+	parser$add_argument(
+		"--area",
+		type = "character",
+		help = "Are specification",
 		required = TRUE
 	)
 	parser$add_argument(
@@ -27,48 +33,46 @@ parse_arguments <- function() {
 options( width = 300 )
 args = parse_arguments()
 
-echo( "++ Checking %d files exist...\n", length(args$fits))
-for( filename in args$fits ) {
+for( filename in args$fit ) {
 	if( !file.exists( filename )) {
 		stop( "!! File %s not found, quitting.\n", filename )
 	}
 }
 
-echo( "++ Collating data for %s fits..\n", length(args$fits))
 result = tibble()
-for( filename in args$fits ) {
-	echo( "  ... processing %s...\n", filename )
-	fit = readRDS( filename )
-	summary = (
-		fit$sampled.parameters
-		%>% summarise(
-			beta.mean = mean(beta),
-			beta.q2.5 = quantile( beta, 0.025 ),
-			beta.q25 = quantile( beta, 0.25 ),
-			beta.q50 = quantile( beta, 0.5 ),
-			beta.q75 = quantile( beta, 0.75 ),
-			beta.q97.5 = quantile( beta, 0.75 )
-		)
+echo( "  ... processing %s...\n", args$fit )
+fit = readRDS( args$fit )
+summary = (
+	fit$sampled.parameters
+	%>% summarise(
+		beta.mean = mean(beta),
+		beta.q2.5 = quantile( beta, 0.025 ),
+		beta.q25 = quantile( beta, 0.25 ),
+		beta.q50 = quantile( beta, 0.5 ),
+		beta.q75 = quantile( beta, 0.75 ),
+		beta.q97.5 = quantile( beta, 0.75 )
 	)
-	result = bind_rows(
-		result,
-		bind_cols(
-			tibble(
-				allele = fit$allele,
-				model = fit$model,
-				transform = fit$transform,
-				mean_cpo = mean( fit$summary$cpo ),
-				mean_waic = mean( fit$summary$waic ),
-				mean_ll_integrated = mean( fit$marginal_ll_intergrated ),
-				mean_ll_gaussian = mean( fit$marginal_ll_gaussian )
-			),
-			summary
-		)
-	)
-}
+)
+
+result = bind_cols(
+	tibble(
+		allele = fit$allele,
+		area = args$area,
+		countries = paste( fit$areas, collapse = "," ),
+		min_km_to_survey_pt = fit$min_km_to_survey_pt,
+		model = fit$model,
+		transform = fit$transform,
+		n_data_points = nrow( fit$data ),
+		mean_cpo = mean( fit$summary$cpo ),
+		mean_waic = mean( fit$summary$waic ),
+		mean_ll_integrated = mean( fit$marginal_ll_intergrated ),
+		mean_ll_gaussian = mean( fit$marginal_ll_gaussian )
+	),
+	summary
+)
 
 echo( "++ Ok, writing results to %s...\n", args$output )
-readr::write_tsv( result, args$output )
+readr::write_tsv( result, args$output, append = file.exists( args$output ))
 
 echo( "++ Success.\n" )
 echo( "++ Thank you for using summarise_hspf_fits.R!\n" )
