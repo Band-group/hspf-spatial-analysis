@@ -37,8 +37,8 @@ def dict_product(dicts):
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = list(dict_product(
 	{
-		"r0": [ "10.0" ],
-		"sigma0": [ '1.0' ],
+		"r0": [ "10.0", "15.0" ],
+		"sigma0": [ '1.0', '0.8' ],
 		"covariates": [ "none" ],
 		"type": [ 'hexagon' ],
 		"divide": [ 'none' ],
@@ -59,6 +59,13 @@ rule all:
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates
+		),
+		fit_images = expand(
+			"output/HbSsensitivity/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			continent = [ 'global', 'Africa' ]
 		),
 		grids = expand(
 			"output/grids/grid-type={type}-size={size}-division={divide}.rds",
@@ -101,6 +108,7 @@ rule all:
 			sigma0 = [ '1.0' ],
 			covariates = [ 'none' ]
 		)
+
 rule fit_hbs_map:
 	output:
 		filenames	= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
@@ -127,6 +135,18 @@ rule fit_hbs_map:
 	{params.covariates} \
 	--outdir {params.outdir}
 """
+
+rule plot_hbs_fit:
+	output:
+		pdf = "output/HbSsensitivity/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf"
+	input:
+		predictions	= rules.fit_hbs_map.output.predictions,
+		geodata = directory('geodata')
+	params:
+		script = srcdir( 'code/plot_HbS_fit.R' )
+	shell: """
+		Rscript --vanilla {params.script} --geodata {input.geodata} --fit_predictions {input.predictions} --continent {wildcards.continent} --output {output.pdf}
+	"""
 
 rule create_grid:
 	output:
@@ -302,3 +322,15 @@ rule summarise_hspf:
 					template.format( **x )
 				)
 			)
+
+rule aggregate_piel:
+	output:
+		tsv = "output/HbSsensitivity/piel/piel_et_al-grid-type={type}-size={size}-division={divide}.tsv.gz"
+	input:
+		piel = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+	params:
+		script = srcdir( "code/aggregate_raster_over_polygons.R" )
+	shell: """
+	Rscript --vanilla {params.script} --raster {input.piel} --polygons {input.polygons} --output {output.tsv}
+"""
+

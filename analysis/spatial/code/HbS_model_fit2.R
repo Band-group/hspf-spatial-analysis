@@ -85,7 +85,10 @@ print( args )
 
 #install packages
 source( 'code/functions.R' )
-install.prerequisites()
+libraries = c( "INLA", "sf", "geodata", "sn" )
+lapply( libraries, library, character.only = TRUE, quietly = TRUE )
+sf::sf_use_s2(FALSE) 
+#install.prerequisites()
 source( 'code/priors.R' ) # Moved here so there is one definition
 
 ################################################################################
@@ -121,7 +124,7 @@ echo( "++ Computing prediction area..." )
 {
 	prediction_area = load.continent.shapes.terra( args$country_shapes )
 	pred_locs = get_prediction_locations(
-		geodata::elevation_global( res=10, path = args$geodata ),
+		geodata::elevation_global( res = 10, path = args$geodata ),
 		prediction_area,
 		masked_features = list( lakes = lakaf_sf )
 	)
@@ -209,6 +212,7 @@ verbose = TRUE
 	)
 	#add prediction locations, mask etc to the object
 	predictions$prediction_locations <- prediction_locations[ prediction_covariates$nonmissing_rows, ]
+	predictions$mask = pred_locs$mask
 
 	echo( "++ Great success!  Saving data to:" )
 	stub = sprintf( "%s/%s", args$outdir, prior$name )
@@ -223,7 +227,7 @@ verbose = TRUE
 		samples = sprintf( "%s_samples.rds", stub )
 	)
 	mkdir_recursive( args$outdir )
-	filenames_df = tibble( name = names( filenames ), filename = unlist(filenames) )
+	filenames_df = tibble::tibble( name = names( filenames ), filename = unlist(filenames) )
 	print( filenames_df )
 
 	readr::write_tsv( prior, file = filenames$prior )
