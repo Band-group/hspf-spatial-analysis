@@ -122,6 +122,8 @@ if( args$bycountry ) {
 	grid = sf::st_intersection( grid, extents )
 
 	# Add in country variable for centroid.  This turns out slightly tricky but here goes
+	# TODO: use
+	# sf::st_nearest_feature to get nearest to centroid instead.
 	A = sf::st_intersects( grid$centroid, world_sf, sparse = FALSE )
 	# The above returns a true/false matrix.  Convert to a vector for indexing
 	B = sapply( 1:nrow(A), function(i) { w = which( A[i,] == TRUE ); if( length(w) == 1 ) { return(w) } else { return(NA) }} )

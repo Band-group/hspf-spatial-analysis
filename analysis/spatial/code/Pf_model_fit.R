@@ -114,10 +114,10 @@ for (l in 1:length(Pfalleles)){
   #We will estimate effects HBs -> Pf+ by running one Pf+ Model for each HbS sample
   #And extract each predicted HbS cov.coef and model predictions
   #define RINLA objects
-  bestHbSmodel <- readr::read_csv(file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv")
+  bestHbSmodel <- readr::read_csv(file = "output/HbS/diagnostics/nameHbSbestmodel.csv")
   bestHbSmodel <- bestHbSmodel$best_model   
-  modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", bestHbSmodel ))
-  #predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", bestHbSmodel ))
+  modelfit = readRDS( sprintf( "output/HbS/%s-modelfit.rds", bestHbSmodel ))
+  #predictions = readRDS( sprintf( "output/HbS/%s-predictions.rds", bestHbSmodel ))
   mymesh <- modelfit$mesh
   A = inla.spde.make.A(mesh=mymesh, loc=as.matrix(xyt@coords));dim(A)#A matrix
   A.pred <- inla.spde.make.A(mesh=mymesh, loc=pred_locs)

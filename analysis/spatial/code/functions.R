@@ -13,17 +13,15 @@ echo <- function( text, ... ) {
 install.prerequisites <- function() {
   #install packages
   #INLA used to fit Bayesian models
-  list.of.packages <- c("INLA")
-  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-  if(length(new.packages)) install.packages("INLA", repos=c(getOption("repos"), INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)
-  library(INLA)
+  libraries = c( "INLA", "sf", "geodata" )
+  lapply( libraries, library, character.only = TRUE, quietly = TRUE )
   #basic packages and parallel computing packages (add more if needed)
-  list.of.packages <- c("tictoc","parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
-                        "RColorBrewer","ggthemes", "ggmap", "dplyr",
-                        "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics", "lwgeom")
-  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-  if(length(new.packages)) install.packages(new.packages)
-  lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
+#  list.of.packages <- c("tictoc","fmesher", "parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
+ #                       "RColorBrewer","ggthemes", "ggmap", "dplyr",
+ #                       "elevatr","terra","INLAspacetime","fmesher","fields","readr", "Metrics", "lwgeom")
+ # new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+ # if(length(new.packages)) install.packages(new.packages)
+ # lapply(list.of.packages, library, character.only = TRUE, quietly = TRUE )
   sf::sf_use_s2(FALSE) 
 }
 
@@ -64,7 +62,7 @@ get_prediction_locations = function(
     masked_features = list() # e.g. lakes
 ) {
   alt <- raster::raster(alt)
-  alt <- raster::mask(raster::crop(alt,extent(study_area)), study_area)
+  alt <- raster::mask(raster::crop(alt,raster::extent(study_area)), study_area)
   mask <- raster::aggregate(alt, fact=2)#to ease computation we aggregate covariate
   for( i in 1:length(masked_features)) {
     mask <- raster::mask(mask, masked_features[[i]], inverse = T )
@@ -604,6 +602,7 @@ load.continent.shapes <- function( filename, continent = "Africa" ) {
   myarea <- rgeos::gBuffer(myarea, width = 0)
   return( myarea )
 }
+
 load.continent.shapes.terra <- function( filename, continent = NA ) {
   #focus on our study area
   if(!is.na(continent)){
@@ -967,7 +966,7 @@ predict_values <- function(
       linpred <- Reduce("+", linpred)
       lp <- drop(A.pred %*% field) + intercept + linpred
     }
-    pred[, i] <- link.function(lp)  # for binomial likelihood
+    pred[, i] <- link.function(as.numeric(lp))  # for binomial likelihood
   }
   # TODO:
   # add thresholding?
@@ -1937,9 +1936,9 @@ process_country <- function(i,countrydf,mymodname,single=TRUE) {
 diagnostic_plot_priors <- function(i) {
   prior = HbS.priors[i,]
   message( sprintf( "++ Creating diagnostic plot for prior %s...", prior$name ))
-  modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
-  predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
-  posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
+  modelfit = readRDS( sprintf( "output/HbS/%s-modelfit.rds", prior$name ))
+  predictions = readRDS( sprintf( "output/HbS/%s-predictions.rds", prior$name ))
+  posterior.samples = readRDS( sprintf( "output/HbS/%s-samples.rds", prior$name ))
   
  # if(worldsel==FALSE){
     spatialdomain <- africa_sf
@@ -2149,6 +2148,11 @@ aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column
     dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
     dplyr::rename( longitude = X, latitude = Y )
 
+  # The does not always return data in polygon order.  Fix that here:
+  M = match( polygons[[polygon_id_column]], joined[[polygon_id_column]] )
+  stopifnot( length( which( is.na(M))) == 0 )
+  joined = joined[M,]
+
   return(joined)
 }
 
@@ -2173,4 +2177,59 @@ aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
   joined = joined[,c(polygon_id_column, colnames(data))]
 
   return(joined)
+}
+
+country.colours <- function() {
+  	return(
+      c(
+        "Morocco" = "#292933",
+        "Mauritania" = "#090953",
+        "Gambia" = "#0c0c83",
+        'Senegal' = "#2323f6",
+        'Guinea-Bissau' = "#0000CD",
+        'Guinea' = "#0000CD",
+        "Mali" = "#42426F",
+        "Sierra Leone" = "#42628F",
+        "Liberia" = "#42628F",
+        "Burkina_Faso" = "#377EB8",
+        "Burkina Faso" = "#377EB8",
+        "IvoryCoast" = "#2ecdab",
+        "Ivory Coast" = "#2ecdab",
+        "Cote_dIvoire" = "#2ecdab",
+        "Cote d'Ivoire" = "#2ecdab",
+        "Ghana" = "#03B4CC",
+        "Benin" = "#03cc53",
+        "Nigeria" = "#a57d0f",
+        "Niger" = "#c59d0f",
+        "Chad" = "#c57d0f",
+        "Cameroon" = "#E41A1C",
+        "Gabon" = "#E41A1C",
+        "Republic of the Congo" = "#E41A1C",
+        "Democratic_Republic_of_the_Congo" = "#E41A1C",
+        "Democratic Republic of the Congo" = "#E41A1C",
+        "Congo" = "#E41A1C",
+        "Rwanda" = "#E82A1C",
+        "Zambia" = "#A4081C",
+        "Sudan" = "#66e20e",
+        "Uganda" = "#A65628",
+        "Malawi" = "#A65628",
+        "Tanzania" = "#EE5C42",
+        "United Republic of Tanzania" = "#EE5C42",
+        "Mozambique" = "#EE5C42",
+        "Kenya" = "#FF7F00",
+        "Ethiopia" = "#f1ed0c",
+        "Madagascar" = "#c800ff",
+        'Bangladesh' = "#444444",
+        'Myanmar' = "#444444",
+        'Laos' = "#444444",
+        'Thailand' = "#444444",
+        'Cambodia' = "#444444",
+        'Vietnam' = "#444444",
+        'Indonesia' = "#444444",
+        'PNG' = "#444444",
+        'South Africa' = "#23f623",
+        'eSwatini' = "#23f623",
+        "other" = "#AAAAAA"
+      )
+    )
 }

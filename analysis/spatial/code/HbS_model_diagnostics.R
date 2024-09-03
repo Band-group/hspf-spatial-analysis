@@ -72,7 +72,7 @@ parse_arguments <- function() {
 		"--outdir",
 		type = "character",
 		help = "path to output directory",
-		default = "output/HbSsensitivity/fits",
+		default = "output/HbS",
 		required = TRUE
 	)
 	
@@ -175,17 +175,17 @@ color.scheme = tibble(
 )
 #print( color.scheme )
 
-echo( "++ Ok, making diagnostic plots in %s...", "output/HbSsensitivity/diagnostics" )
-dir.create( "output/HbSsensitivity/diagnostics")
+echo( "++ Ok, making diagnostic plots in %s...", "output/HbS/diagnostics" )
+dir.create( "output/HbS/diagnostics")
 HbS.priors = priors()
 #Run in foreach loop to save time
 # in.sample.summary = tibble()
 # for( i in 1:nrow( HbS.priors )) {
 #   prior = HbS.priors[i,]
 #   message( sprintf( "++ Creating diagnostic plot for prior %s...", prior$name ))
-#   modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
-#   predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
-#   posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
+#   modelfit = readRDS( sprintf( "output/HbS/%s-modelfit.rds", prior$name ))
+#   predictions = readRDS( sprintf( "output/HbS/%s-predictions.rds", prior$name ))
+#   posterior.samples = readRDS( sprintf( "output/HbS/%s-samples.rds", prior$name ))
   
 #   if(worldsel==FALSE){
 #     spatialdomain <- africa_sf
@@ -230,7 +230,7 @@ HbS.priors = priors()
 #     + ylab( "Pfsa1+ frequency and 95% CI")
 #     + theme_minimal()
 #   )
-#   stub = sprintf( "output/HbSsensitivity/diagnostics/%s", prior$name )
+#   stub = sprintf( "output/HbS/diagnostics/%s", prior$name )
 #   ggsave( plots$unmasked, file = sprintf( "%s-diagnostics.pdf", stub ), width = 14.5, height = 10 )
 #   ggsave( plots$masked, file = sprintf( "%s-masked-diagnostics.pdf", stub ), width = 14.5, height = 10 )
 #   ggsave( plots$pf, file = sprintf( "%s-pf.pdf", stub ), width = 14.5, height = 10 )
@@ -276,7 +276,7 @@ readr::write_csv(
       in.sample.summary
       %>% filter( type == 'ours' | name == paste0('fixed-r0=',r0_manuscript,'-sigma0=',sigma0_manuscript))
       ),
-      file = "output/HbSsensitivity/diagnostics/metrics.csv"
+      file = "output/HbS/diagnostics/metrics.csv"
     )    
     # if (cposel == FALSE) {
     #   message("++ Models ordered by waic are:")
@@ -297,9 +297,9 @@ readr::write_csv(
     best_id <- sel.sample$priorid#use sel.sample[1,]$priorid if selection with best model cause (increasing by CPO or WAIC)
     prior = HbS.priors[best_id,]
     message( sprintf( "++ Creating figure 1 plot based on model with prior %s...", prior$name ))
-    modelfit = readRDS( sprintf( "output/HbSsensitivity/fits/%s-modelfit.rds", prior$name ))
-    predictions = readRDS( sprintf( "output/HbSsensitivity/fits/%s-predictions.rds", prior$name ))
-    posterior.samples = readRDS( sprintf( "output/HbSsensitivity/fits/%s-samples.rds", prior$name ))
+    modelfit = readRDS( sprintf( "output/HbS/%s-modelfit.rds", prior$name ))
+    predictions = readRDS( sprintf( "output/HbS/%s-predictions.rds", prior$name ))
+    posterior.samples = readRDS( sprintf( "output/HbS/%s-samples.rds", prior$name ))
     
     #save HbS raster maps based on best model
     myraster <- generate_raster_maps( predictions,saveraster=TRUE,saverastername = 'HbS',savepath='output/HbSraster/')
@@ -323,7 +323,7 @@ readr::write_csv(
                           #originally: hbsraster=plots$masked
     #save best model name
     readr::write_csv( ( as.data.frame( best_model ) ),
-      file = "output/HbSsensitivity/diagnostics/nameHbSbestmodel.csv"
+      file = "output/HbS/diagnostics/nameHbSbestmodel.csv"
     )
 gc()    
 message("++ Great success! Diagnostic and figure 1 (left panels) plots completed." )

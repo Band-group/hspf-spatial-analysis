@@ -11,10 +11,10 @@ source( 'code/Priors.R' ) # Moved here so there is one definition
 HbS.priors = priors()
 print( HbS.priors )
 
-mkdir_recursive( "output/HbSsensitivity/fits" )
+mkdir_recursive( "output/HbS" )
 
-echo( "++ Writing priors to %s...", "output/HbSsensitivity/fits/priors.csv" )
-readr::write_csv( HbS.priors, "output/HbSsensitivity/fits/priors.csv" )
+echo( "++ Writing priors to %s...", "output/HbS/priors.csv" )
+readr::write_csv( HbS.priors, "output/HbS/priors.csv" )
 
 ############################################################xyt####################
 #get covariate data to identify lat/lon of pixel we want to make predictions in
@@ -50,7 +50,7 @@ xyt <- pt[as(HbSpredextent,"Spatial"), ]
 verbose = TRUE
 for( i in 1:nrow( HbS.priors )) {
   prior = HbS.priors[i,]
-  stub = sprintf( "output/HbSsensitivity/fits/%s", prior$name )
+  stub = sprintf( "output/HbS/%s", prior$name )
   model.filename = sprintf( "%s-modelfit.rds", stub )
   # if this option runs, the fitting process will not erase previous saving
   # if( file.exists( model.filename )) {

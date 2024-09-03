@@ -1,11 +1,11 @@
 ranges = [
-	'5.0', '10.0', '15.0'
+	'10.0', '15.0'
 ]
 sigmas = [
 	'0.6', '0.8', '1.0'
 ]
 covariates = [ 'none', 'continent' ]
-cellsizes = [ '0.75', '1', '1.25', '2' ]
+cellsizes = [ '1', '2' ]
 
 areas = {
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo' ],
@@ -55,17 +55,26 @@ localrules: summarise_hspf
 rule all:
 	input:
 		fits = expand(
-			"output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
+			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates
 		),
 		fit_images = expand(
-			"output/HbSsensitivity/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf",
+			"output/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
 			continent = [ 'global', 'Africa' ]
+		),
+		fit_vs_piel_images = expand(
+			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			type = [ 'hexagon', 'square' ],
+			divide = [ 'none', 'bycountry' ],
+			size = cellsizes
 		),
 		grids = expand(
 			"output/grids/grid-type={type}-size={size}-division={divide}.rds",
@@ -74,7 +83,7 @@ rule all:
 			divide = [ 'none', 'bycountry' ]
 		),
 		aggregations = expand(
-			"output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
+			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -83,13 +92,13 @@ rule all:
 			size = cellsizes
 		),
 		pf_aggregations = expand(
-			"output/HbSsensitivity/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
+			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
 			type = [ 'hexagon', 'square' ],
 			divide = [ 'none', 'bycountry' ],
 			size = cellsizes
 		),
 #		plots = expand(
-#			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+#			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
 #			r0 = ranges,
 #			sigma0 = sigmas,
 #			covariates = covariates,
@@ -98,12 +107,12 @@ rule all:
 #			size = cellsizes
 #		),
 		hspf_plots = [
-			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf"
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],
 		hspf_summary = expand(
-			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
 			r0 = [ '10.0' ],
 			sigma0 = [ '1.0' ],
 			covariates = [ 'none' ]
@@ -111,19 +120,19 @@ rule all:
 
 rule fit_hbs_map:
 	output:
-		filenames	= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
-		prior		= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_prior.tsv",
-		xyt			= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_xyt.rds",
-		fit 		= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_modelfit.rds",
-		predictions	= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_predictions.rds",
-		samples		= "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_samples.rds"
+		filenames	= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/catalogue.tsv",
+		prior		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_prior.tsv",
+		xyt			= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_xyt.rds",
+		fit 		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_modelfit.rds",
+		predictions	= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_predictions.rds",
+		samples		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_samples.rds"
 	input:
 		hbs = "input/cleanHbSdata.csv",
 		piel = 'geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif',
 		geodata = directory('geodata')
 	params:
 		script = "code/HbS_model_fit2.R",
-		outdir = "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit",
+		outdir = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit",
 		covariates = lambda wildcards: ( '--fixed_covariates %s' % wildcards.covariates if wildcards.covariates != 'none' else '' )
 	shell: """
 	Rscript --vanilla {params.script} \
@@ -138,7 +147,7 @@ rule fit_hbs_map:
 
 rule plot_hbs_fit:
 	output:
-		pdf = "output/HbSsensitivity/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf"
+		pdf = "output/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf"
 	input:
 		predictions	= rules.fit_hbs_map.output.predictions,
 		geodata = directory('geodata')
@@ -167,7 +176,7 @@ rule create_grid:
 
 rule aggregate_HbS:
 	output:
-		tsv = "output/HbSsensitivity/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
+		tsv = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
 	input:
 		polygons = rules.create_grid.output.rds,
 		model = rules.fit_hbs_map.output.fit,
@@ -187,9 +196,36 @@ rule aggregate_HbS:
 			--output {output.tsv}
 	"""
 
+
+rule aggregate_piel:
+	output:
+		tsv = "output/piel/piel_et_al-grid-type={type}-size={size}-division={divide}.tsv.gz"
+	input:
+		piel = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif",
+		polygons = rules.create_grid.output.rds
+	params:
+		script = srcdir( "code/aggregate_raster_over_polygons.R" )
+	shell: """
+	Rscript --vanilla {params.script} --raster {input.piel} --polygons {input.polygons} --output {output.tsv}
+"""
+
+rule plot_HbS_vs_piel:
+	output:
+		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf",
+		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.tsv.gz"
+	input:
+		HbS = rules.aggregate_HbS.output.tsv,
+		piel = rules.aggregate_piel.output.tsv,
+		grid = rules.create_grid.output.rds
+	params:
+		script = srcdir( "code/plot_HbS_vs_piel_grid.R" )
+	shell: """
+	Rscript --vanilla {params.script} --grid {input.grid} --HbS_aggregated {input.HbS} --piel_aggregated {input.piel} --output_pdf {output.pdf} --output_tsv {output.tsv}
+	"""
+
 rule aggregate_pf:
 	output:
-		tsv = "output/HbSsensitivity/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
+		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
 	input:
 		pf = "input/hbs-pf.sqlite",
 		polygons = rules.create_grid.output.rds,
@@ -206,7 +242,7 @@ rule aggregate_pf:
 
 #rule plot_hspf:
 #	output:
-#		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
+#		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
 #	input:
 #		grid = rules.create_grid.output.rds,
 #		pf = rules.aggregate_pf.output.tsv,
@@ -227,7 +263,7 @@ rule aggregate_pf:
 
 rule fit_hspf:
 	output:
-		rds = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km.rds"
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km.rds"
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -254,7 +290,7 @@ def get_area_args( areas, name ):
 
 rule fit_hspf_in_areas:
 	output:
-		rds = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -277,8 +313,8 @@ rule fit_hspf_in_areas:
 
 rule plot_hspf:
 	output:
-		pdf = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf",
-		areas = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.areas.pdf"
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf",
+		areas = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.areas.pdf"
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds,
 		grid = rules.create_grid.output.rds,
@@ -303,17 +339,17 @@ rule plot_hspf:
 
 rule summarise_hspf:
 	output:
-		tsv = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
+		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
 	input:
 		fits = lambda w: ([
-			"output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
 			.format(**elt)
 			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['covariates'] == w.covariates) ]
 		])
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	run:
-		template = "output/HbSsensitivity/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
 		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['covariates'] == wildcards.covariates) ]:
 			print(x)
 			area = x['area']
@@ -322,15 +358,4 @@ rule summarise_hspf:
 					template.format( **x )
 				)
 			)
-
-rule aggregate_piel:
-	output:
-		tsv = "output/HbSsensitivity/piel/piel_et_al-grid-type={type}-size={size}-division={divide}.tsv.gz"
-	input:
-		piel = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
-	params:
-		script = srcdir( "code/aggregate_raster_over_polygons.R" )
-	shell: """
-	Rscript --vanilla {params.script} --raster {input.piel} --polygons {input.polygons} --output {output.tsv}
-"""
 

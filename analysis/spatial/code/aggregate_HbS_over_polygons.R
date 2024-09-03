@@ -41,7 +41,6 @@ parse_arguments <- function() {
 		"--output",
 		type = "character",
 		help = "path to output directory",
-		default = "output/HbSsensitivity/grid_aggregated/",
 		required = TRUE
 	)
 	

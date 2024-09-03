@@ -26,24 +26,24 @@ parse_arguments <- function() {
 		"--HbS_aggregated",
 		type = "character",
 		help = "path to per-polygon aggregated HbS data",
-		default = "output/HbSsensitivity/fixed-r0=10.0-sigma0=0.8-fc=none/aggregated/[grid].tsv"
+		required = TRUE
 	)
 	parser$add_argument(
 		"--piel_aggregated",
 		type = "character",
 		help = "path to per-polygon aggregated HbS data",
-		default = "output/HbSsensitivity/piel/piel_et_al-[grid].tsv"
+		default = "output/piel/piel_et_al-[grid].tsv"
 	)
 	parser$add_argument(
-		"--continent",
-		type = "character",
-		help = "If specified, restrict to these continents",
-		default = "global"
-	)
-	parser$add_argument(
-		"--output",
+		"--output_pdf",
 		type = "character",
 		help = "Output pdf filename.",
+		required = TRUE
+	)
+	parser$add_argument(
+		"--output_tsv",
+		type = "character",
+		help = "Output tsv filename.",
 		required = TRUE
 	)
 	return( parser$parse_args() )
@@ -57,11 +57,12 @@ library( sf ); sf::sf_use_s2(FALSE)
 library( dplyr )
 library( cowplot )
 
+
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 piel_aggregated = stringr::str_replace( args$piel_aggregated, stringr::fixed('[grid]'), grid_name )
 HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
 
-echo( "++ Loading pf aggregated data from %s\n", piel_aggregated )
+echo( "++ Loading piel et al data from %s\n", piel_aggregated )
 piel = readr::read_tsv( piel_aggregated )
 echo( "++ ...ok, %d points loaded.\n", nrow( piel ))
 
@@ -77,19 +78,39 @@ stopifnot( nrow(piel) == nrow(grid))
 stopifnot( length( which( piel$polygon_id != grid$polygon_id )) == 0 )
 stopifnot( length( which( hbs$polygon_id != grid$polygon_id )) == 0 )
 
-
 grid$hbs_fit = rowMeans( as.matrix( hbs[, grep( "posterior_sample", colnames(hbs) )]))
 grid$piel_et_al = piel$value
+palette = country.colours()
+echo( "++ Using palette:" )
+print( palette) 
+grid$country = factor( grid$SOVEREIGNT, levels = names( palette ))
+grid$country[is.na(grid$country)] = "other"
 
-echo( "++ Plotting...\n" )
+echo( "++ Countries are:")
+print( table( grid$country ))
+
+grid = grid[ sample( 1:nrow( grid )), ]
+
+echo( "++ Plotting to %s...\n", args$output_pdf )
 p = (
 	ggplot( data = grid )
-	+ geom_point( aes( x = piel_et_al, y = hbs_fit ))
+	+ geom_point( aes( x = piel_et_al, y = hbs_fit, fill = country ), shape = 21 )
 	+ facet_wrap( ~CONTINENT )
 	+ theme_minimal(16)
+	+ scale_colour_manual( values = palette, name = "Country" )
+	+ geom_abline( intercept = 0, slope = 1, linetype = 2 )
+	+ xlim( 0, 0.25 )
+	+ ylim( 0, 0.25 )
 )
+ggsave( p, file = args$output_pdf, width = 16, height = 8 )
 
-echo( "++ Ok, saving to %s...\n", args$output )
-ggsave( p, file = args$output )
+echo( "++ Saving data to %s...\n", args$output_tsv )
+A = grid
+A$centroid = NULL
+A$grid = NULL
+A = tibble::as_tibble(A)
+A = A %>% dplyr::arrange( desc( abs( piel_et_al - hbs_fit )))
+readr::write_tsv( A, args$output_tsv )
 
 echo( "++ Thanks for using plot_HbS_vs_piel_grid.R\n" )
+
