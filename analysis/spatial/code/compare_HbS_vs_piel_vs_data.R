@@ -5,7 +5,6 @@ echo <- function( message, ... ) {
 }
 
 options(width=300)
-missing = NA
 parse_arguments <- function() {
 	parser = ArgumentParser(
 		description = 'Fit one globla HbS model and output N posterior samples'
@@ -43,7 +42,7 @@ parse_arguments <- function() {
 	parser$add_argument(
 		"--output",
 		type = "character",
-		help = "Output pdf filename.",
+		help = "Output tsv filename.",
 		required = TRUE
 	)
 	return( parser$parse_args() )
@@ -58,47 +57,58 @@ library( dplyr )
 library( cowplot )
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-piel_aggregated = stringr::str_replace( args$piel_aggregated, stringr::fixed('[grid]'), grid_name )
-HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
-
-echo( "++ Loading piel et al data from %s\n", piel_aggregated )
-piel = readr::read_tsv( piel_aggregated )
-echo( "++ ...ok, %d points loaded.\n", nrow( piel ))
-
-echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
-hbs = readr::read_tsv( HbS_aggregated )
-echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
 
 echo( "++ Loading polygon grid from %s...\n", args$grid )
 grid = readRDS( args$grid )
 echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
 
+echo( "++ Loading piel et al data from %s\n", args$piel_aggregated )
+piel = readr::read_tsv( args$piel_aggregated )
+echo( "++ ...ok, %d points loaded.\n", nrow( piel ))
+
+echo( "++ Loading HbS aggregated data from %s...\n", args$HbS_aggregated )
+hbs = readr::read_tsv( args$HbS_aggregated )
+echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
+
+echo( "++ Loading HbS survey points from %s...\n", args$HbS_survey )
+hbs_survey = readr::read_csv( args$HbS_survey )
+echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
+
 stopifnot( nrow(piel) == nrow(grid))
 stopifnot( length( which( piel$polygon_id != grid$polygon_id )) == 0 )
 stopifnot( length( which( hbs$polygon_id != grid$polygon_id )) == 0 )
 
+hbs_survey = sf::st_as_sf( hbs_survey, coords = c( "longitude", "latitude" ), crs = sf::st_crs(grid))
+hbs_survey = sf::st_join( hbs_survey, grid )
+
+hbs_survey_aggregated = (
+	hbs_survey
+	%>% group_by( polygon_id )
+	%>% summarise( A = sum(A), S = sum(S) )
+)
+
+M = match( grid$polygon_id, hbs_survey_aggregated$polygon_id )
+grid$survey_A = hbs_survey_aggregated$A[M]
+grid$survey_S = hbs_survey_aggregated$S[M]
+grid$survey_S_frequency = grid$survey_S / (grid$survey_S + grid$survey_A)
+
 grid$hbs_fit = rowMeans( as.matrix( hbs[, grep( "posterior_sample", colnames(hbs) )]))
 grid$piel_et_al = piel$value
-palette = country.colours()
-echo( "++ Using palette:" )
-print( palette) 
-grid$country = factor( grid$SOVEREIGNT, levels = names( palette ))
-grid$country[is.na(grid$country)] = "other"
+grid$fit_minus_piel = grid$hbs_fit - grid$piel_et_al
 
-echo( "++ Countries are:")
-print( table( grid$country ))
-
-grid = grid[ sample( 1:nrow( grid )), ]
-
-echo( "++ Plotting to %s...\n", args$output )
-p = (
-	ggplot( data = grid )
-	+ geom_point( aes( x = piel_et_al, y = hbs_fit, fill = country ), shape = 21 )
-	+ facet_wrap( ~CONTINENT )
-	+ theme_minimal(16)
-	+ scale_colour_manual( values = palette, name = "Country" )
-	+ geom_abline( intercept = 0, slope = 1, linetype = 2 )
-	+ xlim( 0, 0.25 )
-	+ ylim( 0, 0.25 )
+echo( "++ Saving data to %s...\n", args$output )
+result = grid
+result$grid = result$centroid = NULL
+result = (
+	tibble::as_tibble(result)
+	%>% dplyr::arrange( desc( abs( fit_minus_piel )))
 )
-ggsave( p, file = args$output, width = 16, height = 8 )
+
+result$survey_minus_fit = result$survey_S_frequency - result$hbs_fit
+result$survey_minus_piel = result$survey_S_frequency - result$piel_et_al
+print( result %>% filter( !is.na( survey_S_frequency )), n = 20 )
+
+readr::write_tsv( result, args$output )
+
+echo( "++ Thanks for using compare_HbS_vs_piel_vs_data.R\n" )
+

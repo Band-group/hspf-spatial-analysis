@@ -2148,11 +2148,6 @@ aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column
     dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
     dplyr::rename( longitude = X, latitude = Y )
 
-  # The does not always return data in polygon order.  Fix that here:
-  M = match( polygons[[polygon_id_column]], joined[[polygon_id_column]] )
-  stopifnot( length( which( is.na(M))) == 0 )
-  joined = joined[M,]
-
   return(joined)
 }
 

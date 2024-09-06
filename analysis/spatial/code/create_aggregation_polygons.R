@@ -39,9 +39,10 @@ parse_arguments <- function() {
 		default = "hexagon"
 	)	
 	parser$add_argument(
-		"--bycountry",
+		"--by",
 		action = "store_true",
-		help = "Split polygons by country?"
+		help = "Split polygons by this feature? (currently country or none)",
+		default = "none"
 	)
 	parser$add_argument(
 		"--piel",
@@ -109,15 +110,7 @@ grid <- sf::st_sf(
 	grid
 )
 grid$centroid = sf::st_centroid(grid$grid)
-if( args$bycountry ) {
-	# Use st_intersection, which cuts / splits each grid polygon
-	# at country boundaries
-	grid <- sf::st_intersection(
-		grid,
-		pfrelevantctry %>% sf::st_make_valid()
-	)
-	grid$polygon_id = sprintf( "%s:%d", grid$SOV_A3, grid$polygon_id )
-} else {
+if( args$by == "none" ) {
 	# Intersect with the prediction extents
 	grid = sf::st_intersection( grid, extents )
 
@@ -132,6 +125,17 @@ if( args$bycountry ) {
 	grid$SOVEREIGNT = world_sf$SOVEREIGNT[B]
 	grid$SOV_A3 = world_sf$SOV_A3[B]
 	grid$SUBREGION = world_sf$SUBREGION[B]
+}
+else if( args$by == "country" ) {
+	# Use st_intersection, which cuts / splits each grid polygon
+	# at country boundaries
+	grid <- sf::st_intersection(
+		grid,
+		pfrelevantctry %>% sf::st_make_valid()
+	)
+	grid$polygon_id = sprintf( "%s:%d", grid$SOV_A3, grid$polygon_id )
+} else {
+	stop( sprintf( "unrecognised argument, by=\"%s\"", args$by ))
 }
 
 echo( "++ Created %d grid points.", nrow( grid ))

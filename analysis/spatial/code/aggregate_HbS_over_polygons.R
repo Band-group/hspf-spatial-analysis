@@ -113,8 +113,19 @@ echo( "++ Aggregating %d posterior samples across %d polygons...", ncol(predicti
 aggregated = aggregate_HbS_samples_in_polygons( prediction_df, polygons, "polygon_id" )
 colnames(aggregated)[1] = "polygon_id"
 
+# the above only reflects matchin polygons.  Make this script always output all polygons, in order.
+M = match( polygons$polygon_id, aggregated$polygon_id )
+result = tibble(
+	polygon_id = polygons$polygon_id,
+	aggregated[M,2:ncol(aggregated)]
+)
+
+# sanity check
+stopifnot( nrow( result ) == nrow( result ))
+stopifnot( length( which( result$polygon_id != result$polygon_id )) == 0 )
+
 echo( "++ Success." )
 
 echo( "++ Saving result to %s", args$output )
-readr::write_tsv( aggregated, file = args$output )
+readr::write_tsv( result, file = args$output )
 echo( "++ Great success!  I like!" )

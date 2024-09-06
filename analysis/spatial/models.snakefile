@@ -1,5 +1,5 @@
 ranges = [
-	'10.0', '15.0'
+	'10.0', '15.0', '25.0', '50.0'
 ]
 sigmas = [
 	'0.6', '0.8', '1.0'
@@ -37,15 +37,15 @@ def dict_product(dicts):
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = list(dict_product(
 	{
-		"r0": [ "10.0", "15.0" ],
-		"sigma0": [ '1.0', '0.8' ],
+		"r0": [ "10.0", "15.0", "25.0" ],
+		"sigma0": [ '1.0', '0.8', '0.6' ],
 		"covariates": [ "none" ],
 		"type": [ 'hexagon' ],
 		"divide": [ 'none' ],
 		"size": [ '1' ],
 		"locus": [ 'Pfsa1' ],
 		"regression_model": [ 'bym2', 'norandom' ],
-		"min_km_to_survey_pt": [ '100', '200'],
+		"min_km_to_survey_pt": [ '200'],
 		"area": areas.keys()
 	}
 ))
@@ -67,20 +67,11 @@ rule all:
 			covariates = covariates,
 			continent = [ 'global', 'Africa' ]
 		),
-		fit_vs_piel_images = expand(
-			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf",
-			r0 = ranges,
-			sigma0 = sigmas,
-			covariates = covariates,
-			type = [ 'hexagon', 'square' ],
-			divide = [ 'none', 'bycountry' ],
-			size = cellsizes
-		),
 		grids = expand(
 			"output/grids/grid-type={type}-size={size}-division={divide}.rds",
 			type = [ 'hexagon', 'square' ],
 			size = cellsizes,
-			divide = [ 'none', 'bycountry' ]
+			divide = [ 'none' ]
 		),
 		aggregations = expand(
 			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
@@ -88,14 +79,24 @@ rule all:
 			sigma0 = sigmas,
 			covariates = covariates,
 			type = [ 'hexagon', 'square' ],
-			divide = [ 'none', 'bycountry' ],
+			divide = [ 'none' ],
 			size = cellsizes
 		),
 		pf_aggregations = expand(
 			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
 			type = [ 'hexagon', 'square' ],
-			divide = [ 'none', 'bycountry' ],
+			divide = [ 'none' ],
 			size = cellsizes
+		),
+		fit_vs_piel = expand(
+			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.{extension}",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			type = [ 'hexagon', 'square' ],
+			divide = [ 'none', 'country' ],
+			size = cellsizes,
+			extension = [ 'pdf', 'tsv.gz' ]
 		),
 #		plots = expand(
 #			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
@@ -103,7 +104,7 @@ rule all:
 #			sigma0 = sigmas,
 #			covariates = covariates,
 #			type = [ 'hexagon', 'square' ],
-#			divide = [ 'none', 'bycountry' ],
+#			divide = [ 'none', 'country' ],
 #			size = cellsizes
 #		),
 		hspf_plots = [
@@ -163,14 +164,13 @@ rule create_grid:
 	input:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
-		script = "code/create_aggregation_polygons.R",
-		division = lambda w: ('--bycountry' if w.divide == 'bycountry' else '' )
+		script = "code/create_aggregation_polygons.R"
 	shell: """
 	Rscript --vanilla {params.script} \
 		--world {input.world} \
 		--cellsize {wildcards.size} \
 		--type {wildcards.type} \
-		{params.division} \
+		--by {wildcards.division} \
 		--output {output.rds}
 	"""
 
@@ -211,8 +211,7 @@ rule aggregate_piel:
 
 rule plot_HbS_vs_piel:
 	output:
-		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf",
-		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.tsv.gz"
+		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf"
 	input:
 		HbS = rules.aggregate_HbS.output.tsv,
 		piel = rules.aggregate_piel.output.tsv,
@@ -220,7 +219,21 @@ rule plot_HbS_vs_piel:
 	params:
 		script = srcdir( "code/plot_HbS_vs_piel_grid.R" )
 	shell: """
-	Rscript --vanilla {params.script} --grid {input.grid} --HbS_aggregated {input.HbS} --piel_aggregated {input.piel} --output_pdf {output.pdf} --output_tsv {output.tsv}
+	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --output {output.pdf}
+	"""
+
+rule compare_HbS_vs_piel_vs_data:
+	output:
+		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.tsv.gz"
+	input:
+		HbS = rules.aggregate_HbS.output.tsv,
+		HbS_survey = "input/cleanHbSdata.csv",
+		piel = rules.aggregate_piel.output.tsv,
+		grid = rules.create_grid.output.rds
+	params:
+		script = srcdir( "code/compare_HbS_vs_piel_vs_data.R")
+	shell: """
+	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --HbS_survey {input.HbS_survey} --output {output.tsv}
 	"""
 
 rule aggregate_pf:
@@ -238,47 +251,6 @@ rule aggregate_pf:
 			--world {input.world} \
 			--polygons {input.polygons} \
 			--output {output.tsv}
-	"""
-
-#rule plot_hspf:
-#	output:
-#		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
-#	input:
-#		grid = rules.create_grid.output.rds,
-#		pf = rules.aggregate_pf.output.tsv,
-#		hbs = rules.aggregate_HbS.output.tsv,
-#		survey = "input/cleanHbSdata.csv"
-#	params:
-#		script = srcdir( "code/plot_hspf_by_polygon.R" ),
-#		range_in_km = '100'
-#	shell: """
-#	Rscript --vanilla {params.script} \
-#		--grid {input.grid} \
-#		--HbS_aggregated {input.hbs} \
-#		--pf_aggregated {input.pf} \
-#		--HbS_survey {input.survey} \
-#		--survey_range_km {params.range_in_km} \
-#		--output {output.pdf}
-#	"""
-
-rule fit_hspf:
-	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km.rds"
-	input:
-		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
-		hbs = rules.aggregate_HbS.output.tsv,
-		survey = "input/cleanHbSdata.csv"
-	params:
-		script = srcdir( "code/BYM.R" )
-	threads: 8
-	shell: """
-		Rscript --vanilla {params.script} \
-		--grid {input.grid} \
-		--model {wildcards.regression_model} \
-		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
-		--output {output.rds} \
-		--threads {threads}
 	"""
 
 def get_area_args( areas, name ):
@@ -305,6 +277,8 @@ rule fit_hspf_in_areas:
 		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
+		--HbS_aggregated {input.hbs} \
+		--pf_aggregated {input.pf} \
 		{params.areas} \
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
 		--output {output.rds} \
