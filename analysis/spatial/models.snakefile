@@ -13,7 +13,7 @@ areas = {
 		'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo',
 		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'
 	],
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo' ],
+	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
 #	'gambia+senegal': [ 'Gambia', 'Senegal' ],
 #	'gambia': [ 'Gambia', 'Senegal' ],

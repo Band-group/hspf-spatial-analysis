@@ -42,6 +42,7 @@ parse_arguments <- function() {
 
 options( width = 300 )
 args = parse_arguments()
+source('code/functions.R')
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
@@ -97,12 +98,17 @@ for( i in 1:length(xs)) {
 	curves[['mean']][i] = mean( yvalues )
 }
 
-pdf( file = args$output, width = 6, height = 4 )
-par( mar = c( 4.1, 7.1, 1.1, 5.1 ))
+palette = country.colours()
+fit$data$colour = palette[ fit$data$SOVEREIGNT ]
+fit$data$colour[ is.na(fit$data$colour)] = palette['other']
+
+pdf( file = args$output, width = 8, height = 4 )
+par( mar = c( 4.1, 7.1, 1.1, 12.1 ))
 plot(
 	fit$data$hbas_or_ss_mean[w],
 	fit$data$Y[w] / fit$data$n[w],
 	cex = sqrt(fit$data$n)/10,
+	col = fit$data$colour,
 	pch = 19,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 1.0 ),
@@ -111,6 +117,19 @@ plot(
 	yaxt = 'n',
 	xlab = 'HbAS or SS frequency, average',
 	ylab = '',
+)
+w = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
+legend(
+	x = 0.385,
+	y = 0.5,
+	yjust = 0.5,
+	legend = names(palette)[w],
+	pch = 19,
+	col = palette[w],
+	bty = 'n',
+	cex = 0.7,
+	xpd = NA,
+	ncol = 1# + (length(w) > 20)
 )
 axis( 1 )
 axis( 2, las = 1 )
