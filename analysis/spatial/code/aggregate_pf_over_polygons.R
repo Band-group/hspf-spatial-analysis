@@ -48,7 +48,7 @@ world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
-data = dbGetQuery( db, "SELECT * FROM by_site" )
+data = dbGetQuery( db, "SELECT * FROM by_site WHERE exclude == 'no'" )
 aggregation_data = (
 	data
 	%>% mutate(
