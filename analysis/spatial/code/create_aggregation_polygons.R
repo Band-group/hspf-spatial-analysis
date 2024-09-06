@@ -45,6 +45,12 @@ parse_arguments <- function() {
 		default = "none"
 	)
 	parser$add_argument(
+		"--areas",
+		type = "character",
+		nargs = "+",
+		help = "Focus polygons on these areas (a list of country names, matching naturalearth data names)"
+	)
+	parser$add_argument(
 		"--piel",
 		type = "character",
 		help = "path to Piels map, for extent",
@@ -136,6 +142,15 @@ else if( args$by == "country" ) {
 	grid$polygon_id = sprintf( "%s:%d", grid$SOV_A3, grid$polygon_id )
 } else {
 	stop( sprintf( "unrecognised argument, by=\"%s\"", args$by ))
+}
+
+if( !is.null( args$areas )) {
+	echo( "++ focussing grid on these areas: %s.\n", paste( args$areas, collapse = ", " ))
+	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
+	intersected_grid = sf::st_intersection( grid, focus_area )
+	echo( "++ Ok, %d grid cells retained:\n", nrow( intersected_grid ) )
+	grid = intersected_grid
+	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 
 echo( "++ Created %d grid points.", nrow( grid ))

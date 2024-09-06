@@ -1,23 +1,21 @@
 ranges = [
-	'10.0', '15.0', '25.0', '50.0'
+	'10.0', '25.0', '50.0'
 ]
 sigmas = [
-	'0.6', '0.8', '1.0'
+	'0.6', '1.0'
 ]
-covariates = [ 'none', 'continent' ]
-cellsizes = [ '1', '2' ]
+covariates = [ 'none' ]
+cellsizes = [ '1' ]
 
 areas = {
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo' ],
+	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-	'maf': [ 'Republic of the Congo', 'Democratic Republic of the Congo', 'Central African Republic', 'Angola', 'Cameroon', 'Gabon' ],
-	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-	'gambia': [ 'Gambia', 'Senegal' ],
-	'ghana': [ 'Ghana' ],
-	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
-	'mali': [ 'Mali' ],
-	'tanzania': [ 'United Republic of Tanzania' ],
-	'DRC': [ 'Democratic Republic of the Congo' ],
+#	'gambia+senegal': [ 'Gambia', 'Senegal' ],
+#	'gambia': [ 'Gambia', 'Senegal' ],
+#	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
+#	'mali': [ 'Mali' ],
+#	'tanzania': [ 'United Republic of Tanzania' ],
+#	'DRC': [ 'Democratic Republic of the Congo' ],
 	'global': None
 }
 
@@ -68,45 +66,40 @@ rule all:
 			continent = [ 'global', 'Africa' ]
 		),
 		grids = expand(
-			"output/grids/grid-type={type}-size={size}-division={divide}.rds",
+			"output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds",
 			type = [ 'hexagon', 'square' ],
 			size = cellsizes,
-			divide = [ 'none' ]
+			divide = [ 'none' ],
+			area = areas.keys()
 		),
 		aggregations = expand(
-			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
+			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
 			type = [ 'hexagon', 'square' ],
 			divide = [ 'none' ],
-			size = cellsizes
+			size = cellsizes,
+			area = areas.keys()
 		),
 		pf_aggregations = expand(
-			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv",
+			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
 			type = [ 'hexagon', 'square' ],
 			divide = [ 'none' ],
-			size = cellsizes
+			size = cellsizes,
+			area = areas.keys()
 		),
 		fit_vs_piel = expand(
-			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.{extension}",
+			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.{extension}",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
 			type = [ 'hexagon', 'square' ],
 			divide = [ 'none', 'country' ],
 			size = cellsizes,
-			extension = [ 'pdf', 'tsv.gz' ]
+			extension = [ 'pdf', 'tsv.gz' ],
+			area = [ 'global' ]
 		),
-#		plots = expand(
-#			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}.pdf",
-#			r0 = ranges,
-#			sigma0 = sigmas,
-#			covariates = covariates,
-#			type = [ 'hexagon', 'square' ],
-#			divide = [ 'none', 'country' ],
-#			size = cellsizes
-#		),
 		hspf_plots = [
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf"
 			.format(**elt)
@@ -158,25 +151,43 @@ rule plot_hbs_fit:
 		Rscript --vanilla {params.script} --geodata {input.geodata} --fit_predictions {input.predictions} --continent {wildcards.continent} --output {output.pdf}
 	"""
 
+#rule create_grid:
+#	output:
+#		rds = "output/grids/grid-type={type}-size={size}-division={divide}.rds"
+#	input:
+#		world = "geodata/naturalearthdata.Rdata"
+#	params:
+#		script = "code/create_aggregation_polygons.R"
+#	shell: """
+#	Rscript --vanilla {params.script} \
+#		--world {input.world} \
+#		--cellsize {wildcards.size} \
+#		--type {wildcards.type} \
+#		--by {wildcards.division} \
+#		--output {output.rds}
+#	"""
+
 rule create_grid:
 	output:
-		rds = "output/grids/grid-type={type}-size={size}-division={divide}.rds"
+		rds = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds"
 	input:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
-		script = "code/create_aggregation_polygons.R"
+		script = "code/create_aggregation_polygons.R",
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
 	shell: """
 	Rscript --vanilla {params.script} \
 		--world {input.world} \
+		{params.areas} \
 		--cellsize {wildcards.size} \
 		--type {wildcards.type} \
-		--by {wildcards.division} \
+		--by {wildcards.divide} \
 		--output {output.rds}
 	"""
 
 rule aggregate_HbS:
 	output:
-		tsv = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
+		tsv = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	input:
 		polygons = rules.create_grid.output.rds,
 		model = rules.fit_hbs_map.output.fit,
@@ -199,7 +210,7 @@ rule aggregate_HbS:
 
 rule aggregate_piel:
 	output:
-		tsv = "output/piel/piel_et_al-grid-type={type}-size={size}-division={divide}.tsv.gz"
+		tsv = "output/piel/piel_et_al-grid-type={type}-size={size}-division={divide}-area={area}.tsv.gz"
 	input:
 		piel = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif",
 		polygons = rules.create_grid.output.rds
@@ -211,7 +222,7 @@ rule aggregate_piel:
 
 rule plot_HbS_vs_piel:
 	output:
-		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf"
+		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.pdf"
 	input:
 		HbS = rules.aggregate_HbS.output.tsv,
 		piel = rules.aggregate_piel.output.tsv,
@@ -224,7 +235,7 @@ rule plot_HbS_vs_piel:
 
 rule compare_HbS_vs_piel_vs_data:
 	output:
-		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.tsv.gz"
+		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.tsv.gz"
 	input:
 		HbS = rules.aggregate_HbS.output.tsv,
 		HbS_survey = "input/cleanHbSdata.csv",
@@ -236,9 +247,33 @@ rule compare_HbS_vs_piel_vs_data:
 	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --HbS_survey {input.HbS_survey} --output {output.tsv}
 	"""
 
+rule summarise_HbS_fits:
+	output:
+		tsv = "output/HbS/HbS_fit_summary.tsv"
+	input:
+		grid = rules.create_grid.output.rds.format( type = "hexagon", size = 1, divide = "none", area = "global" ),
+		HbS_fit = expand(
+			rules.fit_hbs_map.output.fit,
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates
+		),
+		piel_comparison = rules.compare_HbS_vs_piel_vs_data.output.tsv.format( type = "hexagon", size = 1, divide = "none", area = "global", r0 = '{r0}', sigma0 = '{sigma0}', covariates = '{covariates}' )
+	params:
+		script = "code/summarise_HbS_fits.R"
+	run:
+		for row in dict_product(
+			range = ranges,
+			sigma = sigmas,
+			covariates = covariates
+		):
+			hbs_fit_filename = rules.fit_hbs_map.output.fit.format( r0 = row['r0'], sigma0 = row['sigma0'], covariates = row['covariates'] )
+			print( "++ Summarising %s...", hbs_fit_filename )
+			shell( """Rscript --vanilla {params.script} --grid {input.grid} --HbS_fit hbs_fit_filename --HbS_vs_piel {input.piel_comparison} --output {output.tsv}""" )
+
 rule aggregate_pf:
 	output:
-		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}.tsv"
+		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	input:
 		pf = "input/hbs-pf.sqlite",
 		polygons = rules.create_grid.output.rds,
@@ -253,13 +288,6 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
-def get_area_args( areas, name ):
-	countries = areas[name]
-	if countries is None:
-		return ''
-	else:
-		return '--world geodata/naturalearthdata.Rdata --areas "%s"' % '" "'.join( countries )
-
 rule fit_hspf_in_areas:
 	output:
 		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
@@ -271,10 +299,11 @@ rule fit_hspf_in_areas:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		script = srcdir( "code/BYM.R" ),
-		areas = lambda w: get_area_args( areas, w.area )
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
 	threads: 1
 	shell: """
 		Rscript --vanilla {params.script} \
+		--world {input.world} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
 		--HbS_aggregated {input.hbs} \

@@ -16,7 +16,7 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
-		"--fit",
+		"--HbS_fit",
 		type = "character",
 		help = "path to HbS fit file",
 		required = TRUE
@@ -46,7 +46,7 @@ library( cowplot )
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 
-fit = readRDS( args$fit )
+fit = readRDS( args$HbS_fit )
 comparison = readr::read_tsv( args$Hbs_vs_piel )
 
 result = tibble::tibble(
@@ -58,3 +58,6 @@ result = tibble::tibble(
 	r_vs_data = cor( comparison$hbs_fit, comparison$survey_S_frequency, use = "pairwise.complete.obs" ),
 	piel_vs_data = cor( comparison$piel_et_al, comparison$survey_S_frequency, use = "pairwise.complete.obs" )
 )
+
+read::write_tsv( result, args$output )
+
