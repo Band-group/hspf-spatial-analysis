@@ -40,7 +40,7 @@ parse_arguments <- function() {
 	)	
 	parser$add_argument(
 		"--by",
-		action = "store_true",
+		type = "character",
 		help = "Split polygons by this feature? (currently country or none)",
 		default = "none"
 	)
@@ -123,16 +123,14 @@ if( args$by == "none" ) {
 	# Add in country variable for centroid.  This turns out slightly tricky but here goes
 	# TODO: use
 	# sf::st_nearest_feature to get nearest to centroid instead.
-	A = sf::st_intersects( grid$centroid, world_sf, sparse = FALSE )
-	# The above returns a true/false matrix.  Convert to a vector for indexing
-	B = sapply( 1:nrow(A), function(i) { w = which( A[i,] == TRUE ); if( length(w) == 1 ) { return(w) } else { return(NA) }} )
+	nearest = sf::st_nearest_feature( grid, world_sf )
+	B = nearest
 	grid$NAME = world_sf$NAME[B]
 	grid$CONTINENT = world_sf$CONTINENT[B]
 	grid$SOVEREIGNT = world_sf$SOVEREIGNT[B]
 	grid$SOV_A3 = world_sf$SOV_A3[B]
 	grid$SUBREGION = world_sf$SUBREGION[B]
-}
-else if( args$by == "country" ) {
+} else if( args$by == "country" ) {
 	# Use st_intersection, which cuts / splits each grid polygon
 	# at country boundaries
 	grid <- sf::st_intersection(
@@ -147,6 +145,7 @@ else if( args$by == "country" ) {
 if( !is.null( args$areas )) {
 	echo( "++ focussing grid on these areas: %s.\n", paste( args$areas, collapse = ", " ))
 	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
+	focus_area = sf::st_union(focus_area)
 	intersected_grid = sf::st_intersection( grid, focus_area )
 	echo( "++ Ok, %d grid cells retained:\n", nrow( intersected_grid ) )
 	grid = intersected_grid
