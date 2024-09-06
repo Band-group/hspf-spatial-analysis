@@ -8,6 +8,11 @@ covariates = [ 'none' ]
 cellsizes = [ '1' ]
 
 areas = {
+	'africa': [
+		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
+		'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo',
+		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'
+	],
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
 #	'gambia+senegal': [ 'Gambia', 'Senegal' ],
@@ -35,13 +40,13 @@ def dict_product(dicts):
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = list(dict_product(
 	{
-		"r0": [ "10.0", "15.0", "25.0" ],
-		"sigma0": [ '1.0', '0.8', '0.6' ],
+		"r0": ranges,
+		"sigma0": sigmas,
 		"covariates": [ "none" ],
 		"type": [ 'hexagon' ],
 		"divide": [ 'none' ],
 		"size": [ '1' ],
-		"locus": [ 'Pfsa1' ],
+		"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 		"regression_model": [ 'bym2', 'norandom' ],
 		"min_km_to_survey_pt": [ '200'],
 		"area": areas.keys()
@@ -300,7 +305,7 @@ rule fit_hspf_in_areas:
 	params:
 		script = srcdir( "code/BYM.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
-	threads: 1
+	threads: 2
 	shell: """
 		Rscript --vanilla {params.script} \
 		--world {input.world} \
