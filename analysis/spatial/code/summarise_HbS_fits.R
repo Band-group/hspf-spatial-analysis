@@ -51,12 +51,14 @@ comparison = readr::read_tsv( args$Hbs_vs_piel )
 
 result = tibble::tibble(
 	mean_log_cpo = mean( log( fit$fit$cpo$cpo )),
-	mean_log_cpo_andre = mean( log( fit$fit$cpo$cpo + 0.1 )),
-	waic = sum(fit$fit$waic$waic),	
+	mean_log_cpo_andre = -1 * mean( log( fit$fit$cpo$cpo + 0.1 ), na.rm = T ),
+	waic = sum(fit$fit$waic$waic),
 	grid = grid_name,
 	r_vs_piel = cor( comparison$hbs_fit, comparison$piel_et_al, use = "pairwise.complete.obs" ),
 	r_vs_data = cor( comparison$hbs_fit, comparison$survey_S_frequency, use = "pairwise.complete.obs" ),
-	piel_vs_data = cor( comparison$piel_et_al, comparison$survey_S_frequency, use = "pairwise.complete.obs" )
+	piel_vs_data = cor( comparison$piel_et_al, comparison$survey_S_frequency, use = "pairwise.complete.obs" ),
+	mean_squared_error_fit_vs_data = mean( (comparison$hbs_fit - comparison$survey_S_frequency)^2 ),
+	mean_squared_error_piel_vs_data = mean( (comparison$piel_et_al - comparison$survey_S_frequency)^2 )
 )
 
 read::write_tsv( result, args$output )

@@ -53,7 +53,7 @@ master_hspf_analyses = list(dict_product(
 	}
 ))
 
-localrules: summarise_hspf
+localrules: summarise_hspf, summarise_HbS_fits
 
 rule all:
 	input:
@@ -63,6 +63,7 @@ rule all:
 			sigma0 = sigmas,
 			covariates = covariates
 		),
+		fit_summary = "output/HbS/HbS_fit_summary.tsv",
 		fit_images = expand(
 			"output/images/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}-continents={continent}.pdf",
 			r0 = ranges,
@@ -263,13 +264,21 @@ rule summarise_HbS_fits:
 			sigma0 = sigmas,
 			covariates = covariates
 		),
-		piel_comparison = rules.compare_HbS_vs_piel_vs_data.output.tsv.format( type = "hexagon", size = 1, divide = "none", area = "global", r0 = '{r0}', sigma0 = '{sigma0}', covariates = '{covariates}' )
+		piel_comparison = expand(
+			rules.compare_HbS_vs_piel_vs_data.output.tsv.format(
+				type = "hexagon", size = 1, divide = "none", area = "global",
+				r0 = '{r0}', sigma0 = '{sigma0}', covariates = '{covariates}'
+			),
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates
+		)
 	params:
 		script = "code/summarise_HbS_fits.R"
 	run:
 		for row in dict_product(
 			range = ranges,
-			sigma = sigmas,
+			sigma0 = sigmas,
 			covariates = covariates
 		):
 			hbs_fit_filename = rules.fit_hbs_map.output.fit.format( r0 = row['r0'], sigma0 = row['sigma0'], covariates = row['covariates'] )
@@ -313,6 +322,7 @@ rule fit_hspf_in_areas:
 		--model {wildcards.regression_model} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
+		--locus {wildcards.locus} \
 		{params.areas} \
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
 		--output {output.rds} \
