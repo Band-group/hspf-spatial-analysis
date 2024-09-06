@@ -152,6 +152,10 @@ if( !is.null( args$areas )) {
 	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 
+# We currently require this not to split any polygon in two pieces:
+stopifnot( length( unique( grid$polygon_id )) == length( grid$polygon_id ))
+# (Alternatively we could update the identifiers)
+
 echo( "++ Created %d grid points.", nrow( grid ))
 echo( "++ Saving to %s...", args$output )
 
