@@ -19,13 +19,13 @@ parse_arguments <- function() {
 		"--pf_aggregated",
 		type = "character",
 		help = "path to Pf data, aggregated by grid",
-		default = "output/pf/aggregated/[grid].tsv"
+		required = TRUE
 	)
 	parser$add_argument(
 		"--HbS_aggregated",
 		type = "character",
 		help = "path to per-polygon aggregated HbS data",
-		default = "output/HbS/fixed-r0=10.0-sigma0=0.8-fc=none/aggregated/[grid].tsv"
+		required = TRUE
 	)
 	parser$add_argument(
 		"--fit",

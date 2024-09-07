@@ -345,6 +345,8 @@ rule plot_hspf:
 	shell: """
 		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
+		--HbS_aggregated {input.hbs} \
+		--pf_aggregated {input.pf} \
 		--fit {input.fit} \
 		--output {output.pdf}
 
