@@ -65,7 +65,7 @@ result = bind_cols(
 		n_data_points = nrow( fit$data ),
 		mean_cpo = mean( fit$summary$cpo ),
 		mean_waic = mean( fit$summary$waic ),
-		mean_ll_integrated = mean( fit$marginal_ll_intergrated ),
+		mean_ll_integrated = mean( fit$marginal_ll_integrated ),
 		mean_ll_gaussian = mean( fit$marginal_ll_gaussian )
 	),
 	summary

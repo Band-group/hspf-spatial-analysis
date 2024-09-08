@@ -316,7 +316,8 @@ pf = (
 	`Pfsa3_+` = sum(`Pfsa3_+`),
 	Pfsa3_N = sum( Pfsa3_N ),
 	`Pfsa4_+` = sum( `Pfsa4_+` ),
-	Pfsa4_N = sum( Pfsa4_N )
+	Pfsa4_N = sum( Pfsa4_N ),
+	sources = paste(sort(unique( source )), collapse = " and " )
   )
 )
 echo( "++ ...ok, %d points loaded.\n", nrow( pf ))

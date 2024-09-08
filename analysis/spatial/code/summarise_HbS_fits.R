@@ -46,8 +46,10 @@ library( cowplot )
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 
+echo( "++ Loading %s...\n", args$HbS_fit )
 fit = readRDS( args$HbS_fit )
-comparison = readr::read_tsv( args$Hbs_vs_piel )
+echo( "++ Loading %s...\n", args$HbS_vs_piel )
+comparison = readr::read_tsv( args$HbS_vs_piel )
 
 result = tibble::tibble(
 	mean_log_cpo = mean( log( fit$fit$cpo$cpo )),
@@ -61,5 +63,6 @@ result = tibble::tibble(
 	mean_squared_error_piel_vs_data = mean( (comparison$piel_et_al - comparison$survey_S_frequency)^2 )
 )
 
-read::write_tsv( result, args$output )
+echo( "++ Writing summary to %s...\n", args$output )
+readr::write_tsv( result, args$output )
 

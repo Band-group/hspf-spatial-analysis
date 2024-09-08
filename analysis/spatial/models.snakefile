@@ -116,6 +116,15 @@ rule all:
 			r0 = [ '10.0' ],
 			sigma0 = [ '1.0' ],
 			covariates = [ 'none' ]
+		),
+		fig1 = expand(
+			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/HbS_Africa_fig1b.pdf",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			type = [ "hexagon" ],
+			size = cellsizes,
+			divide = ["none"]
 		)
 
 rule fit_hbs_map:
@@ -156,22 +165,6 @@ rule plot_hbs_fit:
 	shell: """
 		Rscript --vanilla {params.script} --geodata {input.geodata} --fit_predictions {input.predictions} --continent {wildcards.continent} --output {output.pdf}
 	"""
-
-#rule create_grid:
-#	output:
-#		rds = "output/grids/grid-type={type}-size={size}-division={divide}.rds"
-#	input:
-#		world = "geodata/naturalearthdata.Rdata"
-#	params:
-#		script = "code/create_aggregation_polygons.R"
-#	shell: """
-#	Rscript --vanilla {params.script} \
-#		--world {input.world} \
-#		--cellsize {wildcards.size} \
-#		--type {wildcards.type} \
-#		--by {wildcards.division} \
-#		--output {output.rds}
-#	"""
 
 rule create_grid:
 	output:
@@ -277,13 +270,19 @@ rule summarise_HbS_fits:
 		script = "code/summarise_HbS_fits.R"
 	run:
 		for row in dict_product(
-			range = ranges,
-			sigma0 = sigmas,
-			covariates = covariates
+			{
+				"r0": ranges,
+				"sigma0": sigmas,
+				"covariates": covariates
+			}
 		):
 			hbs_fit_filename = rules.fit_hbs_map.output.fit.format( r0 = row['r0'], sigma0 = row['sigma0'], covariates = row['covariates'] )
-			print( "++ Summarising %s...", hbs_fit_filename )
-			shell( """Rscript --vanilla {params.script} --grid {input.grid} --HbS_fit hbs_fit_filename --HbS_vs_piel {input.piel_comparison} --output {output.tsv}""" )
+			piel_comparison_filename = rules.compare_HbS_vs_piel_vs_data.output.tsv.format(
+				type = "hexagon", size = 1, divide = "none", area = "global",
+				r0 = row['r0'], sigma0 = row['sigma0'], covariates = row['covariates']
+			)
+			print( "++ Summarising %s %s..." % ( hbs_fit_filename, piel_comparison_filename ) )
+			shell( """Rscript --vanilla {params.script} --grid {input.grid} --HbS_fit {hbs_fit_filename} --HbS_vs_piel {piel_comparison_filename} --output {output.tsv}""" )
 
 rule aggregate_pf:
 	output:
@@ -379,3 +378,28 @@ rule summarise_hspf:
 				)
 			)
 
+rule create_figure1:
+	output:
+		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/HbS_Africa_fig1b.pdf"
+	input:
+		grid = rules.create_grid.output.rds.format( type = "{type}", size = "{size}", divide = "{divide}", area = "global" ),
+		fit = (
+			rules.fit_hspf_in_areas.output.rds.replace( "{area}", "global" )
+				.replace( "{locus}", "Pfsa1" )
+				.replace( "{regression_model}", "bym2" )
+				.replace( "{min_km_to_survey_pt}", "200" )
+		),
+		pf_aggregated = rules.aggregate_pf.output.tsv.replace( "{area}", "global" ),
+		HbS_aggregated = rules.aggregate_HbS.output.tsv.replace( "{area}", "global" )
+	params:
+		script = srcdir( 'code/Fig1.R' ),
+		outdir = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}"
+	shell: """
+	mkdir -p {params.outdir}
+	Rscript --vanilla {params.script} \
+	--grid {input.grid} \
+	--fit {input.fit} \
+	--HbS_aggregated {input.HbS_aggregated} \
+	--pf_aggregated {input.pf_aggregated} \
+	--outdir {params.outdir}
+"""
