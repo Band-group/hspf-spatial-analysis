@@ -87,8 +87,8 @@ by_site = (
 		`Pfsa4:nonref2` = sum( `chr4_1121472_ratio`, na.rm = T )
 	)
 )
-by_site$source = "Verity_et_al_2021"
-by_site$study = "Verity_et_al_2021"
+by_site$source = "Verity et al 2021"
+by_site$study = "Verity et al 2021"
 by_site$country = c(
 	'DRC' = 'Democratic_Republic_of_the_Congo',
 	'Ghana' = 'Ghana',
@@ -116,6 +116,6 @@ write_tsv( samples, "results/genotypes/Verity_et_al_2021_by_sample.tsv" )
 write_tsv( by_site, "results/genotypes/Verity_et_al_2021_by_site.tsv" )
 
 db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf.sqlite" )
-DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Verity_et_al_2021' ")
+DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Verity et al 2021' ")
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
 DBI::dbDisconnect( db )
