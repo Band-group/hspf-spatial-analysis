@@ -240,7 +240,7 @@ plot.fit <- function(
 }
 
 {
-	pdf( file = args$output, width = 8, height = 7 )
+	pdf( file = args$output, width = 9, height = 7 )
 	par( mar = c( 0, 0, 0, 0 ))
 	layout(
 		layout.m,
@@ -308,7 +308,7 @@ plot.fit <- function(
 		"",
 		setdiff( data[['Pfsa1']][['africa']]$fit$data$SOVEREIGNT, union( data[['Pfsa1']][['waf']]$fit$data$SOVEREIGNT, data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT )),
 		"",
-		unique( data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT ),
+		unique( data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT )
 	)
 	country.palette = country.colours()
 	legend(
@@ -316,7 +316,8 @@ plot.fit <- function(
 		all.countries,
 		pch = 19,
 		col = country.palette[all.countries],
-		bty = 'n'
+		bty = 'n',
+		xpd = NA
 	)
 	dev.off()
 }

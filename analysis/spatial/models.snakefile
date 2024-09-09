@@ -1,8 +1,11 @@
 ranges = [
-	'10.0', '25.0', '50.0'
+#	'10.0',
+	'25.0',
+#	'50.0'
 ]
 sigmas = [
-	'0.6', '1.0'
+	'0.6',
+#	'1.0'
 ]
 covariates = [ 'none' ]
 cellsizes = [ '1' ]
@@ -16,7 +19,7 @@ areas = {
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
 	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-	'gambia': [ 'Gambia', 'Senegal' ],
+	'gambia': [ 'Gambia' ],
 	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
 	'mali': [ 'Mali' ],
 	'tanzania': [ 'United Republic of Tanzania' ],
@@ -49,7 +52,8 @@ master_hspf_analyses = list(dict_product(
 		"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 		"regression_model": [ 'bym2', 'norandom' ],
 		"min_km_to_survey_pt": [ '200'],
-		"area": areas.keys()
+		"min_N": [ '0' ],
+		"area": areas.keys(),
 	}
 ))
 
@@ -107,7 +111,7 @@ rule all:
 			area = [ 'global' ]
 		),
 		hspf_plots = [
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N=0.pdf"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],
@@ -127,7 +131,7 @@ rule all:
 			divide = ["none"]
 		),
 		fig2 = expand(
-			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km.pdf",
+			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -135,7 +139,8 @@ rule all:
 			type = [ "hexagon" ],
 			size = cellsizes,
 			divide = ["none"],
-			regression_model = [ 'norandom', 'bym2' ]
+			regression_model = [ 'norandom', 'bym2' ],
+			min_N = [ '0', '5' ]
 		)
 
 rule fit_hbs_map:
@@ -378,8 +383,7 @@ rule fit_hspf_in_areas_with_restricted_sources:
 
 rule plot_hspf:
 	output:
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf",
-		areas = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.areas.pdf"
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds,
 		grid = rules.create_grid.output.rds,
@@ -468,7 +472,7 @@ rule create_figure1:
 
 rule create_figure2:
 	output:
-		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km.pdf"
+		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
 	input:
 		hbs = expand(
 			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
@@ -476,7 +480,7 @@ rule create_figure2:
 			allow_missing = True
 		),
 		fit = expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N=0.rds",
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 			area = [ 'africa', 'eaf', 'waf' ],
 			allow_missing = True

@@ -356,7 +356,7 @@ echo( "++ Loading polygon grid from %s...\n", args$grid )
 grid = readRDS( args$grid )
 echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
 
-# FIX ME: this restricts to areas intersecting the country.
+# FIX ME: this restricts to areas intersecting the specified.
 # Polygons may overlap surrounding countries: you may want to consider using the
 # country-split grid versions for this.  (But I quite like the overlaps.)
 if( !is.null( args$areas )) {
