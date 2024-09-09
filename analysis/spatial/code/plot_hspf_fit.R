@@ -57,10 +57,6 @@ echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
 hbs = readr::read_tsv( HbS_aggregated )
 echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
 
-echo( "++ Loading polygon grid from %s...\n", args$grid )
-grid = readRDS( args$grid )
-echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
-
 echo( "++ Loading hspf model fit from %s...\n", args$fit )
 fit = readRDS( args$fit )
 echo( "++ ...ok, model is '%s', with %d posterior samples.\n", fit$model, nrow( fit$sampled.parameters ))

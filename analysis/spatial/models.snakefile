@@ -53,7 +53,7 @@ master_hspf_analyses = list(dict_product(
 	}
 ))
 
-localrules: summarise_hspf, summarise_HbS_fits
+localrules: summarise_hspf, summarise_HbS_fits, create_figure2
 
 rule all:
 	input:
@@ -113,9 +113,9 @@ rule all:
 		],
 		hspf_summary = expand(
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
-			r0 = [ '10.0' ],
-			sigma0 = [ '1.0' ],
-			covariates = [ 'none' ]
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates
 		),
 		fig1 = expand(
 			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/HbS_Africa_fig1b.pdf",
@@ -125,7 +125,19 @@ rule all:
 			type = [ "hexagon" ],
 			size = cellsizes,
 			divide = ["none"]
+		),
+		fig2 = expand(
+			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}_{min_km_to_survey_pt}km.pdf",
+			r0 = ranges,
+			sigma0 = sigmas,
+			covariates = covariates,
+			min_km_to_survey_pt = [ '200' ],
+			type = [ "hexagon" ],
+			size = cellsizes,
+			divide = ["none"],
+			regression_model = [ 'norandom', 'bym2' ]
 		)
+
 
 rule fit_hbs_map:
 	output:
@@ -402,4 +414,39 @@ rule create_figure1:
 	--HbS_aggregated {input.HbS_aggregated} \
 	--pf_aggregated {input.pf_aggregated} \
 	--outdir {params.outdir}
+"""
+
+rule create_figure2:
+	output:
+		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}_{min_km_to_survey_pt}km.pdf"
+	input:
+		hbs = expand(
+			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
+			area = [ 'africa', 'eaf', 'waf' ],
+			allow_missing = True
+		),
+		fit = expand(
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}.rds",
+			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
+			area = [ 'africa', 'eaf', 'waf' ],
+			allow_missing = True
+		),
+		pf = expand(
+			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
+			area = [ 'africa', 'eaf', 'waf' ],
+			allow_missing = True
+		)
+	params:
+		script = srcdir( "code/figures/fig2.R" )
+	shell: """
+	Rscript --vanilla {params.script} \
+		--type {wildcards.type} \
+		--size {wildcards.size} \
+		--divide {wildcards.divide} \
+		--r0 {wildcards.r0} \
+		--sigma0 {wildcards.sigma0} \
+		--covariates {wildcards.covariates} \
+		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
+		--regression_model {wildcards.regression_model} \
+		--output {output.pdf}
 """
