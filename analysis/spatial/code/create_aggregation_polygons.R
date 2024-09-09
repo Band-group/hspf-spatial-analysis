@@ -145,10 +145,19 @@ if( args$by == "none" ) {
 if( !is.null( args$areas )) {
 	echo( "++ focussing grid on these areas: %s.\n", paste( args$areas, collapse = ", " ))
 	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
-	focus_area = sf::st_union(focus_area)
-	intersected_grid = sf::st_intersection( grid, focus_area )
+	intersected_grid = sf::st_intersection( grid, sf::st_union(focus_area) )
 	echo( "++ Ok, %d grid cells retained:\n", nrow( intersected_grid ) )
 	grid = intersected_grid
+
+	# Re-assign names, to avoid this pointing to non-focus countries
+	nearest = sf::st_nearest_feature( grid, focus_area )
+	B = nearest
+	grid$NAME = world_sf$NAME[B]
+	grid$CONTINENT = world_sf$CONTINENT[B]
+	grid$SOVEREIGNT = world_sf$SOVEREIGNT[B]
+	grid$SOV_A3 = world_sf$SOV_A3[B]
+	grid$SUBREGION = world_sf$SUBREGION[B]
+
 	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 

@@ -89,6 +89,18 @@ parse_arguments <- function() {
 		help = "list of area to include in regression, by a filter on SOV_A3"
 	)
 	parser$add_argument(
+		"--sources",
+		type = "character",
+		nargs = "+",
+		help = "list of sources (MalariaGEN Pf7, Moser et al 2021, Verity et al 2021) to use"
+	)
+	parser$add_argument(
+		"--min_N",
+		type = "numeric",
+		help = "Minimum number of Pf samples per grid cell",
+		default = 0
+	)
+	parser$add_argument(
 		"--threads",
 		type = "double",
 		help = "number of threads to use in inla model-fitting code",
@@ -305,9 +317,17 @@ HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[gri
 
 echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
 echo( "   (and grouping by polygon_id)...\n" )
+
 pf = (
   readr::read_tsv( pf_aggregated )
-  %>% group_by( polygon_id )
+)
+
+if( !is.null( args$sources )) {
+	pf = pf %>% filter( source %in% args$sources )
+}
+
+pf = (
+  pf %>% group_by( polygon_id )
   %>% summarise(
 	`Pfsa1_+` = sum(`Pfsa1_+`),
 	Pfsa1_N = sum( Pfsa1_N ),
@@ -321,6 +341,12 @@ pf = (
   )
 )
 echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
+
+if( !is.null( args$min_N ) & args$min_N > 0 ) {
+	echo( "++ Restricting to points with > %d observations...\n", args$min_N )
+	pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= args$min_N, ]
+	echo( "++ ...ok, %d points remain.\n", nrow( pf ))
+}
 
 echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
 hbs = readr::read_tsv( HbS_aggregated )

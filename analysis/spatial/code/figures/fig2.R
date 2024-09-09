@@ -41,7 +41,7 @@ parse_arguments <- function() {
 	)
 	parser$add_argument(
 		'--covariates',
-		type = "numeric",
+		type = "character",
 		help = "fixed covariates to use.",
 		default = "none"
 	)
@@ -52,10 +52,10 @@ parse_arguments <- function() {
 		required = T
 	)
 	parser$add_argument(
-		'--divide',
-		type = "character",
-		help = "grid divisions to use"
-		default = "none"
+		"--min_N",
+		type = "double",
+		help = "exclude hexagons with less than this number of points",
+		required = T
 	)
 	parser$add_argument(
 		'--regression_model',
@@ -75,7 +75,7 @@ parse_arguments <- function() {
 get_fit_filenames = function(
 	substitutions,
 	templates = c(
-		fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}.rds",
+		fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 		hbs = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
 		pf = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	)
@@ -95,7 +95,7 @@ args = parse_arguments()
 source('code/functions.R')
 
 loci = sprintf( "Pfsa%d", 1:4 )
-areas = c( "africa", "eaf", "eaf" )
+areas = c( "africa", "waf", "eaf" )
 
 filenames = list()
 for( locus in loci ) {
@@ -112,6 +112,7 @@ for( locus in loci ) {
 				locus = locus,
 				area = area,
 				min_km_to_survey_pt = args$min_km_to_survey_pt,
+				min_N = args$min_N,
 				regression_model = args$regression_model
 			)
 		)
@@ -128,8 +129,8 @@ for( locus in loci ) {
 	}
 }
 
-zeros = c(  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0 )
-row =   c( NA, 0, NA, 1, NA, 2, NA, 3, NA, 4, NA, 5, NA )
+zeros = c(  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0,  0,  0 )
+row =   c( NA, 0, NA, 1, NA, 2, NA, 3, NA, 4, NA, 5, NA, NA, NA )
 layout.m = matrix(
 	c(
 		zeros,
@@ -150,12 +151,14 @@ layout.m = matrix(
 	byrow = T
 )
 layout.m[is.na(layout.m)] = 0
+layout.m[,14] = c( 0, rep( max(layout.m)+1, 11 ), 0 )
 
 plot.fit <- function(
 	hbs, pf, fit,
 	aesthetic = list(
 		colour = list(
-			grid = rgb( 0, 0, 0, 0.1 )
+			grid = rgb( 0, 0, 0, 0.1 ),
+			country = country.colours()
 		)
 	)
 ) {
@@ -192,7 +195,7 @@ plot.fit <- function(
 		curves[['mean']][i] = mean( yvalues )
 	}
 
-	palette = country.colours()
+	palette = aesthetic$colours$country
 	fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 	fit$data$colour[ is.na(fit$data$colour)] = palette['other']
 	blank.plot( xlim = c( 0, 0.3 ), ylim = c( 0, 1 ))
@@ -241,7 +244,7 @@ plot.fit <- function(
 	par( mar = c( 0, 0, 0, 0 ))
 	layout(
 		layout.m,
-		widths = c( 0.05, 0.35, 0.15, 0.15, 0.05, 1, 0.25, 1, 0.25, 1, 0.25, 0.25, 0.05),
+		widths = c( 0.05, 0.35, 0.15, 0.15, 0.05, 1, 0.25, 1, 0.25, 1, 0.25, 0.25, 0.05, 0.4, 0.05 ),
 		heights = c( 0.05, 0.25, 0.05, 1, 0.15, 1, 0.15, 1, 0.15, 1, 0.05, 0.25, 0.05)
 	)
 	blank.plot = function(xlim = c( 0, 1 ), ylim = c( 0, 1 ), xlab = '', ylab = '', ... ) {
@@ -298,5 +301,22 @@ plot.fit <- function(
 	}
 	blank.plot()
 
+	# country legend
+	blank.plot()
+	all.countries = c(
+		unique( data[['Pfsa1']][['waf']]$fit$data$SOVEREIGNT ),
+		"",
+		setdiff( data[['Pfsa1']][['africa']]$fit$data$SOVEREIGNT, union( data[['Pfsa1']][['waf']]$fit$data$SOVEREIGNT, data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT )),
+		"",
+		unique( data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT ),
+	)
+	country.palette = country.colours()
+	legend(
+		"center",
+		all.countries,
+		pch = 19,
+		col = country.palette[all.countries],
+		bty = 'n'
+	)
 	dev.off()
 }
