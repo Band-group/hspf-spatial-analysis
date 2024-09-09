@@ -9,11 +9,11 @@ cellsizes = [ '1' ]
 
 areas = {
 	'africa': [
-		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
+		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
 		'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo',
 		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'
 	],
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
+	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
 	'gambia+senegal': [ 'Gambia', 'Senegal' ],
 	'gambia': [ 'Gambia', 'Senegal' ],
@@ -107,7 +107,7 @@ rule all:
 			area = [ 'global' ]
 		),
 		hspf_plots = [
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N=0.pdf"
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],
@@ -127,7 +127,7 @@ rule all:
 			divide = ["none"]
 		),
 		fig2 = expand(
-			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}_{min_km_to_survey_pt}km.pdf",
+			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -137,7 +137,6 @@ rule all:
 			divide = ["none"],
 			regression_model = [ 'norandom', 'bym2' ]
 		)
-
 
 rule fit_hbs_map:
 	output:
@@ -315,7 +314,7 @@ rule aggregate_pf:
 
 rule fit_hspf_in_areas:
 	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -336,14 +335,51 @@ rule fit_hspf_in_areas:
 		--locus {wildcards.locus} \
 		{params.areas} \
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
+		--min_N {wildcards.min_N} \
+		--output {output.rds} \
+		--threads {threads}
+	"""
+
+rule fit_hspf_in_areas_with_restricted_sources:
+	output:
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-source={source}.rds"
+	input:
+		grid = rules.create_grid.output.rds,
+		pf = rules.aggregate_pf.output.tsv,
+		hbs = rules.aggregate_HbS.output.tsv,
+		survey = "input/cleanHbSdata.csv",
+		world = "geodata/naturalearthdata.Rdata"
+	params:
+		script = srcdir( "code/BYM.R" ),
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] ),
+		source = lambda w: (
+			{
+				"pf7": ["MalariaGEN Pf7"],
+				"moser": ["Moser et al 2021"],
+				"verity": ["Verity et al 2021"],
+			}[w.source]
+		)
+	threads: 2
+	shell: """
+		Rscript --vanilla {params.script} \
+		--world {input.world} \
+		--grid {input.grid} \
+		--model {wildcards.regression_model} \
+		--HbS_aggregated {input.hbs} \
+		--pf_aggregated {input.pf} \
+		--locus {wildcards.locus} \
+		{params.areas} \
+		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
+		--min_N {wildcards.min_N} \
+		--sources {params.source} \
 		--output {output.rds} \
 		--threads {threads}
 	"""
 
 rule plot_hspf:
 	output:
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.pdf",
-		areas = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.areas.pdf"
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf",
+		areas = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.areas.pdf"
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds,
 		grid = rules.create_grid.output.rds,
@@ -360,12 +396,25 @@ rule plot_hspf:
 		--pf_aggregated {input.pf} \
 		--fit {input.fit} \
 		--output {output.pdf}
+	"""
 
-		Rscript --vanilla {params.script2} \
+rule plot_hspf_areas:
+	output:
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.areas.pdf"
+	input:
+		fit = rules.fit_hspf_in_areas.output.rds.replace( "{min_N}", "0" ),
+		grid = rules.create_grid.output.rds,
+		pf = rules.aggregate_pf.output.tsv,
+		hbs = rules.aggregate_HbS.output.tsv,
+		world = "geodata/naturalearthdata.Rdata"
+	params:
+		script = srcdir( "code/plot_hspf_fit_grid.R" )
+	shell: """
+		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
 		--fit {input.fit} \
 		--world {input.world} \
-		--output {output.areas}
+		--output {output.pdf}
 	"""
 
 rule summarise_hspf:
@@ -400,6 +449,7 @@ rule create_figure1:
 				.replace( "{locus}", "Pfsa1" )
 				.replace( "{regression_model}", "bym2" )
 				.replace( "{min_km_to_survey_pt}", "200" )
+				.replace( "{min_N}", "0" )
 		),
 		pf_aggregated = rules.aggregate_pf.output.tsv.replace( "{area}", "global" ),
 		HbS_aggregated = rules.aggregate_HbS.output.tsv.replace( "{area}", "global" )
@@ -418,7 +468,7 @@ rule create_figure1:
 
 rule create_figure2:
 	output:
-		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}_{min_km_to_survey_pt}km.pdf"
+		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km.pdf"
 	input:
 		hbs = expand(
 			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
@@ -426,7 +476,7 @@ rule create_figure2:
 			allow_missing = True
 		),
 		fit = expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}.rds",
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N=0.rds",
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 			area = [ 'africa', 'eaf', 'waf' ],
 			allow_missing = True
@@ -447,6 +497,7 @@ rule create_figure2:
 		--sigma0 {wildcards.sigma0} \
 		--covariates {wildcards.covariates} \
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
+		--min_N 0 \
 		--regression_model {wildcards.regression_model} \
 		--output {output.pdf}
 """
