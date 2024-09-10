@@ -152,12 +152,12 @@ if( !is.null( args$areas )) {
 	# Re-assign names, to avoid this pointing to non-focus countries
 	nearest = sf::st_nearest_feature( grid, focus_area )
 	B = nearest
-	grid$NAME = world_sf$NAME[B]
-	grid$CONTINENT = world_sf$CONTINENT[B]
-	grid$SOVEREIGNT = world_sf$SOVEREIGNT[B]
-	grid$SOV_A3 = world_sf$SOV_A3[B]
-	grid$SUBREGION = world_sf$SUBREGION[B]
-
+	grid$NAME = focus_area$NAME[B]
+	grid$CONTINENT = focus_area$CONTINENT[B]
+	grid$SOVEREIGNT = focus_area$SOVEREIGNT[B]
+	grid$SOV_A3 = focus_area$SOV_A3[B]
+	grid$SUBREGION = focus_area$SUBREGION[B]
+	print( table( focus_area$SUBREGION, focus_area$SOVEREIGNT ))
 	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 
