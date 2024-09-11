@@ -7,9 +7,18 @@ sigmas = [
 	'0.6',
 #	'1.0'
 ]
+
+types = [
+	'hexagon',
+#	'square'
+]
+
 covariates = [ 'none' ]
 cellsizes = [ '1' ]
 
+def srcdir(x):
+	return x
+	
 areas = {
 	'africa': [
 		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
@@ -27,6 +36,20 @@ areas = {
 	'global': None
 }
 
+config = {
+	"r0": ranges,
+	"sigma0": sigmas,
+	"covariates": [ "none" ],
+	"type": [ 'hexagon' ],
+	"divide": [ 'none' ],
+	"size": [ '1' ],
+	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
+	"regression_model": [ 'bym2', 'norandom' ],
+	"min_km_to_survey_pt": [ '200'],
+	"min_N": [ '0', '5' ],
+	"area": areas.keys(),
+}
+
 # dict_product from StackOverflow:
 # https://stackoverflow.com/questions/5228158/cartesian-product-of-a-dictionary-of-lists/40623158#40623158
 import itertools
@@ -41,21 +64,7 @@ def dict_product(dicts):
 	return (dict(zip(dicts, x)) for x in itertools.product(*dicts.values()))
 
 # This list details all the hs-pf comparison analyses we really want to run.
-master_hspf_analyses = list(dict_product(
-	{
-		"r0": ranges,
-		"sigma0": sigmas,
-		"covariates": [ "none" ],
-		"type": [ 'hexagon' ],
-		"divide": [ 'none' ],
-		"size": [ '1' ],
-		"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-		"regression_model": [ 'bym2', 'norandom' ],
-		"min_km_to_survey_pt": [ '200'],
-		"min_N": [ '0' ],
-		"area": areas.keys(),
-	}
-))
+master_hspf_analyses = list(dict_product( config ))
 
 localrules: summarise_hspf, summarise_HbS_fits, create_figure2
 
@@ -75,36 +84,12 @@ rule all:
 			covariates = covariates,
 			continent = [ 'global', 'Africa' ]
 		),
-		grids = expand(
-			"output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds",
-			type = [ 'hexagon', 'square' ],
-			size = cellsizes,
-			divide = [ 'none' ],
-			area = areas.keys()
-		),
-		aggregations = expand(
-			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
-			r0 = ranges,
-			sigma0 = sigmas,
-			covariates = covariates,
-			type = [ 'hexagon', 'square' ],
-			divide = [ 'none' ],
-			size = cellsizes,
-			area = areas.keys()
-		),
-		pf_aggregations = expand(
-			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
-			type = [ 'hexagon', 'square' ],
-			divide = [ 'none' ],
-			size = cellsizes,
-			area = areas.keys()
-		),
 		fit_vs_piel = expand(
 			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.{extension}",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
-			type = [ 'hexagon', 'square' ],
+			type = types,
 			divide = [ 'none', 'country' ],
 			size = cellsizes,
 			extension = [ 'pdf', 'tsv.gz' ],
@@ -329,7 +314,7 @@ rule fit_hspf_in_areas:
 	params:
 		script = srcdir( "code/BYM.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
-	threads: 2
+	threads: 8
 	shell: """
 		Rscript --vanilla {params.script} \
 		--world {input.world} \
@@ -426,14 +411,14 @@ rule summarise_hspf:
 		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
 	input:
 		fits = lambda w: ([
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 			.format(**elt)
 			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['covariates'] == w.covariates) ]
 		])
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	run:
-		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}.rds"
+		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['covariates'] == wildcards.covariates) ]:
 			print(x)
 			area = x['area']
