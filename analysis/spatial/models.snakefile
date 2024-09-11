@@ -65,6 +65,7 @@ def dict_product(dicts):
 
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = list(dict_product( config ))
+master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
 localrules: summarise_hspf, summarise_HbS_fits, create_figure2
 
