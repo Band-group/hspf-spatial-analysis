@@ -40,7 +40,7 @@ export default class PaletteScale {
 				bottom: 10, top: 30
 			},
 			size: {
-				width: 100,
+				width: 80,
 				height: 250
 			}
 		}
@@ -81,6 +81,7 @@ export default class PaletteScale {
 		;			
 		g.append( 'text' )
 			.attr( 'transform', 'translate(' + (geom.margin.left + squaresize+5) + ' 0)' )
+			.attr( 'font-size', '10pt' )
 			.append( 'tspan')
 			.attr( 'alignment-baseline', 'middle' )
 			.text( (d:Datum) => d.label )

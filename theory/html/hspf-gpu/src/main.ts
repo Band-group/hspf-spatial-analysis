@@ -141,13 +141,14 @@ class Simulation {
 				}
 			})
 		}) ;
+		this.outerPadding = 64 ;
+		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
+
 		this.counts = counts ;
 		console.log( "COUNTS", this.counts ) ;
 
 		this.barriers = barriers ;
-		this.outerPadding = 64 ;
 
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		this.data.unshift( this.hspf.pfsa ) ;
 
@@ -184,6 +185,10 @@ class Simulation {
 			) ;
 		}
 	
+		this.geom = {
+			width: 500, //this.data[1].width / 1,
+			height: 409  //this.data[1].height / 1
+		} ;
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
 		if( !section ) {
@@ -193,19 +198,26 @@ class Simulation {
 			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
 			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add( 'map_container' );
+				container.classList.add( 'maps_container' );
 				container.classList.add( 'pf_map' );
-				this.displays.pf = new MapDisplay(
-					container,
-					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
-					new PaletteScale(
-						new Viridis( 20 ),
-						0, 1.0,
-						function(v) { return nf.format(v * 100) + '%' ; }
-					),
-					this.device,
-					{ 'contours': true }
-				) ;
+				[ '00', '01', '10', '11' ].forEach(
+					(genotype, index ) => {
+						this.displays[ 'pf' + genotype ] = new MapDisplay(
+							container,
+							{ 'width': this.geom.width, 'height': this.geom.height },
+							new PaletteScale(
+								new Viridis( 20 ),
+								0, 1.0,
+								function(v) { return nf.format(v * 100) + '%' ; }
+							),
+							this.device,
+							{
+								'contours': true,
+								'title': genotype
+							}
+						) ;
+					}
+				)
 				section.appendChild( container ) ;
 				this.comparisons = new Map() ;
 				let left = 20 ;
@@ -225,29 +237,29 @@ class Simulation {
 								this.counts.filter( d => countries.includes(d.country) ),
 								overlay,
 								{
-									width: 250,
-									height: 200,
+									width: 185,
+									height: 150,
 									margins: {
-										'bottom': 45,
+										'bottom': 30,
 										'left': 40,
-										'top': 20,
+										'top': 10,
 										'right': 20
 									}
 								},
 								left
 							)
 						) ;
-						left += 270 ;
+						left += 190 ;
 					}
 				) ;
 			}
 			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add( 'map_container' );
+				container.classList.add( 'maps_container' );
 				container.classList.add( 'hs_map' );
 				this.displays.hs = new MapDisplay(
 					container,
-					{ 'width': this.data[0].width, 'height': this.data[0].height },
+					{ 'width': this.geom.width, 'height': this.geom.height },
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 0.4,
@@ -296,9 +308,26 @@ class Simulation {
 	}
 
 	render() {
-		this.displays.pf.draw( this.hspf.pfsa ) ;
+		let dims = [this.hspf.pfsa.dimensions[2], this.hspf.pfsa.dimensions[1] ] ;
+		// print out a value at one cell, for sanity check
+		if( this.m_iteration % 100 == 0 ) {
+			console.log(
+				"pf",
+				this.hspf.pfsa.data[ 0 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 1 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 2 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 3 * (dims[0]*dims[1]) + 400.5*dims[0]]
+			) ;
+		}
+		this.displays.pf00.draw( this.hspf.pfsa, 0 ) ;
+		this.displays.pf01.draw( this.hspf.pfsa, 1 ) ;
+		this.displays.pf10.draw( this.hspf.pfsa, 2 ) ;
+		this.displays.pf11.draw( this.hspf.pfsa, 3 ) ;
 		this.displays.hs.draw( this.data[1] ) ;
-		for (let comparison of this.comparisons.values()) {
+
+
+
+			for (let comparison of this.comparisons.values()) {
 			comparison.draw( this.data[0] ) ;
 		}
 		if( this.m_iteration % 25 == 0 ) {
@@ -351,13 +380,37 @@ class Simulation {
 				).map( elt => ( elt == -1 ? -1 : elt * 255 ))
 			) ;
 		}
+		let extent = this.tiffs[0].extent ;
 		let metadata = {
 			width: dims.width,
 			height: dims.height,
 			//NoData: "-1",
+			////////////////////////////////
+			// WARNING: the following values have been carefully reverse-engineered
+			// based on the GeoTIFF spec (https://docs.ogc.org/is/19-008r4/19-008r4.html)
+			// and by loading the generated TIFFs into R using the terra package,
+			// to generate as close as possible a TIFF to the input TIFF.
+			// This includes matching the coordinate system which appears to require
+			// setting a single 'tie' point (between pixels and global coordinates)
+			// and the pixel scale, which determines the 'resolution' in the resulting object.
 			GDAL_NODATA: "-1",
 			SMinSampleValue: [0.0],
-			SMaxSampleValue: [1.0]
+			SMaxSampleValue: [1.0],
+			// http://geotiff.maptools.org/spec/geotiff6.html
+			GeographicTypeGeoKey: 4326,
+			GeogCitationGeoKey: 'WGS 84',
+			ModelTiepoint: [
+				0, dims.height, 0,
+				extent.p0.longitude, extent.p0.latitude, 0
+			],
+			ModelPixelScale: [
+				(extent.p1.longitude - extent.p0.longitude) / dims.width,
+				(extent.p1.latitude - extent.p0.latitude) / dims.height,
+				0
+			],
+			GTModelTypeGeoKey: 2,
+			ProjectedCSTypeGeoKey: 0
+			////////////////////////////////
 		} ;
 		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
 		console.log( arrayBuffer ) ;
@@ -385,7 +438,7 @@ async function run() {
 	controls.on( 'snapshot', function(values: GridData) { console.log( "SNAPSHOT", values.at([0,0]) ) ; }) ;
 
 	let simulation = await Simulation.create(
-		"./2024-03-05-MEAN-nobarrier.tif",
+		"./2024-03-05-MEAN-nobarrier.2x.tif",
 		"./counts_by_adm1.tsv",
 		"./geographic_barriers.tsv"
 	) ;
@@ -405,10 +458,10 @@ async function run() {
 	}) ;
 
 	controls.on( 'features', function(values:GridData) {
-		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+		simulation.displays.pf00.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
 		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
-		simulation.displays.pf.annotate_counts( simulation.counts ) ;
-		simulation.displays.hs.annotate_counts( simulation.counts ) ;
+//		simulation.displays.pf00.annotate_counts( simulation.counts ) ;
+//		simulation.displays.hs.annotate_counts( simulation.counts ) ;
 	}) ;
 	await simulation.run() ;
 }
