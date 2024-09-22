@@ -143,6 +143,8 @@ wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
 	Ne = '[0-9]+'
 
+localrules: combine_selscan
+
 rule all:
 	input:
 		vcf = expand( "outputs/pf7/vcf/06_phased/{chromosome}.phased.v5.4.vcf.gz", chromosome = chromosomes ),
@@ -159,9 +161,9 @@ rule all:
 			p = [ "20", "50" ]
 		),
 		selscan = expand(
-			"outputs/pf7/selscan/pf7.{chromosome}.selscan.{mode}.tsv.gz",
-			chromosome = chromosomes,
-			mode = [ 'ihs' ]
+			"outputs/pf7/selscan/output/pf7.selscan.{mode}.bins={bins}.tsv.gz",
+			mode = [ 'ihs', 'ihh12' ],
+			bins = [ '1%', '2.5%', '5%' ]
 		)
 
 rule filter_samples:
@@ -863,7 +865,6 @@ rule prepare_to_run_selscan:
 
 		zcat {output.haptmp} | python3 {params.transpose} | gzip -c > {output.hap}
 
-		# WARNING: cM extraction is not working right now, returns a zero column
 		echo 'chromosome pos COMBINED_rate Genetic_Map' > {output.cM}
 		tail -n +2 {input.cM} | awk '{{printf("{wildcards.chromosome} %s\\n", $0 );}}' >> {output.cM}
 		qctool_v2.2.4 \
@@ -873,15 +874,15 @@ rule prepare_to_run_selscan:
 
 		zcat {output.qctool} \
 			| grep -v -e '^#' -e 'chromosome' \
-			| awk '{{printf("%s %s_%s_%s %s %s\\n", $3, $4, $5, $6, $8, $4 )}}' \
+			| awk '{{printf("%s %s_%s_%s %s %s\\n", $3, $4, $5, $6, $9, $4 )}}' \
 			| gzip -c \
 		> {output.map}
 	"""
 
 rule run_selscan:
 	output:
-		selscan = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.out" ),
-		log = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.log" )
+		selscan = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.out.gz" ),
+		log = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.log.gz" )
 	input:
 		hap = rules.prepare_to_run_selscan.output.hap,
 		map = rules.prepare_to_run_selscan.output.map
@@ -899,31 +900,48 @@ rule run_selscan:
 		{params.mode} \
 		--maf 0.05 \
 		--out {params.output_stub}
-	"""
 
+		gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.selscan.{wildcards.mode}.out"
+		gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.selscan.{wildcards.mode}.log"
+	"""
 
 rule combine_selscan:
 	output:
-		tmp = temp( "outputs/pf7/selscan/output/tmp/pf7.selscan.{mode}.tsv" ),
-		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv.gz"
+		tmp = temp( "outputs/pf7/selscan/output/tmp/pf7.selscan.{mode}.bins={bins}.tsv" ),
+		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.bins={bins}.tsv.gz"
 	input:
 		selscan = expand(
 			rules.run_selscan.output.selscan,
 			chromosome = chromosomes,
 			country = countries + list(country_sets.keys()),
-			mode = '{mode}'
+			mode = '{mode}',
+			bins = '{bins}'
 		)
 	params:
 		header = lambda w: ({
 			"ihs": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tihh1\\tihh0\\tuIHS\\tihh1_left\\tihh1_right\\tihh0_left\\tihh0_right",
 			"ihh12": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tuiHH12"
 		}[w.mode]),
-		stats = lambda w: ({"ihh12": "uiHH12", "ihs": "uIHS"}[w.mode])
+		stats = lambda w: ({"ihh12": "uiHH12", "ihs": "uIHS"}[w.mode]),
+		breaks = lambda w: (
+			{
+				'1%': [ -0.01 ] + list( elt/100.0 for elt in range( 1, 101, 1 )),
+				'2.5%': [ -0.01 ] + list( elt/40.0 for elt in range( 1, 41, 1 )),
+				'5%': [ -0.01 ] + list( elt/20.0 for elt in range( 1, 21, 1 ))
+			}[w.bins]
+		),
+		areas = countries + list(country_sets.keys())
 	run:
 		shell( """echo -e '{params.header}' > {output.tmp}""" )
 		for chromosome in chromosomes:
-			for country in countries:
+			for country in params.areas:
 				print( "Doing country %s, chromosome %s..." % ( country, chromosome ))
 				filename = rules.run_selscan.output.selscan.format( chromosome = chromosome, country = country, mode = wildcards.mode )
-				shell( """cat {filename} | tail -n +2 | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {output.tmp}""" )
-		shell( """Rscript --vanilla balancing/scripts/normalise.R --input {output.tmp} --statistics {params.stats} --frequency frequency --output {output.tsv}""" )
+				shell( """zcat {filename} | tail -n +2 | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {output.tmp}""" )
+		shell( """Rscript --vanilla balancing/scripts/normalise.R \
+--input {output.tmp} \
+--statistics {params.stats} \
+--frequency frequency \
+--breaks {params.breaks} \
+--output {output.tsv} \
+""" )
