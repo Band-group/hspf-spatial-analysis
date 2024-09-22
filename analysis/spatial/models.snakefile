@@ -480,7 +480,7 @@ rule create_figure2:
 			allow_missing = True
 		),
 		fit = expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/Pfsa1-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 			area = [ 'africa', 'eaf', 'waf' ],
 			allow_missing = True
@@ -501,7 +501,7 @@ rule create_figure2:
 		--sigma0 {wildcards.sigma0} \
 		--covariates {wildcards.covariates} \
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
-		--min_N 0 \
+		--min_N {wildcards.min_N} \
 		--regression_model {wildcards.regression_model} \
 		--output {output.pdf}
 """
