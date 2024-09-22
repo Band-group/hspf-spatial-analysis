@@ -723,7 +723,7 @@ export function writeGeotiffF32(data: Float32Array, metadata) {
 		}
 	  });
 	  if (geoAsciiParams.length > 0) {
-		metadata.GeoAsciiParams = geoAsciiParams;
+		  metadata.GeoAsciiParams = geoAsciiParams;
 	  }
 	}
   
@@ -788,7 +788,7 @@ export function writeGeotiffF32(data: Float32Array, metadata) {
   
 	const encodedMetadata = convertToTids(metadata);
   
-	const result = encodeImageF32(flattenedValues, width, height, encodedMetadata);
+	const result = encodeImageF32( flattenedValues, width, height, encodedMetadata );
   
 	return result ;
 }

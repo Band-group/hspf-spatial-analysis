@@ -66,6 +66,7 @@ export default class HsPfSim {
 	number_of_barriers: number = 0 ;
 	barriers: GridData = new GridData( [this.max_barriers,4] ) ;
 	m_iteration: number ;
+	twoBiteRate: number = 0.0 ;
 
 	// pipeline-related variables
 	device: GPUDevice ;
@@ -82,13 +83,21 @@ export default class HsPfSim {
 		this.device = device ;
 		this.hs = hs ;
 		this.outerPadding = outerPadding ;
-		this.pfsa = new GridData( [ this.hs.height, this.hs.width ] ) ;
+		this.pfsa = new GridData( [ 4, this.hs.height, this.hs.width ] ) ; // four genotypes, 00/01/10/11
+		let innerSize = (hs.height * hs.width) ;
 		let self = this ;
+		let starting_frequencies = [
+			0.7,
+			0.1,
+			0.1,
+			0.1
+		] ;
 		this.pfsa.data.forEach(
 			function( _value, i ) {
-				self.pfsa.data[i] = hs.data[i] == -1 ? -1 : 0.1 ;
+				let genotype = Math.floor(i / innerSize ) ;
+				self.pfsa.data[i] = (hs.data[i % innerSize] == -1) ? -1 : starting_frequencies[genotype] ;
 			}
-		);
+		) ;
 		this.nbhd = this.computeNbhd( this.mapWidthInKm, this.maxDistanceInKm, this.nbhdConcentration, 5000 ) ;
 		console.log( "NBHD", this.nbhd ) ;
 		this.dispatchCount = [
@@ -110,6 +119,16 @@ export default class HsPfSim {
 				dx: f32,
 				dy: f32,
 				weight: f32
+			} ;
+			struct Parameters {
+				width: u32,
+				height: u32,
+				nbhd_size: u32,
+				number_of_barriers: u32,
+				twoBiteRate: f32,
+				unused1: u32,
+				unused2: u32,
+				unused3: u32
 			} ;
 
 			// Is x between a and b?
@@ -145,7 +164,7 @@ export default class HsPfSim {
 			}
 
 			// background data and parameters
-			@group(0) @binding(0) var<uniform> parameters: vec4<u32> ; // width, height, number of nbhd points, number of barriers
+			@group(0) @binding(0) var<uniform> parameters: Parameters ; // width, height, number of nbhd points, number of barriers, two-bite rate in %
 			@group(0) @binding(1) var<uniform> fitness: array< vec4f, 2 > ;
 			@group(0) @binding(2) var<storage> nbhd: array<NbhdPoint> ;
 			@group(0) @binding(3) var<storage> HbS: array<f32> ;
@@ -165,12 +184,14 @@ export default class HsPfSim {
 				// 
 				let celly = id[0] + ${this.outerPadding} ;
 				let cellx = id[1] + ${this.outerPadding} ;
-				let height = parameters[0] ;
-				let width = parameters[1] ;
-				let cellidx = celly * parameters[1] + cellx ;
+				let height = parameters.width ;
+				let width = parameters.height ;
+				let size = width * height ;
+				let cellidx = celly * parameters.height + cellx ;
+				let twoBiteRate: f32 = f32(parameters.twoBiteRate)/100.0 ;
 
-				let n = parameters[2] ; // number of nbhd points or 'mosquitos'
-				var value: f32 = 0.0 ;
+				let n = parameters.nbhd_size ; // number of nbhd points or 'mosquitos'
+				var value: vec4f = vec4(0.0) ;
 				var denominator: f32 = 0.0 ;
 				var totalWeight: f32 = 0.0 ;
 				let fs = HbS[cellidx] ; 
@@ -180,16 +201,20 @@ export default class HsPfSim {
 				for( var i: u32 = 0; i < n; i++ ) {
 					let x = u32(nbhd[i].dx + f32(cellx)) ;
 					let y = u32(nbhd[i].dy + f32(celly)) ;
-					let bite_idx = y*parameters[1] + x ;
-					let pfalt = pfsa[bite_idx] ;
-					let pfref = 1 - pfalt ;
+					let bite_idx = y*width + x ;
 					let bite_fs = HbS[bite_idx] ; 
+					let pf = vec4(
+						pfsa[0*size + bite_idx],
+						pfsa[1*size + bite_idx],
+						pfsa[2*size + bite_idx],
+						pfsa[3*size + bite_idx]
+					) ;
 
 					// test for overlap with barrier
 					var weight = nbhd[i].weight ;
 //					if(true) {
 						// Any mozzie that crosses a barrier gets downweighted.
-						for( var j: u32 = 0; j < parameters[3]; j++ ) {
+						for( var j: u32 = 0; j < parameters.number_of_barriers; j++ ) {
 							if(
 								segments_overlap(
 									barriers[j].xy, barriers[j].zw,
@@ -202,27 +227,47 @@ export default class HsPfSim {
 							}
 						}
 //					}
+					// test both bite location and target location
+					// if either is missing, skip this
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
-						denominator += weight * (
-							(pfref * a * fitness[0][0])
-							+ (pfref * s * fitness[1][0])
-							+ (pfalt * a * fitness[0][3])
-							+ (pfalt * s * fitness[1][3])
-						) ;
-						value += weight * (
-							(pfalt * a * fitness[0][3])
-							+ (pfalt * s * fitness[1][3])
-						) ;
+						// single bite.
+						for( var g = 0; g < 4; g++ ) {
+							let v = (
+								(pf[g] * a * fitness[0][g])
+								+ (pf[g] * s * fitness[1][g])
+							) ;
+							denominator += weight * v ;
+							value[g] += weight * v ;
+						}
+						// two bites.
+						// 
+						// for( var g1 = 0; g1 < 4; g1++ ) {
+						//	for( var g2 = 0; g2 < 4; g2++ ) {
+						//		let chance = pf[g1]*pf[g2] ;
+
+						//		let v = (
+						//			(pf[g1]*pf[g2] * a * fitness[0][g])
+						//			+ (pf[g1] * s * fitness[1][g])
+						//	) ;
+						//	denominator += weight * v ;
+						//	value[g] += weight * v ;
+						//}
 					}
 				}
 				denominator /= totalWeight ;
 				value /= totalWeight ;
 
 				if( fs == -1 ) {
-					pfsanew[ cellidx ] = -1 ;
+					pfsanew[ 0*size + cellidx ] = -1 ;
+					pfsanew[ 1*size + cellidx ] = -1 ;
+					pfsanew[ 2*size + cellidx ] = -1 ;
+					pfsanew[ 3*size + cellidx ] = -1 ;
 				} else {
-					pfsanew[ cellidx ] = value / denominator ;
+					pfsanew[ 0*size + cellidx ] = value[0] / denominator ;
+					pfsanew[ 1*size + cellidx ] = value[1] / denominator ;
+					pfsanew[ 2*size + cellidx ] = value[2] / denominator ;
+					pfsanew[ 3*size + cellidx ] = value[3] / denominator ;
 				}
 			}`
 		});
@@ -262,7 +307,7 @@ export default class HsPfSim {
 		});
   
 		this.buffers = {
-			parameters: device.createBuffer( { label: "parameters", size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST } ),
+			parameters: device.createBuffer( { label: "parameters", size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST } ),
 			fitness: this.fitness.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ),
 			nbhd: device.createBuffer( {label: "nbhd", size: 25000*3*4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
 			//nbhd: this.nbhd.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ),
@@ -323,7 +368,8 @@ export default class HsPfSim {
 				this.hs.height,
 				this.hs.width,
 				this.nbhd.height,
-				this.use_barriers == 1 ? this.number_of_barriers : 0
+				this.use_barriers == 1 ? this.number_of_barriers : 0,
+				this.twoBiteRate
 			])
 		) ;
 	}

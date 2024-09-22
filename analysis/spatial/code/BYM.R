@@ -310,7 +310,7 @@ fitbym_to_posterior_samples <- function(
 }
 
 args = parse_arguments()
-
+INLA::inla.setOption( num.threads = args$threads )
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
 HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )

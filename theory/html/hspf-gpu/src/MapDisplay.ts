@@ -11,7 +11,8 @@ export interface Geom {
 } ;
 
 export interface MapOptions {
-	contours: boolean
+	contours: boolean,
+	title: string
 } ;
 
 export default class MapDisplay {
@@ -31,11 +32,15 @@ export default class MapDisplay {
 		device: any,
 		options: MapOptions
 	) {
-		this.container = elt ;
+		this.elt = elt ;
+		this.container = document.createElement( 'div' ) ;
+		this.container.setAttribute( 'class', 'map_container' ) ;
+		this.elt.appendChild( this.container ) ;
+
 		this.geom = geom ;
 		this.palette = palette ;
-		console.log( "MapDisplay.palette", this.palette ) ;
 		this.display = new TiffDisplay( this.palette, device, options ) ;
+		this.title = options.title ;
 
 		this.canvas = document.createElement( 'canvas' ) ;
 		this.canvas.setAttribute( "width", "" + this.geom.width ) ;
@@ -60,10 +65,30 @@ export default class MapDisplay {
 		this.container.appendChild( this.legend ) ;
 	}
 
-	draw( tiff: GridData ) {
-		this.overlay.setAttribute( "viewBox", "0 0 " + tiff.width + " " + tiff.height ) ;
-		this.display.draw( tiff, this.context ) ;
+	draw( data: GridData, layer: number = 0 ) {
+		if( data.dimensions.length == 3 ) {
+			this.overlay.setAttribute( "viewBox", "0 0 " + data.dimensions[2] + " " + data.dimensions[1] ) ;
+		} else {
+			this.overlay.setAttribute( "viewBox", "0 0 " + data.dimensions[1] + " " + data.dimensions[0] ) ;
+		}
+		this.display.draw( data, this.context, layer ) ;
 		this.palette.draw_legend( this.legend ) ;
+		if( this.title ) {
+			let title = d3.select( this.overlay ).selectAll( "g.title" ) ;
+			title
+				.data( [ this.title ] )
+				.enter()
+				.append( 'g' )
+				.attr( 'class', 'title' )
+				.attr( 'transform', 'translate( 20, 50 )' )
+				.append( 'text' )
+				.attr( 'fill', '#DEDEDE' )
+				.attr( 'font-size', '24pt' )
+				.attr( 'font-wight', 'bold' )
+				.attr( 'font-family', 'Helvetica' )
+				.text( this.title ) ;
+		}
+
 	}
 
 	annotate_counts( counts: Array< PfsaCounts > ) {

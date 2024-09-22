@@ -2,7 +2,41 @@ library( tidyverse )
 library( dplyr )
 library( rbgen )
 
-samples = read_tsv( '/well/band/projects/pf7/data/samples/Pf7_samples.txt' )
+load.genotypes <- function( filename, SNPs ) {
+	G = bgen.load(
+		filename,
+		ranges = tibble(
+			chromosome = SNPs$chromosome,
+			start = SNPs$position,
+			end = SNPs$position
+		),
+		max_entries = 10
+	)
+	# for the sake of this analysis, we ignore mixed calls
+	# or calls of other allels
+	G$data = G$data[,,c(1,3)]
+	G$dosage = G$data[,,2]
+	G$dosage[ rowSums(G$data,dims=2) == 0 ] = NA
+
+	G$variants$allele0[1] = "C"
+	G$variants$allele1[1] = "T"
+	G$variants$allele0[9] = "T"
+	G$variants$allele1[9] = "A"
+	G$variants$ID = sprintf(
+		"chr%d:%d:%s>%s",
+		as.integer( gsub( "_v3", "", gsub( "Pf3D7_", "", G$variants$chromosome ))),
+		G$variants$position,
+		G$variants$allele0,
+		G$variants$allele1
+	)
+	return(G)
+}
+
+paths = list(
+	samples = '/well/band/projects/pf7/data/samples/Pf7_samples.txt',
+	genotypes = "/well/band/projects/pf7/results/bgen/pf7.filtered.bgen"
+)
+samples = read_tsv( paths$samples )
 samples$Country = gsub( " ", "_", samples$Country )
 samples$Country[ grep( "Ivoire", samples$Country)] = "Cote_dIvoire" 
 
@@ -28,97 +62,84 @@ SNPs = tibble(
 	)
 )
 
-G = bgen.load(
-	"/well/band/projects/pf7/results/bgen/pf7.filtered.bgen",
-	ranges = tibble(
-		chromosome = SNPs$chromosome,
-		start = SNPs$position,
-		end = SNPs$position
-	),
-	max_entries = 10
-)
-# for the sake of this analysis, we ignore mixed calls
-# or calls of other allels
-G$data = G$data[,,c(1,3)]
-G$dosage = G$data[,,2]
-G$dosage[ rowSums(G$data,dims=2) == 0 ] = NA
-
-G$variants$allele0[1] = "C"
-G$variants$allele1[1] = "T"
-G$variants$allele0[9] = "T"
-G$variants$allele1[9] = "A"
-G$variants$ID = sprintf(
-	"chr%d:%d:%s>%s",
-	as.integer( gsub( "_v3", "", gsub( "Pf3D7_", "", G$variants$chromosome ))),
-	G$variants$position,
-	G$variants$allele0,
-	G$variants$allele1
-)
+G = load.genotypes( paths$genotypes )
 
 for( i in 1:nrow( G$variants )) {
 	samples[,G$variants$ID[i]] = G$dosage[i,]
 }
 
 wIn = which( samples$`Exclusion reason` == 'Analysis_set' )
-write_tsv( samples, "results/pfsa_genotypes/pf7.tsv" )
+samples$exclude = 'yes'
+samples$exclude[wIn] = 'no'
+#write_tsv( samples, "results/pfsa_genotypes/pf7.tsv" )
 
-by_site_and_year = (
+samples$source = "MalariaGEN Pf7"
+
+samples = (
 	samples
-	%>% filter(
-		`Exclusion reason` == 'Analysis_set'
-	)
-	%>% group_by(
-		Study, Country, `Admin level 1`, `Admin level 1 latitude`, `Admin level 1 longitude`, `Year`
-	) %>% summarise(
-		`Pfsa1:ref-` = sum( !is.na( `chr2:631190:T>A` )) - sum( `chr2:631190:T>A`, na.rm = T  ),
+	%>% mutate(
+		ID = Sample,
+		latitude =  `Admin level 1 latitude`,
+		longitude = `Admin level 1 longitude`,
+		source = "MalariaGEN Pf7",
+		study = Study,
+		country = Country,
+		site = `Admin level 1`,
+		`Pfsa1:ref` = sum( !is.na( `chr2:631190:T>A` )) - sum( `chr2:631190:T>A`, na.rm = T  ),
 		`Pfsa1:nonref` = sum( `chr2:631190:T>A`, na.rm = T  ),
 		`Pfsa2:ref` = sum( !is.na( `chr2:814288:C>T` )) - sum( `chr2:814288:C>T`, na.rm = T  ),
 		`Pfsa2:nonref` = sum( `chr2:814288:C>T`, na.rm = T  ),
 		`Pfsa3:ref` = sum( !is.na( `chr11:1058035:T>A` )) - sum( `chr11:1058035:T>A`, na.rm = T  ),
 		`Pfsa3:nonref` = sum( `chr11:1058035:T>A`, na.rm = T  ),
 		`Pfsa4:ref` = sum( !is.na( `chr4:1121472:T>A` )) - sum( `chr4:1121472:T>A`, na.rm = T  ),
-		`Pfsa4:nonref` = sum( `chr4:1121472:T>A`, na.rm = T  )
-	)
-)
-
-write_tsv(
-	by_site_and_year,
-	"resuilts/genotypes/pf7_by_site_and_year.tsv"
-)
-
-by_site = (
-	samples
-	%>% filter(
-		`Exclusion reason` == 'Analysis_set'
-	)
-	%>% group_by(
-		Study, Country, `Admin level 1`, `Admin level 1 latitude`, `Admin level 1 longitude`
-	) %>% summarise(
-		N = n(),
-		`Pfsa1:ref` = sum( !is.na( `chr2:631190:T>A` )) - sum( `chr2:631190:T>A`, na.rm = T ),
-		`Pfsa1:nonref` = sum( `chr2:631190:T>A`, na.rm = T ),
-		`Pfsa2:ref` = sum( !is.na( `chr2:814288:C>T` )) - sum( `chr2:814288:C>T`, na.rm = T ),
-		`Pfsa2:nonref` = sum( `chr2:814288:C>T`, na.rm = T ),
-		`Pfsa3:ref` = sum( !is.na( `chr11:1058035:T>A` )) - sum( `chr11:1058035:T>A`, na.rm = T ),
-		`Pfsa3:nonref` = sum( `chr11:1058035:T>A`, na.rm = T ),
-		`Pfsa4:ref` = sum( !is.na( `chr4:1121472:T>A` )) - sum( `chr4:1121472:T>A`, na.rm = T ),
 		`Pfsa4:nonref` = sum( `chr4:1121472:T>A`, na.rm = T )
 	)
 )
-by_site = bind_cols(
-	source = "MalariaGEN Pf7",
-	by_site
-)
-colnames( by_site )[1:6] = c(
-	"source", "study", "country", "site", "latitude", "longitude"
+
+by_sample = (
+	samples
+	%>% mutate(
+		ID = Sample,
+		N = 1,
+	)
+	%>% select(
+		source, study, country, site, latitude, longitude,
+		ID, N,
+		`Pfsa1:ref`, `Pfsa1:nonref`,
+		`Pfsa2:ref`, `Pfsa2:nonref`,
+		`Pfsa3:ref`, `Pfsa3:nonref`,
+		`Pfsa4:ref`, `Pfsa4:nonref`,
+		`exclude`
+	)
 )
 
-
-write_tsv(
-	by_site,
-	"results/genotypes/pf7_by_site.tsv.gz"
+by_site = (
+	by_sample
+	%>% filter(
+		`exclude` == 'no'
+	)
+	%>% group_by(
+		source, study, country, site, latitude, longitude
+	)
+	%>% summarise(
+		N = sum(N),
+		`Pfsa1:ref` = sum( `Pfsa1:ref` ),
+		`Pfsa1:nonref` = sum( `Pfsa1:nonref` ),
+		`Pfsa2:ref` = sum( `Pfsa2:ref` ),
+		`Pfsa2:nonref` = sum( `Pfsa2:nonref` ),
+		`Pfsa3:ref` = sum( `Pfsa3:ref` ),
+		`Pfsa3:nonref` = sum( `Pfsa3:nonref` ),
+		`Pfsa4:ref` = sum( `Pfsa4:ref` ),
+		`Pfsa4:nonref` = sum( `Pfsa4:nonref` ),
+		`exclude` = 'no'
+	)
 )
 
-db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf.sqlite" )
-DBI::dbWriteTable( db, "by_site", by_site, overwrite = TRUE )
-DBI::dbDisconnect( db )
+{
+	db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
+	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
+	DBI::dbWriteTable( db, "by_site", by_site, overwrite = TRUE )
+	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
+	DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = TRUE )
+	DBI::dbDisconnect( db )
+}
