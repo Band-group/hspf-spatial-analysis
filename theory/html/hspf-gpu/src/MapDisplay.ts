@@ -35,6 +35,7 @@ export default class MapDisplay {
 		this.elt = elt ;
 		this.container = document.createElement( 'div' ) ;
 		this.container.setAttribute( 'class', 'map_container' ) ;
+		this.container.setAttribute( 'style', 'width: ' + geom.width + 'px; height: ' + geom.height + 'px' ) ;
 		this.elt.appendChild( this.container ) ;
 
 		this.geom = geom ;

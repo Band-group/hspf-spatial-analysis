@@ -210,44 +210,6 @@ filterstring = sprintf( "<%dkm", args$survey_range_km )
 	readr::write_tsv( result, file = gsub( ".pdf", ".estimates.tsv", args$output ))
 }
 
-get.hbs.posterior.slope.estimates <- function(
-	data,
-	hbs_samples,
-	link = "logit"
-) {
-	start = NULL
-	if( link == 'identity' ) {
-		start = c( 0, 1.5 )
-	}
-
-	# This function gets logistic regression estimates
-	# for each psoterior sample of the HbS map.
-	# it only uses the MLE estimates of the logistic regression, not a posterior sample.
-	# AS such it does not really reflect y axis variation.
-	estimates = purrr::map_dfr(
-		1:ncol(hbs_samples),
-		function(hbs.i) {
-			HbS_sample = hbs_samples[,hbs.i]
-			data$HbAS_or_SS_sample = HbS_sample^2 + 2*HbS_sample*(1-HbS_sample)
-			g = glm(
-				Pfsa1_frequency ~ HbAS_or_SS_sample,
-				family = binomial( link = link ),
-				data = data,
-				weights = data$Pfsa1_N,
-				start = start
-			);
-			coeffs = summary(g)$coeff
-			ll = logLik(g)
-			return( tibble::tibble(
-				estimate.i = hbs.i,
-				mu = coeffs[1,1],
-				beta = coeffs[2,1],
-				ll = as.numeric(ll)
-			))
-		}
-	)
-}
-
 get.posterior.slope.estimates <- function(
 	data,
 	hbs_samples,
@@ -294,193 +256,125 @@ get.posterior.slope.estimates <- function(
 }
 
 J = joined %>% filter( in_range == filterstring )
-link = "identity"
-estimate.type = "full.posterior" # or "hbs.posterior"
-if( estimate.type == "full.posterior" ) {
-	estimates = get.posterior.slope.estimates(
-		J,
-		hbs_samples[match(J$polygon_id, hbs$polygon_id),],
-		10000,
-		link = link
-	)
-} else if( estimate.type == "hbs.posterior" ) {
-	estimates = get.hbs.posterior.slope.estimates(
-		J,
-		hbs_samples[match(J$polygon_id, hbs$polygon_id),]
-	)
-} else {
-	stop( "Unrecognised posterior type")
-}
+J$country= grid$SOVEREIGNT[ match( J$polygon_id, grid$polygon_id ) ]
 
-logit = function(x) { exp(x) / (1+exp(x)) }
-xs = seq( from = 0, to = max(joined$HbAS_or_SS), by = 0.01 )
-all_lines = TRUE
-if( all_lines ) {
-	X = tibble()
-	for( i in 1:nrow(estimates)) {
-		y = get(link)( estimates$mu[i] + estimates$beta[i]*xs )
-		X = bind_rows(
-			X,
-			tibble(
-				estimate.i = i,
-				x = xs,
-				y = y
-			)
-		)
-	}
-} else {
+get_ci <- function( estimates, xs, link ) {
 	Y = tibble()
 	for( x in xs ) {
-		q = quantile(
-			get(link)( estimates$mu + estimates$beta*x ),
-			c( 0.025, 0.5, 0.975 )
+		q = c(
+			quantile(
+				get(link)( estimates$mu + estimates$beta*x ),
+				c( 0.025, 0.5, 0.975 )
+			),
+			mean( get(link)( estimates$mu + estimates$beta*x ) )
 		)
 		Y = dplyr::bind_rows(
 			Y,
-			tibble( x = x, lower = q[1], median = q[2], upper = q[3] )
+			tibble( x = x, lower = q[1], median = q[2], upper = q[3], mean = q[4] )
 		)
 	}
+	return( Y )
 }
 
-
-p = (
-	ggplot( data = joined %>% filter( `Pfsa1_N` >= 20 ))
-	+ geom_segment(
-		mapping = aes(
-			x = HbS_lower^2 + 2*HbS_lower*(1-HbS_lower),
-			xend = HbS_upper^2 + 2*HbS_upper*(1-HbS_upper),
-			y = `Pfsa1_+` / `Pfsa1_N`,
-			yend = `Pfsa1_+` / `Pfsa1_N`
-		),
-		colour = rgb(0,0,0,0.2)
-	)
-	+ geom_point( aes(
-		x = HbAS_or_SS,
-		y = `Pfsa1_+` / `Pfsa1_N`,
-		colour = as.factor(in_range),
-		size = `Pfsa1_N`,
-		shape = source
-	))
-#	+ geom_line(
-#		data = X,
-#		aes(
-#			x = x,
-#			y = y,
-#			group = estimate.i
-#		),
-#		colour = rgb(0,0,0,0.1),
-#		lwd = 1
-#	)
-	+ geom_ribbon(
-		data = Y,
-		aes(
-			x = x,
-			ymin = lower,
-			ymax = upper
-		),
-		fill = rgb(0,0,0,0.1)
-	)
-	+ geom_line(
-		data = Y,
-		aes(
-			x = x,
-			y = median
-		),
-		colour = rgb(0,0,0,0.5),
-		lwd = 1.5,
-		lty = 1
-	)
-	+ geom_smooth(
-		data = joined %>% filter( in_range == '<100km' ),
-		mapping = aes(
-			x = HbAS_or_SS,
-			y = `Pfsa1_+` / `Pfsa1_N`,
-			weight = `Pfsa1_N`
-		),
-		method = "glm",
-		method.args = list( family = "binomial" ),
-		se = FALSE,
-		col = 'black',
-		lwd = 1,
-		lty = 2
-	)
-	+ xlab( "HbAS/SS frequency")
-	+ ylab( "Pfsa1+\nfrequency")
-	+ scale_x_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3), labels = c("0%", "5%", "10%", "15%", "20%", "25%", "30%") )
-	+ scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75,1),	labels = c("0%", "25%", "50%", "75%","100%") )
-	+ xlim( 0, 0.35 )
-	+ ylim( 0, 1 )
-	+ theme_minimal(16)
-	+ theme( axis.title.y = element_text( angle = 0, vjust = 0.5, hjust = 1 ))
-	+ scale_size_area( breaks = c( 0, 10, 50, 100, 500, 1000, 1500, 2000 ))
-	#+ scale_size_continuous(range = c(2, 12),breaks = c(50,500,1000,1500,2000))
+palette = country.colours()
+linear.estimates = get.posterior.slope.estimates(
+	J,
+	hbs_samples[match(J$polygon_id, hbs$polygon_id),],
+	10000,
+	link = "identity"
+)
+logit.estimates = get.posterior.slope.estimates(
+	J,
+	hbs_samples[match(J$polygon_id, hbs$polygon_id),],
+	10000,
+	link = "logit"
 )
 
-ggsave( p, file = args$output, width = 12, height = 6 )
-
-
-keycountries = list(
-	"Africa" = c(
-		'MLI', "BFA", "GMB", "TZA", 
-		"KEN", "GHA", "MWI", "UGA", "GIN", "COD", "NGA", "CMR", "ETH",
-		"CIV", "MDG", "GAB", "BEN", "SEN", "SDN", "MRT","MOZ", "ZMB"
-	),
-	"South America" = c(
-		"VEN", "PER", "COL"
-	),
-	"Asia" = c(
-		"IND", "BGD", "LAO", "MMR","VNM", "THA", "KHM", "IDN"
-	),
-	"Oceania" = c(
-		"PNG"
+{
+	pdf( file = "output/figures/for_slides/Pfsa1_data.pdf", width = 6, height = 4 )
+	par( mar = c( 4.1, 4.1, 1.1, 2.1 ))
+	plot(
+		J$HbAS_or_SS,
+		J$Pfsa1_frequency,
+		pch  = 19,
+		cex = sqrt( J$Pfsa1_N ) / 6,
+		col = palette[ J$country ],
+		bty = 'n',
+		xaxt = 'n',
+		yaxt = 'n',
+		xlab = "HbAA or SS frequency",
+		ylab = '',
+		xlim = c( 0, 0.3 )
 	)
-)
+	axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
+	axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
+	grid()
+	dev.off()
+}
 
-#keypfcountries = keypfcountries %>% filter(
-#	!(fullname %in% c( "Venezuela", "Peru", "Colombia", "India", "Papua_New_Guinea",
-#	"Thailand", "Myanmar", "Laos", "Vietnam", "Indonesia", "Bangladesh", "Cambodia" ))
-#)
-
-#if grid cells, create world map with pf relevant countries split into grid cells
-africagrid = grid[ grid$SOV_A3 %in% keycountries$Africa, ]
-gridplot <- (
-	ggplot2::ggplot( data = africagrid )
-	+ geom_sf()
-	+ geom_sf(
-		data = africagrid %>% inner_join( pf, by = "polygon_id" ),
-		mapping = aes(
-			fill = `Pfsa1_+` / `Pfsa1_N`
-		)
+{
+	pdf( file = "output/figures/for_slides/Pfsa1_data_with_linear_fit.pdf", width = 6, height = 4 )
+	par( mar = c( 4.1, 4.1, 1.1, 2.1 ))
+	plot(
+		J$HbAS_or_SS,
+		J$Pfsa1_frequency,
+		pch  = 19,
+		cex = sqrt( J$Pfsa1_N ) / 6,
+		col = palette[ J$country ],
+		bty = 'n',
+		xaxt = 'n',
+		yaxt = 'n',
+		xlab = "HbAA or SS frequency",
+		ylab = '',
+		xlim = c( 0, 0.3 )
 	)
-	+ geom_sf(
-		data = in_range_grid %>% filter( polygon_id %in% africagrid$polygon_id ),
-		fill = NA,
-		col = "orange",
-		linewidth = 0.5
+	axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
+	axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
+	grid()
+
+	betas = result[ result$link == 'identity', ]
+	xs = seq( from = 0, to = max(joined$HbAS_or_SS), by = 0.01 )
+	ci = get_ci( linear.estimates, xs, link = "identity" )
+	polygon(
+		c( ci$x, rev(ci$x) ),
+		c( ci$lower, rev( ci$upper )),
+		col = rgb(0,0,0,0.2)
 	)
-	+ theme_minimal()
-#	+ geom_point(
-#		data = data %>% filter( country %in% keycountries$fullname ),
-#		mapping = aes(
-#			x = longitude,
-#			y = latitude,
-#			fill = `Pfsa1:nonref` / `Pfsa1:N`
-#		),
-#		colour = rgb(0,0,0,0.2),
-#		width = 0.1,
-#		height = 0.1,
-#		shape = 21,
-#		size = 1
-#	)
-	+ scale_fill_viridis( alpha = 1 )
-)
+	points( xs, ci$mean, type = 'l', lwd = 2, lty = 2 )
+	text( 0.28, 0.5, "-1038", xpd = NA, adj = 0 )
 
-cowplot::plot_grid( gridplot, p, labels = c( 'A', 'B' ), rel_widths = c( 0.5, 1 ))
+	dev.off()
+}
 
-ggsave(
-	gridplot,
-	file='output/gridplot_africa_fill_highlight_hbs.pdf',
-	width = 16,
-	height = 16
-)
+{
+	pdf( file = "output/figures/for_slides/Pfsa1_data_with_logit_fit.pdf", width = 6, height = 4 )
+	par( mar = c( 4.1, 4.1, 1.1, 2.1 ))
+	plot(
+		J$HbAS_or_SS,
+		J$Pfsa1_frequency,
+		pch  = 19,
+		cex = sqrt( J$Pfsa1_N ) / 6,
+		col = palette[ J$country ],
+		bty = 'n',
+		xaxt = 'n',
+		yaxt = 'n',
+		xlab = "HbAA or SS frequency",
+		ylab = '',
+		xlim = c( 0, 0.3 )
+	)
+	axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
+	axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
+	grid()
 
+	xs = seq( from = 0, to = max(joined$HbAS_or_SS), by = 0.01 )
+	ci = get_ci( logit.estimates, xs, link = "logit" )
+	polygon(
+		c( ci$x, rev(ci$x) ),
+		c( ci$lower, rev( ci$upper )),
+		col = rgb(0,0,0,0.2)
+	)
+	points( xs, ci$mean, type = 'l', lwd = 2, lty = 2 )
+	text( 0.28, 0.75, "-1002", xpd = NA, adj = 0 )
+
+	dev.off()
+}

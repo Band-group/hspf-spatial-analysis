@@ -403,6 +403,7 @@ rule plot_hspf_areas:
 		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
 		--fit {input.fit} \
+		--HbS_aggregated {input.hbs} \
 		--world {input.world} \
 		--output {output.pdf}
 	"""

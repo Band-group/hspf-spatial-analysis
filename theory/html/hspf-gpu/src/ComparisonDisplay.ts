@@ -116,12 +116,12 @@ export default class ComparisonDisplay {
 		;
 	}
 
-	sample( xy:PixelCoords, pfsa: GridData, radius:number = 5 ) {
+	sample( xy:PixelCoords, pfsa: GridData, layer: number, radius:number = 5 ) {
 		let n = 0 ;
 		let total = 0.0 ;
 		for( let i = -radius; i <= radius; ++i ) {
 			for( let j = -radius; j <= radius; ++j ) {
-				let v = pfsa.at([xy.y+j, xy.x+i]) ;
+				let v = pfsa.at([layer, xy.y+j, xy.x+i]) ;
 				if( v != -1 ) {
 					n += 1 ;
 					total += v ;
@@ -136,7 +136,7 @@ export default class ComparisonDisplay {
 		}
 	}
 
-	draw( pfsa: GridData ) {
+	draw( pfsa: GridData, layer: number = 0 ) {
 		let svg = d3.select(this.elt) ;
 
 		let data = this.counts.map(
@@ -145,10 +145,12 @@ export default class ComparisonDisplay {
 				admin1: pt.admin1,
 				latlong: pt.latlong,
 				xy: pt.xy,
-				modelled: this.sample( pt.xy, pfsa ),
+				modelled: this.sample( pt.xy, pfsa, layer ),
 				observed: pt.pfsa1p / pt.pfsa1N
 			})
 		) ;
+
+		console.log( "comparison data", this.counts, data ) ;
 
 		let points = svg.selectAll( 'circle' )
 			.data( data ) ;

@@ -76,7 +76,7 @@ fit$data$hbas_or_ss_median = fit$data$hbs_median^2 + 2*fit$data$hbs_median*(1-fi
 
 w = which( fit$data$n >= 0 )
 logistic = function(x) { exp(x)/(1+exp(x))}
-xs = seq( from = 0, to = 0.3, by = 0.01 )
+xs = seq( from = min( fit$data$hbas_or_ss_mean) / 1.1, to = max(fit$data$hbas_or_ss_mean)*1.1, by = 0.01 )
 curves = tibble(
 	x = xs,
 	median = NA,
@@ -98,12 +98,12 @@ palette = country.colours()
 fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 fit$data$colour[ is.na(fit$data$colour)] = palette['other']
 
-pdf( file = args$output, width = 8, height = 4 )
+pdf( file = args$output, width = 9, height = 4.25 )
 par( mar = c( 4.1, 7.1, 1.1, 12.1 ))
 plot(
 	fit$data$hbas_or_ss_mean[w],
 	fit$data$Y[w] / fit$data$n[w],
-	cex = sqrt(fit$data$n)/10,
+	cex = sqrt(fit$data$n)/6,
 	col = fit$data$colour,
 	pch = 19,
 	xlim = c( 0, 0.3 ),
@@ -114,6 +114,7 @@ plot(
 	xlab = 'HbAS or SS frequency, average',
 	ylab = '',
 )
+
 w = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
 legend(
 	x = 0.385,
@@ -127,10 +128,11 @@ legend(
 	xpd = NA,
 	ncol = 1# + (length(w) > 20)
 )
-axis( 1 )
-axis( 2, las = 1 )
-mtext( sprintf( "%s\nfrequency", fit$allele ), side = 2, line = 3, las = 1 )
+axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
+axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
 grid()
+
+mtext( sprintf( "%s\nfrequency", fit$allele ), side = 2, line = 3, las = 1 )
 points(
 	curves$x,
 	curves$mean,

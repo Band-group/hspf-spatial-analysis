@@ -5,6 +5,7 @@ import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
+import Rainbow from "./Rainbow.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
@@ -160,9 +161,9 @@ class Simulation {
 		}
 		this.counts = this.counts.filter( (elt:PfsaCounts) => {
 			return (
-				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
+				(elt.xy.x >= 0 && elt.xy.x < this.data[1].width)
 				&&
-				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+				(elt.xy.y >= 0 && elt.xy.y < this.data[1].height)
 				&&
 				elt.pfsa1N >= 25
 			) ;
@@ -200,14 +201,15 @@ class Simulation {
 				const container = document.createElement( 'div' ) ;
 				container.classList.add( 'maps_container' );
 				container.classList.add( 'pf_map' );
-				[ '00', '01', '10', '11' ].forEach(
+				[ /*'00'*/,'01', '10', '11', 'r' ].forEach(
 					(genotype, index ) => {
 						this.displays[ 'pf' + genotype ] = new MapDisplay(
 							container,
 							{ 'width': this.geom.width, 'height': this.geom.height },
 							new PaletteScale(
-								new Viridis( 20 ),
-								0, 1.0,
+								(genotype == 'r') ? new Rainbow( 21 ) : new Viridis( 20 ),
+								(genotype == 'r' ? -1.05 : 0.0), (genotype == 'r' ? 1.05 : 1.0),
+//								0.0, 1.0,
 								function(v) { return nf.format(v * 100) + '%' ; }
 							),
 							this.device,
@@ -222,10 +224,7 @@ class Simulation {
 				this.comparisons = new Map() ;
 				let left = 20 ;
 				[
-					['Gambia', 'Senegal', 'Mali' ],
-					[ 'Ghana' ],
-					[ 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo' ],
-					[ 'Tanzania', 'Kenya' ]
+					['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo', 'Tanzania', 'Kenya' ]
 				].forEach(
 					(countries:Array<string>) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -237,8 +236,8 @@ class Simulation {
 								this.counts.filter( d => countries.includes(d.country) ),
 								overlay,
 								{
-									width: 185,
-									height: 150,
+									width: 280,
+									height: 240,
 									margins: {
 										'bottom': 30,
 										'left': 40,
@@ -255,20 +254,23 @@ class Simulation {
 			}
 			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add( 'maps_container' );
 				container.classList.add( 'hs_map' );
 				this.displays.hs = new MapDisplay(
 					container,
-					{ 'width': this.geom.width, 'height': this.geom.height },
+					{ 'width': 350, 'height': 350 * this.geom.height/this.geom.width },
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 0.4,
 						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
-					{ 'contours': false }
+					{
+						'contours': false,
+						'title': 'HbS'
+					}
 				) ;
-				section.appendChild( container ) ;
+				const nav = document.querySelector( "nav" ) ;
+				nav.appendChild( container ) ;
 			}
 		}
 		this.render() ;
@@ -319,16 +321,15 @@ class Simulation {
 				this.hspf.pfsa.data[ 3 * (dims[0]*dims[1]) + 400.5*dims[0]]
 			) ;
 		}
-		this.displays.pf00.draw( this.hspf.pfsa, 0 ) ;
+//		this.displays.pf00.draw( this.hspf.pfsa, 0 ) ;
 		this.displays.pf01.draw( this.hspf.pfsa, 1 ) ;
 		this.displays.pf10.draw( this.hspf.pfsa, 2 ) ;
 		this.displays.pf11.draw( this.hspf.pfsa, 3 ) ;
+		this.displays.pfr.draw( this.hspf.pfsa, 4 ) ;
 		this.displays.hs.draw( this.data[1] ) ;
 
-
-
-			for (let comparison of this.comparisons.values()) {
-			comparison.draw( this.data[0] ) ;
+		for (let comparison of this.comparisons.values()) {
+			comparison.draw( this.hspf.pfsa, 3 ) ;
 		}
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
@@ -458,7 +459,7 @@ async function run() {
 	}) ;
 
 	controls.on( 'features', function(values:GridData) {
-		simulation.displays.pf00.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+//		simulation.displays.pf00.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
 		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
 //		simulation.displays.pf00.annotate_counts( simulation.counts ) ;
 //		simulation.displays.hs.annotate_counts( simulation.counts ) ;

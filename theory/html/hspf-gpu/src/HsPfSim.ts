@@ -67,6 +67,7 @@ export default class HsPfSim {
 	barriers: GridData = new GridData( [this.max_barriers,4] ) ;
 	m_iteration: number ;
 	twoBiteRate: number = 0.0 ;
+	offspringTable: GridData ;
 
 	// pipeline-related variables
 	device: GPUDevice ;
@@ -83,23 +84,61 @@ export default class HsPfSim {
 		this.device = device ;
 		this.hs = hs ;
 		this.outerPadding = outerPadding ;
-		this.pfsa = new GridData( [ 4, this.hs.height, this.hs.width ] ) ; // four genotypes, 00/01/10/11
+		this.pfsa = new GridData(
+			[
+				5,					 // four genotypes, 00/01/10/11, plus LD
+				this.hs.height,
+				this.hs.width
+			]
+		) ;
 		let innerSize = (hs.height * hs.width) ;
 		let self = this ;
-		let starting_frequencies = [
-			0.7,
+		let starting_values = [
+			0.9,
+			0,
+			0,
 			0.1,
-			0.1,
-			0.1
+			0
 		] ;
 		this.pfsa.data.forEach(
 			function( _value, i ) {
 				let genotype = Math.floor(i / innerSize ) ;
-				self.pfsa.data[i] = (hs.data[i % innerSize] == -1) ? -1 : starting_frequencies[genotype] ;
+				self.pfsa.data[i] = (hs.data[i % innerSize] == -1) ? -1 : starting_values[genotype] ;
 			}
 		) ;
 		this.nbhd = this.computeNbhd( this.mapWidthInKm, this.maxDistanceInKm, this.nbhdConcentration, 5000 ) ;
 		console.log( "NBHD", this.nbhd ) ;
+
+		// table of offspring probabilities
+		// imagine two parents (specified by rows) mate and produce 4 haploid offspring
+		// of which one is transmitted: what are the probabilities of each type?
+		// 00, 01, 10, 11
+		this.offspringTable = new GridData(
+			[ 16, 4 ],
+			[
+				/* p1 - p2 */
+				/* 00 - 00 */    1,    0,    0,    0,
+				/* 00 - 01 */  0.5,  0.5,    0,    0,
+				/* 00 - 10 */  0.5,    0,  0.5,    0,
+				/* 00 - 11 */ 0.25, 0.25, 0.25, 0.25,
+
+				/* 01 - 00 */  0.5,  0.5,    0,    0,
+				/* 01 - 01 */    0,    1,    0,    0,
+				/* 01 - 10 */ 0.25, 0.25, 0.25, 0.25,
+				/* 01 - 11 */    0,  0.5,    0,  0.5,
+
+				/* 10 - 00 */  0.5,    0,  0.5,    0,
+				/* 10 - 01 */ 0.25, 0.25, 0.25, 0.25,
+				/* 10 - 10 */    0,    0,    1,    0,
+				/* 10 - 11 */    0,    0,  0.5,  0.5,
+
+				/* 11 - 00 */ 0.25, 0.25, 0.25, 0.25,
+				/* 11 - 01 */    0,  0.5,    0,  0.5,
+				/* 11 - 10 */    0,    0,  0.5,  0.5,
+				/* 11 - 11 */    0,    0,    0,    1
+			]
+		)
+		console.log( "OFFSPRING", this.offspringTable ) ;
 		this.dispatchCount = [
 			Math.ceil((this.hs.height - 2*this.outerPadding)/this.workgroupSize[0]),
 			Math.ceil((this.hs.width - 2*this.outerPadding)/this.workgroupSize[1]),
@@ -125,7 +164,7 @@ export default class HsPfSim {
 				height: u32,
 				nbhd_size: u32,
 				number_of_barriers: u32,
-				twoBiteRate: f32,
+				twoBiteRate: u32,
 				unused1: u32,
 				unused2: u32,
 				unused3: u32
@@ -169,6 +208,7 @@ export default class HsPfSim {
 			@group(0) @binding(2) var<storage> nbhd: array<NbhdPoint> ;
 			@group(0) @binding(3) var<storage> HbS: array<f32> ;
 			@group(0) @binding(4) var<uniform> barriers: array<vec4f, 10> ;
+			@group(0) @binding(5) var<uniform> offspringTable: array<vec4f, 16> ;
   
 			// simulation data, will be updated
 			@group(1) @binding(0) var<storage, read_write> pfsa: array<f32> ;
@@ -228,46 +268,70 @@ export default class HsPfSim {
 						}
 //					}
 					// test both bite location and target location
-					// if either is missing, skip this
+					// if either is missing, skip it
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
 						// single bite.
-						for( var g = 0; g < 4; g++ ) {
-							let v = (
-								(pf[g] * a * fitness[0][g])
-								+ (pf[g] * s * fitness[1][g])
-							) ;
-							denominator += weight * v ;
-							value[g] += weight * v ;
-						}
-						// two bites.
-						// 
-						// for( var g1 = 0; g1 < 4; g1++ ) {
-						//	for( var g2 = 0; g2 < 4; g2++ ) {
-						//		let chance = pf[g1]*pf[g2] ;
-
-						//		let v = (
-						//			(pf[g1]*pf[g2] * a * fitness[0][g])
-						//			+ (pf[g1] * s * fitness[1][g])
+						//for( var g = 0; g < 4; g++ ) {
+						//	let v = (
+						//		(pf[g] * a * fitness[0][g])
+						//		+ (pf[g] * s * fitness[1][g])
 						//	) ;
-						//	denominator += weight * v ;
-						//	value[g] += weight * v ;
+						//	denominator += (1. - twoBiteRate) * weight * v ;
+						//	value[g] += (1. - twoBiteRate) * weight * v ;
 						//}
+
+						// one bite
+						{
+							let v = (
+								pf
+								* (
+									(a * fitness[0])
+									+ (s * fitness[1])
+								)
+							) ;
+							denominator += (1.0 - twoBiteRate) * weight * (v[0]+v[1]+v[2]+v[3]) ;
+							value += (1.0 - twoBiteRate) * weight * v ;
+						}
+						// two bites
+						for( var r = 0; r < 16; r++ ) {
+							let g2 = r % 4 ;
+							let g1 = r / 4 ;
+							let v = (
+								(pf[g1]*pf[g2])
+								* offspringTable[r]
+								* (
+									(a * fitness[0])
+									+ (s * fitness[1])
+								)
+							) ;
+							denominator += twoBiteRate * weight * (v[0]+v[1]+v[2]+v[3]) ;
+							value += twoBiteRate * weight * v ;
+						}
 					}
 				}
-				denominator /= totalWeight ;
-				value /= totalWeight ;
+				//denominator /= totalWeight ;
+				value /= denominator ;
 
 				if( fs == -1 ) {
 					pfsanew[ 0*size + cellidx ] = -1 ;
 					pfsanew[ 1*size + cellidx ] = -1 ;
 					pfsanew[ 2*size + cellidx ] = -1 ;
 					pfsanew[ 3*size + cellidx ] = -1 ;
+					pfsanew[ 4*size + cellidx ] = -1 ;
 				} else {
-					pfsanew[ 0*size + cellidx ] = value[0] / denominator ;
-					pfsanew[ 1*size + cellidx ] = value[1] / denominator ;
-					pfsanew[ 2*size + cellidx ] = value[2] / denominator ;
-					pfsanew[ 3*size + cellidx ] = value[3] / denominator ;
+					// unpack values into the four map layers
+					pfsanew[ 0*size + cellidx ] = value[0] ;
+					pfsanew[ 1*size + cellidx ] = value[1] ;
+					pfsanew[ 2*size + cellidx ] = value[2] ;
+					pfsanew[ 3*size + cellidx ] = value[3] ;
+
+					// compute ld
+					let f1_ = value[2] + value[3] ;
+					let f_1 = value[1] + value[3] ;
+					let d = value[3] - f1_ * f_1 ;
+					let r = d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)) ;
+					pfsanew[ 4*size + cellidx ] = r ;
 				}
 			}`
 		});
@@ -278,7 +342,8 @@ export default class HsPfSim {
 					{ binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
 					{ binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
 					{ binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
-					{ binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}
+					{ binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
+					{ binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}
 				],
 			}),
 			pfsa: device.createBindGroupLayout(
@@ -316,6 +381,7 @@ export default class HsPfSim {
 			pfsaB: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
 			pfsaResult: device.createBuffer( { label: "pfsaRead", size: this.pfsa.data.byteLength, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }),
 			barriers: this.barriers.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
+			offspring: this.offspringTable.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ),
 		} ;
 
 		this.bufferToGPU( 'nbhd' ) ;
@@ -329,7 +395,8 @@ export default class HsPfSim {
 					{ binding: 1, resource: { buffer: this.buffers.fitness }},
 					{ binding: 2, resource: { buffer: this.buffers.nbhd }},
 					{ binding: 3, resource: { buffer: this.buffers.HbS }},
-					{ binding: 4, resource: { buffer: this.buffers.barriers }}
+					{ binding: 4, resource: { buffer: this.buffers.barriers }},
+					{ binding: 5, resource: { buffer: this.buffers.offspring }}
 				]
 			}),
 			// pfsa has a flip/flop pattern to avoid
@@ -396,6 +463,7 @@ export default class HsPfSim {
 		this.maxDistanceInKm = values.at([1,0]) ;
 		this.nbhdConcentration = values.at([2,0]) ;
 		let n = values.at([3,0]) ;
+		this.twoBiteRate = Math.max( Math.min( values.at([4,0]), 100 ), 0 ) ;
 		this.nbhd = this.computeNbhd( this.mapWidthInKm, this.maxDistanceInKm, this.nbhdConcentration, n ) ;
 		// reflect to the GPU.
 		this.bufferToGPU( 'nbhd' ) ;
