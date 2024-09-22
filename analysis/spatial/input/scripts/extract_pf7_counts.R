@@ -62,7 +62,7 @@ SNPs = tibble(
 	)
 )
 
-G = load.genotypes( paths$genotypes )
+G = load.genotypes( paths$genotypes, SNPs )
 
 for( i in 1:nrow( G$variants )) {
 	samples[,G$variants$ID[i]] = G$dosage[i,]
@@ -133,9 +133,9 @@ by_site = (
 
 {
 	db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
-	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
+#	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
 	DBI::dbWriteTable( db, "by_site", by_site, overwrite = TRUE )
-	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
+#	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
 	DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = TRUE )
 	DBI::dbDisconnect( db )
 }
