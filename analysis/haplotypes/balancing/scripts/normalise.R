@@ -34,9 +34,10 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
-		"--bins",
+		"--breaks",
 		type = "double",
-		help = "bins to use",
+		nargs = "+",
+		help = "breaks of bins to use",
 		default = seq( from = 0, to = 1, by = 0.01 )
 	)
 	parser$add_argument(
@@ -60,7 +61,7 @@ frequency = args$frequency
 frequency_bin = sprintf( "%s_bin", frequency )
 strata = args$strata
 X[[frequency]] = as.numeric( X[[frequency]])
-X[[frequency_bin]] = cut( X[[frequency]], breaks = args$bins )
+X[[frequency_bin]] = cut( X[[frequency]], breaks = args$breaks )
 options(width=300)
 print( head( X ))
 for( column in args$statistics ) {
