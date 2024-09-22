@@ -159,8 +159,7 @@ rule all:
 			p = [ "20", "50" ]
 		),
 		selscan = expand(
-			"outputs/pf7/selscan/pf7.{chromosome}.selscan.{mode}.tsv.gz",
-			chromosome = chromosomes,
+			"outputs/pf7/selscan/output/pf7.selscan.{mode}.tsv.gz",
 			mode = [ 'ihs' ]
 		)
 
@@ -900,7 +899,6 @@ rule run_selscan:
 		--maf 0.05 \
 		--out {params.output_stub}
 	"""
-
 
 rule combine_selscan:
 	output:

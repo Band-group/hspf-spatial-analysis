@@ -5,46 +5,79 @@
 	<meta charset="utf-8">
 	<title>WebGPU HsPf Simulation</title>
 	<style>
-		.map_container {
-			position: relative ;
-			padding: 0px ;
-			margin-bottom: 20px ;
-			margin-top: 20px ;
-			margin-left: 10px ;
-			/*border: 10px solid black ;*/
-			/*border-radius: 20px ;*/
-			width: max-content ;
-		}
-		.map_container > canvas {
-			border: 2px solid rgb( 125, 64, 64 ) ;
-		}
-		.map_container > svg.annotation_overlay {
-			display: block ;
-			position: absolute ;
-			right: 0px ;
-			top: 0px ;
-			/*background-color: rgb( 256, 256, 256, 0.1 ) ;*/
-		}
 		body {
 			font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
 		}
-		body > h1 {
+		body > #title {
+			display: block ;
 			position: fixed ;
-			left: 20px ;
-			width: 350px ;
+			left: 0px ;
+			top: 0px ;
+			width: 370px ;
 			text-align: center ;
 			font-family: 'Palatino', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
+			background-color : rgba(255,255,255,1) ;
+			padding: 0px ;
+			z-index: 100 ;
+			border-bottom: 1px solid black  ;
 		}
+		body > #title > h1 {
+			margin-bottom: 0px ;
+			padding-bottom: 0px ;
+		}
+		body > #title > h2 {
+			margin-top: 0px ;
+			font-size: 10pt ;
+		}
+
 		nav {
-			position: fixed ;
-			left: 20px ;
+			position: absolute ;
+			left: 10px ;
 			top: 80px ;
 			width: 350px ;
 		}
 		section {
+			display: block ;
 			position: relative ;
-			left: 400px ;
-			z-index: 100 ;
+			left: 370px ;
+		}
+		.maps_container, .hs_map {
+			position: relative ;
+			display: block ;
+			top: 0px ;
+			left: 0px ;
+			padding: 0px ;
+			margin-bottom: 5px ;
+			margin-top: 5px ;
+			margin-left: 5px ;
+			margin-top: 5px ;
+			/*border: 10px solid black ;*/
+			/*border-radius: 20px ;*/
+		}
+		.maps_container {
+			width: 1050px ;
+		}
+		.map_container {
+			display: inline-block ;
+			position: relative ;
+			margin-right: 5px ;
+			margin-bottom: 5px ;
+			width: 500px ;
+			height: 400px ;
+		}
+		.map_container > canvas {
+			/*border: 2px solid rgb( 125, 64, 64 ) ;*/
+			display: block ;
+			position: absolute ;
+			left: 0px ;
+			top: 0px ;
+		}
+		.map_container > svg.annotation_overlay {
+			display: block ;
+			position: absolute ;
+			left: 0px ;
+			top: 0px ;
+			/*background-color: rgb( 256, 256, 256, 0.1 ) ;*/
 		}
 
 		tr {
@@ -56,7 +89,7 @@
 		.controls h1, .control h2 {
 			font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
 			padding: 0px ;
-			border-bottom: 4px solid black ;
+			border-bottom: 1px solid black ;
 		}
 		.controls h1 {
 			display: block ;
@@ -68,9 +101,9 @@
 			margin-top: 20px ;
 		}
 		.control, .hud {
-			border: 1px solid black ;
-			border-radius: 20px ;
-			padding: 20px ;
+			//border: 1px solid black ;
+			//border-radius: 20px ;
+			padding-bottom: 10px ;
 		}
 		.playback button {
 			font-size: 24pt ;
@@ -123,22 +156,25 @@
 		svg.palette_legend {
 			display: block ;
 			position: absolute ;
-			right: 20px ;
+			right: 5px ;
 			top: 20px ;
 			background-color: rgb( 256, 256, 256, 0.5 ) ;
 		}
 		svg.comparison_display {
-			display: block ;
-			position: absolute ;
-			bottom: 20px ;
-			left: 20px ;
+			display: inline-block ;
+			position: relative ;
+//			bottom: 20px ;
+//			left: 20px ;
 			background:  rgb( 256, 256, 256, 0.5 ) ;
 		}
 
 </style>
 </head>
 <body>
+	<div id = "title">
 	<h1>The Hs-<em>Pf</em> video game</h1>
+	<h2>by Gavin Band and Andre Python</h2>
+	</div>
 	<nav>
 	</nav>
 	<section>

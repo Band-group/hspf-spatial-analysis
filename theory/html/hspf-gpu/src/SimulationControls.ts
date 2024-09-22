@@ -68,12 +68,12 @@ export default class SimulationControls {
 			['--', '-+', '+-', '++'],
 			{
 				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
-				"A:-+": { value: 0.0, min: 0, max: 1, step: 0.01 },
-				"A:+-": { value: 0.0, min: 0, max: 1, step: 0.01 },
+				"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
+				"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
 				"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
 				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
-				"S:-+": { value: 0.0, min: 0, max: 1, step: 0.01 },
-				"S:+-": { value: 0.0, min: 0, max: 1, step: 0.01 },
+				"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
+				"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
 				"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
 			}
 		) ;
@@ -90,7 +90,7 @@ export default class SimulationControls {
 			[ 'value' ],
 			[ 'twoBiteRate', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 			{
-				'value:twoBiteRate': { value: 0.0, min: 0.0, max: 100.0, step: 10 },
+				'value:twoBiteRate': { value: 1.0, min: 0.0, max: 100.0, step: 1 },
 				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },

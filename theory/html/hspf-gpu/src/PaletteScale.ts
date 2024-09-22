@@ -25,7 +25,7 @@ export default class PaletteScale {
 	}
 
 	get values() {
-		return this.m_data ;
+		return this.m_data ;f
 	}
 
 	get breaks() {
@@ -40,7 +40,7 @@ export default class PaletteScale {
 				bottom: 10, top: 30
 			},
 			size: {
-				width: 80,
+				width: 70,
 				height: 250
 			}
 		}

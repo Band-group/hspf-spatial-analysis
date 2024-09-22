@@ -19,7 +19,7 @@ parse_arguments <- function() {
 	parser$add_argument(
 		"--area",
 		type = "character",
-		help = "Are specification",
+		help = "Area specification",
 		required = TRUE
 	)
 	parser$add_argument(
@@ -50,7 +50,7 @@ summary = (
 		beta.q25 = quantile( beta, 0.25 ),
 		beta.q50 = quantile( beta, 0.5 ),
 		beta.q75 = quantile( beta, 0.75 ),
-		beta.q97.5 = quantile( beta, 0.75 )
+		beta.q97.5 = quantile( beta, 0.975 )
 	)
 )
 
