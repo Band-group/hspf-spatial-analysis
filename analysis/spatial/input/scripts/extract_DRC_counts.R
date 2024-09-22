@@ -79,14 +79,14 @@ samples = (
 		)[Country],
 		site = NA,
 		N = 1,
-		`Pfsa1:ref` = sum( !is.na( `chr2_631190` )) - sum( `chr2_631190`, na.rm = T ),
-		`Pfsa1:nonref` = sum( `chr2_631190`, na.rm = T ),
-		`Pfsa2:ref` = sum( !is.na( `chr2_814329` )) - sum( `chr2_814329`, na.rm = T ),
-		`Pfsa2:nonref` = sum( `chr2_814329`, na.rm = T ),
-		`Pfsa3:ref` = sum( !is.na( `chr11_1058035` )) - sum( `chr11_1058035`, na.rm = T ),
-		`Pfsa3:nonref` = sum( `chr11_1058035`, na.rm = T ),
-		`Pfsa4:ref` = sum( !is.na( `chr4_1121472` )) - sum( `chr4_1121472`, na.rm = T ),
-		`Pfsa4:nonref` = sum( `chr4_1121472`, na.rm = T ),
+		`Pfsa1:ref` = 1 - `chr2_631190`,
+		`Pfsa1:nonref` = `chr2_631190`,
+		`Pfsa2:ref` = 1 - `chr2_814329`,
+		`Pfsa2:nonref` = `chr2_814329`,
+		`Pfsa3:ref` = 1 - `chr11_1058035`,
+		`Pfsa3:nonref` = `chr11_1058035`
+		`Pfsa4:ref` = 1 - `chr4_1121472`,
+		`Pfsa4:nonref` = `chr4_1121472`,
 		exclude = "no"
 	)
 )
@@ -111,10 +111,10 @@ by_site = (
 		source, study, country, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
-		'Pfsa1:ref' = sum(`Pfsa1:ref`), `Pfsa1:nonref` = sum( `Pfsa1:nonref` ),
-		'Pfsa2:ref' = sum(`Pfsa2:ref`), `Pfsa2:nonref` = sum( `Pfsa2:nonref` ),
-		'Pfsa3:ref' = sum(`Pfsa3:ref`), `Pfsa3:nonref` = sum( `Pfsa3:nonref` ),
-		'Pfsa4:ref' = sum(`Pfsa4:ref`), `Pfsa4:nonref` = sum( `Pfsa4:nonref` ),
+		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
+		'Pfsa2:ref' = sum(`Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
+		'Pfsa3:ref' = sum(`Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
+		'Pfsa4:ref' = sum(`Pfsa4:ref`, na.rm = T ), `Pfsa4:nonref` = sum( `Pfsa4:nonref`, na.rm = T ),
 		exclude = max( exclude )
 	)
 )

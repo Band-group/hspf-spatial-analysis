@@ -85,14 +85,14 @@ samples = (
 		study = Study,
 		country = Country,
 		site = `Admin level 1`,
-		`Pfsa1:ref` = sum( !is.na( `chr2:631190:T>A` )) - sum( `chr2:631190:T>A`, na.rm = T  ),
-		`Pfsa1:nonref` = sum( `chr2:631190:T>A`, na.rm = T  ),
-		`Pfsa2:ref` = sum( !is.na( `chr2:814288:C>T` )) - sum( `chr2:814288:C>T`, na.rm = T  ),
-		`Pfsa2:nonref` = sum( `chr2:814288:C>T`, na.rm = T  ),
-		`Pfsa3:ref` = sum( !is.na( `chr11:1058035:T>A` )) - sum( `chr11:1058035:T>A`, na.rm = T  ),
-		`Pfsa3:nonref` = sum( `chr11:1058035:T>A`, na.rm = T  ),
-		`Pfsa4:ref` = sum( !is.na( `chr4:1121472:T>A` )) - sum( `chr4:1121472:T>A`, na.rm = T  ),
-		`Pfsa4:nonref` = sum( `chr4:1121472:T>A`, na.rm = T )
+		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
+		`Pfsa1:nonref` = `chr2:631190:T>A`,
+		`Pfsa2:ref` = 1 - `chr2:814288:C>T`,
+		`Pfsa2:nonref` = `chr2:814288:C>T`,
+		`Pfsa3:ref` = 1 - `chr11:1058035:T>A`,
+		`Pfsa3:nonref` = `chr11:1058035:T>A`,
+		`Pfsa4:ref` = 1 - `chr4:1121472:T>A`,
+		`Pfsa4:nonref` = `chr4:1121472:T>A`
 	)
 )
 
@@ -123,14 +123,10 @@ by_site = (
 	)
 	%>% summarise(
 		N = sum(N),
-		`Pfsa1:ref` = sum( `Pfsa1:ref` ),
-		`Pfsa1:nonref` = sum( `Pfsa1:nonref` ),
-		`Pfsa2:ref` = sum( `Pfsa2:ref` ),
-		`Pfsa2:nonref` = sum( `Pfsa2:nonref` ),
-		`Pfsa3:ref` = sum( `Pfsa3:ref` ),
-		`Pfsa3:nonref` = sum( `Pfsa3:nonref` ),
-		`Pfsa4:ref` = sum( `Pfsa4:ref` ),
-		`Pfsa4:nonref` = sum( `Pfsa4:nonref` ),
+		`Pfsa1:ref` = sum( `Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
+		`Pfsa2:ref` = sum( `Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
+		`Pfsa3:ref` = sum( `Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
+		`Pfsa4:ref` = sum( `Pfsa4:ref`, na.rm = T ), `Pfsa4:nonref` = sum( `Pfsa4:nonref`, na.rm = T ),
 		`exclude` = 'no'
 	)
 )

@@ -97,13 +97,13 @@ samples = (
 		study = "Moser et al 2021",
 		country = "Tanzania",
 		N = 1,
-		`Pfsa1:ref` = `chr2:631190:T>A`,
+		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
 		`Pfsa1:nonref` = `chr2:631190:T>A`,
-		`Pfsa2:ref` = `chr2:814288:C>T`,
+		`Pfsa2:ref` = 1 - `chr2:814288:C>T`,
 		`Pfsa2:nonref` = `chr2:814288:C>T`,
-		`Pfsa3:ref` = `chr11:1058035:T>A`,
+		`Pfsa3:ref` = 1 - `chr11:1058035:T>A`,
 		`Pfsa3:nonref` = `chr11:1058035:T>A`,
-		`Pfsa4:ref` = `chr4:1121472:T>A`,
+		`Pfsa4:ref` = 1 - `chr4:1121472:T>A`,
 		`Pfsa4:nonref` = `chr4:1121472:T>A`,
 		exclude = "no"
 	)
@@ -129,10 +129,10 @@ by_site = (
 		source, study, country, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
-		'Pfsa1:ref' = sum(`Pfsa1:ref`), `Pfsa1:nonref` = sum( `Pfsa1:nonref` ),
-		'Pfsa2:ref' = sum(`Pfsa2:ref`), `Pfsa2:nonref` = sum( `Pfsa2:nonref` ),
-		'Pfsa3:ref' = sum(`Pfsa3:ref`), `Pfsa3:nonref` = sum( `Pfsa3:nonref` ),
-		'Pfsa4:ref' = sum(`Pfsa4:ref`), `Pfsa4:nonref` = sum( `Pfsa4:nonref` ),
+		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
+		'Pfsa2:ref' = sum(`Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
+		'Pfsa3:ref' = sum(`Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
+		'Pfsa4:ref' = sum(`Pfsa4:ref`, na.rm = T ), `Pfsa4:nonref` = sum( `Pfsa4:nonref`, na.rm = T ),
 		exclude = max( exclude )
 	)
 )
