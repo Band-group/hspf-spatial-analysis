@@ -88,9 +88,9 @@ export default class SimulationControls {
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
 			'spread',
 			[ 'value' ],
-			[ 'twoBiteRate', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
+			[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 			{
-				'value:twoBiteRate': { value: 0.0, min: 0.0, max: 100.0, step: 1 },
+				'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
 				'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
@@ -184,7 +184,7 @@ export default class SimulationControls {
 			"value:maxDistanceInKm": [0,1],
 			"value:concentration": [0,2],
 			"value:n": [0,3],
-			"value:twoBiteRate": [0,4],
+			"value:twoBiteRate%": [0,4],
 		} ;
 		let result = new GridData( [5,1] ) ;
 		let cells = this.spreadControl.querySelectorAll( 'input' ) ;

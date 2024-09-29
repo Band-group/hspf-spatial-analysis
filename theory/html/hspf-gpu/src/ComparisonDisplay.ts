@@ -150,7 +150,7 @@ export default class ComparisonDisplay {
 			})
 		) ;
 
-		console.log( "comparison data", this.counts, data ) ;
+		// console.log( "comparison data", this.counts, data ) ;
 
 		let points = svg.selectAll( 'circle' )
 			.data( data ) ;
