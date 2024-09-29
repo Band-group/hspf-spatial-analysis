@@ -159,7 +159,7 @@ export default class TiffDisplay {
 		});
 	}
 
-	draw( data: GridData, context: any, layer: Number = 0 ) {
+	draw( data: GridData, context: any, layer: number = 0 ) {
 		context.configure({
 			device: this.device,
 			format: this.canvasFormat

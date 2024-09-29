@@ -16,6 +16,7 @@ export interface MapOptions {
 } ;
 
 export default class MapDisplay {
+	elt: HTMLElement ;
 	container: HTMLElement ;
 	geom: Geom ;
 	palette: PaletteScale ;
@@ -24,7 +25,8 @@ export default class MapDisplay {
 	context: GPUCanvasContext ;
 	legend: SVGElement ;
 	overlay: SVGElement ;
-
+	title: string ;
+	
 	constructor(
 		elt: HTMLElement,
 		geom: Geom,

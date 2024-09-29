@@ -11,8 +11,18 @@ import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
 import { PfsaCounts, LatLong } from "./Types.js"
 //import { writeArrayBuffer } from 'geotiff';
-import { writeGeoTiff } from 'geotiff';
+//import { writeGeoTiff } from 'geotiff';
 import {writeGeotiffF32} from './writeGeoTiffF32.ts'
+
+class Geom {
+	width: number = 0 ;
+	height: number = 0 ;
+
+	constructor( width_: number, height_: number ) {
+		this.width = width_ ;
+		this.height = height_ ;
+	}
+} ;
 
 class Simulation {
 	device: GPUDevice ;
@@ -26,6 +36,7 @@ class Simulation {
 	outerPadding: number ;
 	m_running: boolean ;
 	m_iteration: number ;
+	geom: Geom ;
 
 	static async create(
 		map_url: string,
@@ -186,10 +197,7 @@ class Simulation {
 			) ;
 		}
 	
-		this.geom = {
-			width: 500, //this.data[1].width / 1,
-			height: 409  //this.data[1].height / 1
-		} ;
+		this.geom = new Geom( 500, 409 ) ;
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
 		if( !section ) {
@@ -202,7 +210,7 @@ class Simulation {
 				container.classList.add( 'maps_container' );
 				container.classList.add( 'pf_map' );
 				[ /*'00'*/,'01', '10', '11', 'r' ].forEach(
-					(genotype, index ) => {
+					( genotype ) => {
 						this.displays[ 'pf' + genotype ] = new MapDisplay(
 							container,
 							{ 'width': this.geom.width, 'height': this.geom.height },
@@ -215,7 +223,7 @@ class Simulation {
 							this.device,
 							{
 								'contours': true,
-								'title': genotype
+								'title': genotype ? genotype : "(unknown)" // workaround 
 							}
 						) ;
 					}
@@ -223,15 +231,15 @@ class Simulation {
 				section.appendChild( container ) ;
 				this.comparisons = new Map() ;
 				let left = 20 ;
-				[
-					['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo', 'Tanzania', 'Kenya' ]
-				].forEach(
-					(countries:Array<string>) => {
+				let country_sets = new Map< string, string[] > ;
+				country_sets.set('all', ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo', 'Tanzania', 'Kenya' ] );
+				country_sets.forEach(
+					( countries:string[], key:string ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
 						container.appendChild( overlay ) ;
 						this.comparisons.set(
-							countries,
+							key,
 							new ComparisonDisplay(
 								this.counts.filter( d => countries.includes(d.country) ),
 								overlay,
@@ -270,7 +278,7 @@ class Simulation {
 					}
 				) ;
 				const nav = document.querySelector( "nav" ) ;
-				nav.appendChild( container ) ;
+				nav!.appendChild( container ) ;
 			}
 		}
 		this.render() ;
@@ -360,7 +368,7 @@ class Simulation {
 	}
 
 	async takeSnapshot() {
-		console.log( "Taking snapshot..." ) ;
+		console.log( "Taking snapshot of 11..." ) ;
 		let pfsa = this.hspf.pfsa ;
 		let pad = this.outerPadding ;
 		let padded_dims = pfsa.m_dimensions ;

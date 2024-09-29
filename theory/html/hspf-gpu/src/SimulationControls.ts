@@ -90,8 +90,8 @@ export default class SimulationControls {
 			[ 'value' ],
 			[ 'twoBiteRate', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 			{
-				'value:twoBiteRate': { value: 1.0, min: 0.0, max: 100.0, step: 1 },
-				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
+				'value:twoBiteRate': { value: 0.0, min: 0.0, max: 100.0, step: 1 },
+				'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
 				'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
@@ -110,6 +110,9 @@ export default class SimulationControls {
 		let snapshot = document.getElementById( "snapshot" ) ;
 		if( !playpause ) {
 			throw Error( "Unable to create play/pause element" ) ;
+		}
+		if( !snapshot ) {
+			throw Error( "Unable to create snapshot element" ) ;
 		}
 		playpause.addEventListener(
 			'click',
@@ -160,7 +163,7 @@ export default class SimulationControls {
 			return this.getSpreadValues() ;
 		} else if( what == 'snapshot' ) {
 			return new GridData([1,1], [
-				(document.getElementById( "snapshot" ).getAttribute( "state" ) == 'active') ? 1 : 0
+				(document.getElementById( "snapshot" )!.getAttribute( "state" ) == 'active') ? 1 : 0
 			]) ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;

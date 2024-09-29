@@ -17,6 +17,7 @@ interface SimulationBuffers {
 	pfsaB: GPUBuffer ;
 	pfsaResult: GPUBuffer ;
 	barriers: GPUBuffer ;
+	offspring: GPUBuffer ;
 } ;
 
 interface SimulationBindGroupLayouts {
@@ -381,7 +382,7 @@ export default class HsPfSim {
 			pfsaB: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
 			pfsaResult: device.createBuffer( { label: "pfsaRead", size: this.pfsa.data.byteLength, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }),
 			barriers: this.barriers.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
-			offspring: this.offspringTable.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST ),
+			offspring: this.offspringTable.toDeviceBuffer( device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST )
 		} ;
 
 		this.bufferToGPU( 'nbhd' ) ;
