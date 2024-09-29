@@ -26,7 +26,7 @@ export default class MapDisplay {
 	legend: SVGElement ;
 	overlay: SVGElement ;
 	title: string ;
-	
+
 	constructor(
 		elt: HTMLElement,
 		geom: Geom,
@@ -86,9 +86,9 @@ export default class MapDisplay {
 				.attr( 'transform', 'translate( 20, 50 )' )
 				.append( 'text' )
 				.attr( 'fill', '#DEDEDE' )
-				.attr( 'font-size', '24pt' )
-				.attr( 'font-wight', 'bold' )
-				.attr( 'font-family', 'Helvetica' )
+				.attr( 'font-size', '32pt' )
+				.attr( 'font-weight', 'bold' )
+				.attr( 'font-family', 'Monospace, Courier' )
 				.text( this.title ) ;
 		}
 

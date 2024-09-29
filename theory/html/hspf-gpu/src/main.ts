@@ -209,7 +209,7 @@ class Simulation {
 				const container = document.createElement( 'div' ) ;
 				container.classList.add( 'maps_container' );
 				container.classList.add( 'pf_map' );
-				[ /*'00'*/,'01', '10', '11', 'r' ].forEach(
+				[ /*'00'*/,'-+', '+-', '++', 'r' ].forEach(
 					( genotype ) => {
 						this.displays[ 'pf' + genotype ] = new MapDisplay(
 							container,
@@ -329,10 +329,10 @@ class Simulation {
 				this.hspf.pfsa.data[ 3 * (dims[0]*dims[1]) + 400.5*dims[0]]
 			) ;
 		}
-//		this.displays.pf00.draw( this.hspf.pfsa, 0 ) ;
-		this.displays.pf01.draw( this.hspf.pfsa, 1 ) ;
-		this.displays.pf10.draw( this.hspf.pfsa, 2 ) ;
-		this.displays.pf11.draw( this.hspf.pfsa, 3 ) ;
+//		this.displays['pf--'].draw( this.hspf.pfsa, 0 ) ;
+		this.displays['pf-+'].draw( this.hspf.pfsa, 1 ) ;
+		this.displays['pf+-'].draw( this.hspf.pfsa, 2 ) ;
+		this.displays['pf++'].draw( this.hspf.pfsa, 3 ) ;
 		this.displays.pfr.draw( this.hspf.pfsa, 4 ) ;
 		this.displays.hs.draw( this.data[1] ) ;
 
