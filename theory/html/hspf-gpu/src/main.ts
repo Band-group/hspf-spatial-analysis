@@ -5,13 +5,24 @@ import HsPfSim from "./HsPfSim.js"
 import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
+import Rainbow from "./Rainbow.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
 import { PfsaCounts, LatLong } from "./Types.js"
 //import { writeArrayBuffer } from 'geotiff';
-import { writeGeoTiff } from 'geotiff';
+//import { writeGeoTiff } from 'geotiff';
 import {writeGeotiffF32} from './writeGeoTiffF32.ts'
+
+class Geom {
+	width: number = 0 ;
+	height: number = 0 ;
+
+	constructor( width_: number, height_: number ) {
+		this.width = width_ ;
+		this.height = height_ ;
+	}
+} ;
 
 class Simulation {
 	device: GPUDevice ;
@@ -25,6 +36,7 @@ class Simulation {
 	outerPadding: number ;
 	m_running: boolean ;
 	m_iteration: number ;
+	geom: Geom ;
 
 	static async create(
 		map_url: string,
@@ -141,13 +153,14 @@ class Simulation {
 				}
 			})
 		}) ;
+		this.outerPadding = 64 ;
+		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
+
 		this.counts = counts ;
 		console.log( "COUNTS", this.counts ) ;
 
 		this.barriers = barriers ;
-		this.outerPadding = 64 ;
 
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
 		this.hspf = new HsPfSim( device, this.data[0], this.outerPadding ) ;
 		this.data.unshift( this.hspf.pfsa ) ;
 
@@ -159,9 +172,9 @@ class Simulation {
 		}
 		this.counts = this.counts.filter( (elt:PfsaCounts) => {
 			return (
-				(elt.xy.x >= 0 && elt.xy.x < this.data[0].width)
+				(elt.xy.x >= 0 && elt.xy.x < this.data[1].width)
 				&&
-				(elt.xy.y >= 0 && elt.xy.y < this.data[0].height)
+				(elt.xy.y >= 0 && elt.xy.y < this.data[1].height)
 				&&
 				elt.pfsa1N >= 25
 			) ;
@@ -184,6 +197,7 @@ class Simulation {
 			) ;
 		}
 	
+		this.geom = new Geom( 500, 409 ) ;
 		this.displays = {} ;
 		const section = document.querySelector("section") ;
 		if( !section ) {
@@ -193,70 +207,78 @@ class Simulation {
 			let nf = new Intl.NumberFormat( 'en-EN', { maximumSignificantDigits: 3 }) ;
 			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add( 'map_container' );
+				container.classList.add( 'maps_container' );
 				container.classList.add( 'pf_map' );
-				this.displays.pf = new MapDisplay(
-					container,
-					{ 'width': this.data[0].width / 1, 'height': this.data[0].height / 1 },
-					new PaletteScale(
-						new Viridis( 20 ),
-						0, 1.0,
-						function(v) { return nf.format(v * 100) + '%' ; }
-					),
-					this.device,
-					{ 'contours': true }
-				) ;
+				[ /*'00'*/,'01', '10', '11', 'r' ].forEach(
+					( genotype ) => {
+						this.displays[ 'pf' + genotype ] = new MapDisplay(
+							container,
+							{ 'width': this.geom.width, 'height': this.geom.height },
+							new PaletteScale(
+								(genotype == 'r') ? new Rainbow( 21 ) : new Viridis( 20 ),
+								(genotype == 'r' ? -1.05 : 0.0), (genotype == 'r' ? 1.05 : 1.0),
+//								0.0, 1.0,
+								function(v) { return nf.format(v * 100) + '%' ; }
+							),
+							this.device,
+							{
+								'contours': true,
+								'title': genotype ? genotype : "(unknown)" // workaround 
+							}
+						) ;
+					}
+				)
 				section.appendChild( container ) ;
 				this.comparisons = new Map() ;
 				let left = 20 ;
-				[
-					['Gambia', 'Senegal', 'Mali' ],
-					[ 'Ghana' ],
-					[ 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo' ],
-					[ 'Tanzania', 'Kenya' ]
-				].forEach(
-					(countries:Array<string>) => {
+				let country_sets = new Map< string, string[] > ;
+				country_sets.set('all', ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Democratic Republic of the Congo', 'Tanzania', 'Kenya' ] );
+				country_sets.forEach(
+					( countries:string[], key:string ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
 						container.appendChild( overlay ) ;
 						this.comparisons.set(
-							countries,
+							key,
 							new ComparisonDisplay(
 								this.counts.filter( d => countries.includes(d.country) ),
 								overlay,
 								{
-									width: 250,
-									height: 200,
+									width: 280,
+									height: 240,
 									margins: {
-										'bottom': 45,
+										'bottom': 30,
 										'left': 40,
-										'top': 20,
+										'top': 10,
 										'right': 20
 									}
 								},
 								left
 							)
 						) ;
-						left += 270 ;
+						left += 190 ;
 					}
 				) ;
 			}
 			{
 				const container = document.createElement( 'div' ) ;
-				container.classList.add( 'map_container' );
 				container.classList.add( 'hs_map' );
 				this.displays.hs = new MapDisplay(
 					container,
-					{ 'width': this.data[0].width, 'height': this.data[0].height },
+					{ 'width': 350, 'height': 350 * this.geom.height/this.geom.width },
 					new PaletteScale(
 						new Viridis( 10 ),
 						0, 0.4,
 						function(v) { return nf.format(v * 100) + '%' ; }
 					),
 					this.device,
-					{ 'contours': false }
+					{
+						'contours': false,
+						'title': 'HbS'
+					}
 				) ;
-				section.appendChild( container ) ;
+				const nav = document.querySelector( "nav" ) ;
+				nav!.appendChild( container ) ;
 			}
 		}
 		this.render() ;
@@ -296,10 +318,26 @@ class Simulation {
 	}
 
 	render() {
-		this.displays.pf.draw( this.hspf.pfsa ) ;
+		let dims = [this.hspf.pfsa.dimensions[2], this.hspf.pfsa.dimensions[1] ] ;
+		// print out a value at one cell, for sanity check
+		if( this.m_iteration % 100 == 0 ) {
+			console.log(
+				"pf",
+				this.hspf.pfsa.data[ 0 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 1 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 2 * (dims[0]*dims[1]) + 400.5*dims[0]],
+				this.hspf.pfsa.data[ 3 * (dims[0]*dims[1]) + 400.5*dims[0]]
+			) ;
+		}
+//		this.displays.pf00.draw( this.hspf.pfsa, 0 ) ;
+		this.displays.pf01.draw( this.hspf.pfsa, 1 ) ;
+		this.displays.pf10.draw( this.hspf.pfsa, 2 ) ;
+		this.displays.pf11.draw( this.hspf.pfsa, 3 ) ;
+		this.displays.pfr.draw( this.hspf.pfsa, 4 ) ;
 		this.displays.hs.draw( this.data[1] ) ;
+
 		for (let comparison of this.comparisons.values()) {
-			comparison.draw( this.data[0] ) ;
+			comparison.draw( this.hspf.pfsa, 3 ) ;
 		}
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
@@ -330,7 +368,7 @@ class Simulation {
 	}
 
 	async takeSnapshot() {
-		console.log( "Taking snapshot..." ) ;
+		console.log( "Taking snapshot of 11..." ) ;
 		let pfsa = this.hspf.pfsa ;
 		let pad = this.outerPadding ;
 		let padded_dims = pfsa.m_dimensions ;
@@ -351,13 +389,37 @@ class Simulation {
 				).map( elt => ( elt == -1 ? -1 : elt * 255 ))
 			) ;
 		}
+		let extent = this.tiffs[0].extent ;
 		let metadata = {
 			width: dims.width,
 			height: dims.height,
 			//NoData: "-1",
+			////////////////////////////////
+			// WARNING: the following values have been carefully reverse-engineered
+			// based on the GeoTIFF spec (https://docs.ogc.org/is/19-008r4/19-008r4.html)
+			// and by loading the generated TIFFs into R using the terra package,
+			// to generate as close as possible a TIFF to the input TIFF.
+			// This includes matching the coordinate system which appears to require
+			// setting a single 'tie' point (between pixels and global coordinates)
+			// and the pixel scale, which determines the 'resolution' in the resulting object.
 			GDAL_NODATA: "-1",
 			SMinSampleValue: [0.0],
-			SMaxSampleValue: [1.0]
+			SMaxSampleValue: [1.0],
+			// http://geotiff.maptools.org/spec/geotiff6.html
+			GeographicTypeGeoKey: 4326,
+			GeogCitationGeoKey: 'WGS 84',
+			ModelTiepoint: [
+				0, dims.height, 0,
+				extent.p0.longitude, extent.p0.latitude, 0
+			],
+			ModelPixelScale: [
+				(extent.p1.longitude - extent.p0.longitude) / dims.width,
+				(extent.p1.latitude - extent.p0.latitude) / dims.height,
+				0
+			],
+			GTModelTypeGeoKey: 2,
+			ProjectedCSTypeGeoKey: 0
+			////////////////////////////////
 		} ;
 		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
 		console.log( arrayBuffer ) ;
@@ -385,7 +447,7 @@ async function run() {
 	controls.on( 'snapshot', function(values: GridData) { console.log( "SNAPSHOT", values.at([0,0]) ) ; }) ;
 
 	let simulation = await Simulation.create(
-		"./2024-03-05-MEAN-nobarrier.tif",
+		"./2024-03-05-MEAN-nobarrier.2x.tif",
 		"./counts_by_adm1.tsv",
 		"./geographic_barriers.tsv"
 	) ;
@@ -405,10 +467,10 @@ async function run() {
 	}) ;
 
 	controls.on( 'features', function(values:GridData) {
-		simulation.displays.pf.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+//		simulation.displays.pf00.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
 		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
-		simulation.displays.pf.annotate_counts( simulation.counts ) ;
-		simulation.displays.hs.annotate_counts( simulation.counts ) ;
+//		simulation.displays.pf00.annotate_counts( simulation.counts ) ;
+//		simulation.displays.hs.annotate_counts( simulation.counts ) ;
 	}) ;
 	await simulation.run() ;
 }

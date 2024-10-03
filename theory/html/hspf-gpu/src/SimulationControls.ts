@@ -68,12 +68,12 @@ export default class SimulationControls {
 			['--', '-+', '+-', '++'],
 			{
 				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
-				"A:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"A:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
+				"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
+				"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
 				"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
 				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
-				"S:-+": { value: 0.0, min: 0, max: 0, step: 0.01 },
-				"S:+-": { value: 0.0, min: 0, max: 0, step: 0.01 },
+				"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
+				"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
 				"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
 			}
 		) ;
@@ -88,9 +88,10 @@ export default class SimulationControls {
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
 			'spread',
 			[ 'value' ],
-			[ 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
+			[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 			{
-				'value:mapWidthInKm': { value: 10000, min: 1000, max: 10000, step: 100 },
+				'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
+				'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
 				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
 				'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
@@ -109,6 +110,9 @@ export default class SimulationControls {
 		let snapshot = document.getElementById( "snapshot" ) ;
 		if( !playpause ) {
 			throw Error( "Unable to create play/pause element" ) ;
+		}
+		if( !snapshot ) {
+			throw Error( "Unable to create snapshot element" ) ;
 		}
 		playpause.addEventListener(
 			'click',
@@ -159,7 +163,7 @@ export default class SimulationControls {
 			return this.getSpreadValues() ;
 		} else if( what == 'snapshot' ) {
 			return new GridData([1,1], [
-				(document.getElementById( "snapshot" ).getAttribute( "state" ) == 'active') ? 1 : 0
+				(document.getElementById( "snapshot" )!.getAttribute( "state" ) == 'active') ? 1 : 0
 			]) ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;
@@ -179,9 +183,10 @@ export default class SimulationControls {
 			"value:mapWidthInKm": [0,0],
 			"value:maxDistanceInKm": [0,1],
 			"value:concentration": [0,2],
-			"value:n": [0,3]
+			"value:n": [0,3],
+			"value:twoBiteRate%": [0,4],
 		} ;
-		let result = new GridData( [4,1] ) ;
+		let result = new GridData( [5,1] ) ;
 		let cells = this.spreadControl.querySelectorAll( 'input' ) ;
 		cells.forEach( function(elt) {
 			let cl = elt.getAttribute('id') ;

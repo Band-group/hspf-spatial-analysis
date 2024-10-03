@@ -1,9 +1,12 @@
 library( tidyverse )
 library( dplyr )
 library( dbplyr )
-library( rbgen )
 
-data = readRDS( "data/dr_congo/biallelic_processed0.rds" )
+paths = list(
+	data = "data/dr_congo/biallelic_processed0.rds"
+)
+
+data = readRDS( paths$data )
 stopifnot( length( which( rownames( data$samples ) != rownames( data$counts ))) == 0 )
 stopifnot( length( which( rownames( data$samples ) != rownames( data$coverage ))) == 0 )
 
@@ -60,62 +63,65 @@ ratios = matrix(
 ratios[,] = counts/coverage
 
 samples = as_tibble( bind_cols( samples, calls, ratios ))
-samples$latitude = samples$lat
-samples$longitude = samples$long
-
-by_site = (
+samples = (
 	samples
-	%>% group_by(
-		STUDY_CODE, Country, latitude, longitude
-	) %>% summarise(
-		N = n(),
-		`Pfsa1:ref` = sum( !is.na( `chr2_631190` )) - sum( `chr2_631190`, na.rm = T ),
-		`Pfsa1:nonref` = sum( `chr2_631190`, na.rm = T ),
-		`Pfsa1:ref2` = sum( !is.na( `chr2_631190_ratio` )) - sum( `chr2_631190_ratio`, na.rm = T ),
-		`Pfsa1:nonref2` = sum( `chr2_631190_ratio`, na.rm = T ),
-		`Pfsa2:ref` = sum( !is.na( `chr2_814329` )) - sum( `chr2_814329`, na.rm = T ),
-		`Pfsa2:nonref` = sum( `chr2_814329`, na.rm = T ),
-		`Pfsa2:ref2` = sum( !is.na( `chr2_814329_ratio` )) - sum( `chr2_814329_ratio`, na.rm = T ),
-		`Pfsa2:nonref2` = sum( `chr2_814329_ratio`, na.rm = T ),
-		`Pfsa3:ref` = sum( !is.na( `chr11_1058035` )) - sum( `chr11_1058035`, na.rm = T ),
-		`Pfsa3:nonref` = sum( `chr11_1058035`, na.rm = T ),
-		`Pfsa3:ref2` = sum( !is.na( `chr11_1058035_ratio` )) - sum( `chr11_1058035_ratio`, na.rm = T ),
-		`Pfsa3:nonref2` = sum( `chr11_1058035_ratio`, na.rm = T ),
-		`Pfsa4:ref` = sum( !is.na( `chr4_1121472` )) - sum( `chr4_1121472`, na.rm = T ),
-		`Pfsa4:nonref` = sum( `chr4_1121472`, na.rm = T ),
-		`Pfsa4:ref2` = sum( !is.na( `chr4_1121472_ratio` )) - sum( `chr4_1121472_ratio`, na.rm = T ),
-		`Pfsa4:nonref2` = sum( `chr4_1121472_ratio`, na.rm = T )
+	%>% mutate(
+		latitude = lat,
+		longitude = long,
+		source = "Verity et al 2021",
+		study = "Verity et al 2021",
+		country = c(
+			'DRC' = 'Democratic_Republic_of_the_Congo',
+			'Ghana' = 'Ghana',
+			'Tanzania' = 'Tanzania',
+			'Uganda' = 'Uganda',
+			'Zambia' = 'Zambia'
+		)[Country],
+		site = NA,
+		N = 1,
+		`Pfsa1:ref` = 1 - `chr2_631190`,
+		`Pfsa1:nonref` = `chr2_631190`,
+		`Pfsa2:ref` = 1 - `chr2_814329`,
+		`Pfsa2:nonref` = `chr2_814329`,
+		`Pfsa3:ref` = 1 - `chr11_1058035`,
+		`Pfsa3:nonref` = `chr11_1058035`,
+		`Pfsa4:ref` = 1 - `chr4_1121472`,
+		`Pfsa4:nonref` = `chr4_1121472`,
+		exclude = "no"
 	)
 )
-by_site$source = "Verity et al 2021"
-by_site$study = "Verity et al 2021"
-by_site$country = c(
-	'DRC' = 'Democratic_Republic_of_the_Congo',
-	'Ghana' = 'Ghana',
-	'Tanzania' = 'Tanzania',
-	'Uganda' = 'Uganda',
-	'Zambia' = 'Zambia'
-)[by_site$Country]
-by_site$site = NA
-by_site = by_site[,
-	c(
-		"source", "study", "country", "site", "latitude", "longitude",
-		"N",
-		"Pfsa1:ref", "Pfsa1:nonref",
-		"Pfsa1:ref2", "Pfsa1:nonref2",
-		"Pfsa2:ref", "Pfsa2:nonref",
-		"Pfsa2:ref2", "Pfsa2:nonref2",
-		"Pfsa3:ref", "Pfsa3:nonref",
-		"Pfsa3:ref2", "Pfsa3:nonref2",
-		"Pfsa4:ref", "Pfsa4:nonref",
-		"Pfsa4:ref2", "Pfsa4:nonref2"
+samples$exclude[ samples$country != 'Democratic_Republic_of_the_Congo' ] = 'yes'
+
+by_sample = (
+	samples
+	%>% select(
+		source, study, country, site, latitude, longitude,
+		ID, N,
+		`Pfsa1:ref`, `Pfsa1:nonref`,
+		`Pfsa2:ref`, `Pfsa2:nonref`,
+		`Pfsa3:ref`, `Pfsa3:nonref`,
+		`Pfsa4:ref`, `Pfsa4:nonref`,
+		`exclude`
 	)
-]
+)
 
-write_tsv( samples, "results/genotypes/Verity_et_al_2021_by_sample.tsv" )
-write_tsv( by_site, "results/genotypes/Verity_et_al_2021_by_site.tsv" )
+by_site = (
+	by_sample
+	%>% group_by(
+		source, study, country, site, latitude, longitude
+	) %>% summarise(
+		N = n(),
+		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
+		'Pfsa2:ref' = sum(`Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
+		'Pfsa3:ref' = sum(`Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
+		'Pfsa4:ref' = sum(`Pfsa4:ref`, na.rm = T ), `Pfsa4:nonref` = sum( `Pfsa4:nonref`, na.rm = T ),
+		exclude = max( exclude )
+	)
+)
 
-db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf.sqlite" )
+db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
 DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Verity et al 2021' ")
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
+DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'Verity et al 2021' ")
+DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = FALSE, append = TRUE )
 DBI::dbDisconnect( db )

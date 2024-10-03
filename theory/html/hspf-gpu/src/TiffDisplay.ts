@@ -81,7 +81,7 @@ export default class TiffDisplay {
 		  };
 		  @group(0) @binding(0) var<uniform> grid: vec2f;
 		  @group(0) @binding(1) var textureSampler: sampler;
-		  @group(0) @binding(2) var HbS: texture_2d<f32>;
+		  @group(0) @binding(2) var data: texture_2d<f32>;
 		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
 		  @group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
   
@@ -106,7 +106,7 @@ export default class TiffDisplay {
 			@location(0) cell: vec2f,
 			@location(1) uv: vec2f,
 		  ) -> @location(0) vec4f {
-			let a = textureSample(HbS, textureSampler, uv).r ;
+			let a = textureSample(data, textureSampler, uv).r ;
 
 			// contour lines / clipping
 			// Let's work out the palette colour, then adjust it.
@@ -159,13 +159,24 @@ export default class TiffDisplay {
 		});
 	}
 
-	draw( tiff: GridData, context: any ) {
+	draw( data: GridData, context: any, layer: number = 0 ) {
 		context.configure({
 			device: this.device,
 			format: this.canvasFormat
 		});
 
-		const mapgrid = new Float32Array([tiff.width, tiff.height])
+		let dims = [data.width, data.height,1] ;
+		if( data.dimensions.length == 3 ) {
+			// data possibly has multiple layers.
+			// layer index is first coord
+			dims = [data.dimensions[2], data.dimensions[1], 1] ;
+			console.assert( layer < data.dimensions[0] ) ;
+		} else if( data.dimensions.length == 2 ) {
+			// data has only one layer.
+			dims = [data.dimensions[1], data.dimensions[0], 1] ;
+			console.assert( layer == 0 ) ;
+		}
+		const mapgrid = new Float32Array(dims.slice(0,2)) ;
 		const mapgridBuffer = this.device.createBuffer({
 			label: "Map grid",
 			size: mapgrid.byteLength,
@@ -174,7 +185,7 @@ export default class TiffDisplay {
 		this.device.queue.writeBuffer(mapgridBuffer, 0, mapgrid);
 
 		const texture = this.device.createTexture({
-			size: [tiff.width, tiff.height, 1],
+			size: dims,
 			format: 'r32float',
 			usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
 		});
@@ -183,9 +194,13 @@ export default class TiffDisplay {
 
 		this.device.queue.writeTexture(
 			{ texture: texture },
-			tiff.data,
-			{ bytesPerRow: tiff.width * 4, rowsPerImage: tiff.height },
-			[tiff.width, tiff.height, 1]
+			data.data,
+			{
+				offset: layer * (dims[0]*dims[1]) * 4, // 4 bytes per float
+				bytesPerRow: dims[0] * 4,
+				rowsPerImage: dims[1]
+			},
+			dims
 		);
 
 		// there are issues with making R32F textures filterable, so we are using a sampler with nearest filtering
@@ -195,7 +210,7 @@ export default class TiffDisplay {
 		});
 
 		const bindGroup = this.device.createBindGroup({
-			label: "HbS map bind group",
+			label: "map bind group",
 			layout: this.pipeline.getBindGroupLayout(0),
 			entries: [{
 				binding: 0,

@@ -195,7 +195,7 @@ plot.fit <- function(
 		curves[['mean']][i] = mean( yvalues )
 	}
 
-	palette = aesthetic$colours$country
+	palette = aesthetic$colour$country
 	fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 	fit$data$colour[ is.na(fit$data$colour)] = palette['other']
 	blank.plot( xlim = c( 0, 0.3 ), ylim = c( 0, 1 ))

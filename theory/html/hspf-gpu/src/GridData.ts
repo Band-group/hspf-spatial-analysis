@@ -40,9 +40,8 @@ export default class GridData {
 		}
 		let self = this;
 		return (
-			coords[coords.length-1]
-			+ coords.slice(0, coords.length - 1)
-				.map((elt, i) => elt * self.m_dimensions[i+1])
+			coords
+				.map((elt, i) => elt * self.m_strides[i])
 				.reduce((a, b) => a + b)
 		) ;
 	}
