@@ -465,7 +465,7 @@ rule create_figure1:
 		HbS_predictions = rules.fit_hbs_map.output.predictions 
 
 	params:
-		script = srcdir( 'code/fig1.R' ),
+		script = srcdir( 'code/figures/fig1.R' ),
 		outdir = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}"
 	shell: """
 	echo {input.fit}
