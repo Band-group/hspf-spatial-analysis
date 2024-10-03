@@ -27,12 +27,12 @@ areas = {
 	],
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-	'gambia': [ 'Gambia' ],
-	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
-	'mali': [ 'Mali' ],
-	'tanzania': [ 'United Republic of Tanzania' ],
-	'DRC': [ 'Democratic Republic of the Congo' ],
+#	'gambia+senegal': [ 'Gambia', 'Senegal' ],
+#	'gambia': [ 'Gambia' ],
+#	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
+#	'mali': [ 'Mali' ],
+#	'tanzania': [ 'United Republic of Tanzania' ],
+#	'DRC': [ 'Democratic Republic of the Congo' ],
 	'global': None
 }
 
@@ -42,7 +42,7 @@ config = {
 	"covariates": [ "none" ],
 	"type": [ 'hexagon' ],
 	"divide": [ 'none' ],
-	"size": [ '1' ],
+	"size": ['1'],
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 	"regression_model": [ 'bym2', 'norandom' ],
 	"min_km_to_survey_pt": [ '200'],
@@ -83,7 +83,7 @@ rule all:
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
-			continent = [ 'global', 'Africa' ]
+			continent = [ 'global', 'Africa' ] #, 'Africa' ]
 		),
 		fit_vs_piel = expand(
 			"output/HbS_vs_piel/grid-type={type}-size={size}-division={divide}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_vs_piel.{extension}",
@@ -108,7 +108,7 @@ rule all:
 			covariates = covariates
 		),
 		fig1 = expand(
-			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/HbS_Africa_fig1b.pdf",
+			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig1bhex_tza.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -128,6 +128,20 @@ rule all:
 			regression_model = [ 'norandom', 'bym2' ],
 			min_N = [ '0', '5' ]
 		)
+#		),
+#		fig3 = expand(
+#			"output/figures/figure_3/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}/fig3_africa.pdf",
+#			r0 = ranges,
+#			sigma0 = sigmas,
+#			covariates = covariates,
+#			min_km_to_survey_pt = [ '200' ],
+#			type = [ "hexagon" ],
+#			size = cellsizes,
+#			divide = ["none"],
+#			regression_model = [ 'norandom', 'bym2' ],
+#			min_N = [ '0', '5' ]
+#		)
+
 
 rule fit_hbs_map:
 	output:
@@ -432,28 +446,36 @@ rule summarise_hspf:
 
 rule create_figure1:
 	output:
-		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/HbS_Africa_fig1b.pdf"
+		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig1bhex_tza.pdf"
 	input:
 		grid = rules.create_grid.output.rds.format( type = "{type}", size = "{size}", divide = "{divide}", area = "global" ),
 		fit = (
-			rules.fit_hspf_in_areas.output.rds.replace( "{area}", "global" )
-				.replace( "{locus}", "Pfsa1" )
-				.replace( "{regression_model}", "bym2" )
-				.replace( "{min_km_to_survey_pt}", "200" )
-				.replace( "{min_N}", "0" )
+			[
+				rules.fit_hspf_in_areas.output.rds
+					.replace( "{area}", "global" )
+					.replace( "{locus}",  'Pfsa1' )
+					.replace( "{regression_model}", "bym2" )
+					.replace( "{min_km_to_survey_pt}", "200" )
+					.replace( "{min_N}", "0" )
+			]
 		),
 		pf_aggregated = rules.aggregate_pf.output.tsv.replace( "{area}", "global" ),
-		HbS_aggregated = rules.aggregate_HbS.output.tsv.replace( "{area}", "global" )
+		HbS_aggregated = rules.aggregate_HbS.output.tsv.replace( "{area}", "global" ),
+		HbS_survey = "input/cleanHbSdata.csv",
+		HbS_predictions = rules.fit_hbs_map.output.predictions 
+
 	params:
-		script = srcdir( 'code/Fig1.R' ),
+		script = srcdir( 'code/fig1.R' ),
 		outdir = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}"
 	shell: """
+	echo {input.fit}
 	mkdir -p {params.outdir}
 	Rscript --vanilla {params.script} \
 	--grid {input.grid} \
-	--fit {input.fit} \
+	--HbS_survey {input.HbS_survey} \
 	--HbS_aggregated {input.HbS_aggregated} \
 	--pf_aggregated {input.pf_aggregated} \
+	--HbS_predictions {input.HbS_predictions} \
 	--outdir {params.outdir}
 """
 
