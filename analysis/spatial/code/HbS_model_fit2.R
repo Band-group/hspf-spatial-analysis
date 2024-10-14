@@ -7,7 +7,7 @@ echo <- function( message, ... ) {
 missing = NA
 parse_arguments <- function() {
 	parser = ArgumentParser(
-		description = 'Fit one globla HbS model and output N posterior samples'
+		description = 'Fit one global HbS model and output N posterior samples'
 	)
 	parser$add_argument(
 		"--geodata",
@@ -85,7 +85,7 @@ print( args )
 
 #install packages
 source( 'code/functions.R' )
-libraries = c( "INLA", "sf", "geodata", "sn" )
+libraries = c( "INLA", "sf", "geodata", "sn","inlabru","parallel")
 lapply( libraries, library, character.only = TRUE, quietly = TRUE )
 sf::sf_use_s2(FALSE) 
 #install.prerequisites()
@@ -113,6 +113,8 @@ print( prior )
 echo( "++ Loading geodata from \"%s/\"...\n", args$geodata )
 world_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "world_sf" )
 lakaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "lakaf_sf" )
+continents_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "continents_sf" )
+ocean_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "ocean_sf" )
 # DATA Fix: Seychelles is recorded as 'open ocean', we put it back in Africa:
 world_sf$CONTINENT[ world_sf$ADMIN == 'Seychelles' ] = "Africa"
 
@@ -200,7 +202,27 @@ verbose = TRUE
 		covariate = fit_covariates$values,
 		verbose = verbose
 	)
+    
+	#make a map of the mesh
+	#projection
+	flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"  
+	#make plot (requires inlabru)
+	HbSpmesh <-  ggplot()+
+       geom_sf(data = world_sf,fill='gray85',col='transparent') +
+       inlabru::gg(modelfit$mesh,edge.color="navy",int.color="navy",
+                alpha=0.3,edge.linewidth = 0.01,int.linewidth = 0.01,ext.linewidth = 0.5)+
+       geom_sf(data = ocean_sf,fill='white',col='transparent') +
+       geom_sf(data = continents_sf,fill='transparent',col='black',size=0.5)+
+       xlab("")+ylab("")+
+       xlim(-180,180)+ylim(-60,85)+
+       coord_sf(crs = flatcrs, expand = F) +
+       theme_void() +
+       theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+	#save plot
+	ggsave(HbSpmesh,file=paste0(args$outdir,"HbSmesh.pdf"),width = 16,height=10)
+	ggsave(HbSpmesh,file=paste0(args$outdir,"HbSmesh.svg"),width = 16,height=10)
 
+	#compute posterior samples
 	posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_samples, modelfit$fit )
 
 	predictions = predict_inla_binomial_model(
