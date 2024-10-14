@@ -205,23 +205,26 @@ verbose = TRUE
     
 	#make a map of the mesh
 	#projection
-	flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"  
+	flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs" 
+	worldcrop <- world_sf[ !(world_sf$CONTINENT == 'Antarctica'), ] 
 	#make plot (requires inlabru)
 	HbSpmesh <-  ggplot()+
-       geom_sf(data = world_sf,fill='gray85',col='transparent') +
+       geom_sf(data = worldcrop,fill='gray85',col='transparent') +
        inlabru::gg(modelfit$mesh,edge.color="navy",int.color="navy",
-                alpha=0.3,edge.linewidth = 0.01,int.linewidth = 0.01,ext.linewidth = 0.5)+
+                alpha=0.3,edge.linewidth = 0.01,int.linewidth = 0.01,
+				color='transparent',ext.linewidth = 0.5,crs=flatcrs)+
+	   #geom_sf(data = worldcrop,fill='transparent',col='gray35') +		
        geom_sf(data = ocean_sf,fill='white',col='transparent') +
        geom_sf(data = continents_sf,fill='transparent',col='black',size=0.5)+
        xlab("")+ylab("")+
-       xlim(-180,180)+ylim(-60,85)+
+       ylim(-7470000, 8470000)+ #equivalent in lat/lon proj as ylim(-60,85)
        coord_sf(crs = flatcrs, expand = F) +
        theme_void() +
-       theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+       theme(panel.grid.major = element_line(color = gray(.75), linetype = "dashed", linewidth = 0.75))
 	#save plot
-	ggsave(HbSpmesh,file=paste0(args$outdir,"HbSmesh.pdf"),width = 16,height=10)
-	ggsave(HbSpmesh,file=paste0(args$outdir,"HbSmesh.svg"),width = 16,height=10)
-
+	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.pdf"),width = 16,height=10)
+	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.svg"),width = 16,height=10)
+    echo( "++ Plot of the mesh (%d vertices) generated and saved.", modelfit$mesh$n)
 	#compute posterior samples
 	posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_samples, modelfit$fit )
 
