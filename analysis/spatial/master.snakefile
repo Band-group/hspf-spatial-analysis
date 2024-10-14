@@ -108,7 +108,7 @@ rule all:
 			covariates = covariates
 		),
 		fig1 = expand(
-			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig1bhex_tza.pdf",
+			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig3_world_hbs_hex.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
