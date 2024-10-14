@@ -70,7 +70,7 @@ posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_sample
 # Find prediction locations
 # these are either: polygon centroids (fast mode)
 # or a random sample from each polygon (slower)
-slowok = TRUE
+slowok = TRUE # Andre: seems that the fast mode leads to some errors...tbc
 if( slowok ) {
 	prediction_locations = sf::st_sample(
 		polygons,
@@ -81,6 +81,7 @@ if( slowok ) {
 	)
 	prediction_locations = sf::st_as_sf( prediction_locations )
 } else {
+	echo( "++ Fast mode activated in aggregated_HbS_over_polygons.R\n Please change the mode asap")
 	prediction_locations = sf::st_centroid( polygons )
 }
 
