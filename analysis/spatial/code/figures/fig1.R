@@ -84,11 +84,41 @@ df2sf <- function(df,coords,crs=4326 ) {
   return(HB)
 }
 
+keypfcountries = data.frame(
+	ISO3 = c(
+		'MLI', "BFA", "GMB", "TZA", "LAO", "MMR","VNM", "THA", "KHM", "PER",
+		"KEN", "GHA", "PNG", "MWI", "COL", "UGA", "GIN","BGD", "COD", "NGA", "CMR", "ETH",
+		"CIV", "MDG","GAB", "BEN", "SEN", "IDN", "SDN", "MRT","VEN", "IND", "MOZ", "ZMB"
+	),
+	fullname = c(
+		"Mali",                         	"Burkina_Faso",
+		"Gambia",                           "Tanzania",
+		"Laos",                             "Myanmar",
+		"Vietnam",                          "Thailand",
+		"Cambodia",                         "Peru",
+		"Kenya",                            "Ghana",
+		"Papua_New_Guinea",                 "Malawi",
+		"Colombia",                         "Uganda",
+		"Guinea",                           "Bangladesh",
+		"Democratic_Republic_of_the_Congo", "Nigeria",
+		"Cameroon",                         "Ethiopia",
+		"Cote_dIvoire",                     "Madagascar",
+		"Gabon",                            "Benin",
+		"Senegal",                          "Indonesia",
+		"Sudan",                            "Mauritania",
+		"Venezuela",                        "India",
+		"Mozambique",                       "Zambia"
+	)
+)
+
 ################################################################################
 ##Loading data##################################################################
 ################################################################################
 #load world map at relatively coarse level for better visualisation
 world_sf = rnaturalearth::ne_countries(returnclass = "sf",scale=110)
+#Pf relevant countries
+pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
+#pfrelevantctry <- world_sf %>% dplyr::filter( SOV_A3 %in% keypfcountries$ISO3 )
 #load world map at relatively coarse level for some maps
 giscosub <- giscoR::gisco_countries[!(gisco_countries$ISO3_CODE=='ATA'),]
 #load Hbs raw data points
@@ -781,7 +811,7 @@ fig1cplot <- function(ocean,land,myhexa,wsf,
   return(list(hbsp,legendfig))
 }
 
-countrylist <- unique(mostworld$sovereignt)
+countrylist <- unique(pfrelevantctry$sovereignt)
 worldjusthex <- fig1cplot(ocean,land=mostworld,myhexa=countrydfi,wsf,
                         flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
                         maphbs=FALSE)
