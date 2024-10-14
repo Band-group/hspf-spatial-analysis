@@ -515,7 +515,9 @@ runinla.binomial <- function(
   } else {
     control.fixed = list( prec.intercept = intercept.prec )
   }
-  
+  #mycores <- parallel::detectCores(logical = FALSE)
+  #mycores <- ifelse(mycores>50,50,mycores-1)
+
   inlafit <-  INLA::inla(
     myformula, # the formula
     #without barrier
@@ -526,7 +528,8 @@ runinla.binomial <- function(
     control.compute = list(dic = TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
     control.fixed = control.fixed,
     control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
-    verbose = FALSE
+    verbose = FALSE#,
+    #num.threads = mycores
   ) # can include verbose=TRUE to see the log of the model runs
   #inlafit <- inla.rerun(inlafit)#to improve hyperparameter estimation
   inlafit <- INLA::inla.cpo( inlafit )#to improve cpo computation
@@ -1998,10 +2001,10 @@ diagnostic_plot_priors <- function(i) {
 
 compute.HbS.prediction.extent <- function(
 	world_sf,
-	map_filename = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+	map_filename = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif",
+  notpiel = 0.005
 ) {
   HbSpredextent <- raster::raster( map_filename )
-  notpiel <- 0.005
   HbSpredextent <- HbSpredextent >= notpiel
   HbSpredextent[HbSpredextent >= notpiel] <- 1
   HbSpredextent[HbSpredextent < notpiel] <- NA
