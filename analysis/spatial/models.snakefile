@@ -5,7 +5,8 @@ rule fit_hbs_map:
 		xyt			= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_xyt.rds",
 		fit 		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_modelfit.rds",
 		predictions	= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_predictions.rds",
-		samples		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_samples.rds"
+		samples		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}_samples.rds",
+		HbSmesh		= "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/fit/HbSmesh.pdf"
 	input:
 		hbs = "input/cleanHbSdata.csv",
 		piel = 'geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif',
