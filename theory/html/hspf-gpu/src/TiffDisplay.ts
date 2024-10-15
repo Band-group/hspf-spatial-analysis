@@ -123,7 +123,11 @@ export default class TiffDisplay {
 			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
 			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
 			// Fix off-map colours to background...
-			result = mix(result, vec4f( 0, 33.0/256, 71.0/256, 0.5 ), smoothstep(0.0, -0.01, a)) ;
+			result = mix(
+				result,
+				vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
+				1.0 - smoothstep(-0.01, 0.0, a)
+			) ;
 			return result ;
 		  }
 		`
