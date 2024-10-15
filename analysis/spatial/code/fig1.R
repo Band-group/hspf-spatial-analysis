@@ -84,41 +84,11 @@ df2sf <- function(df,coords,crs=4326 ) {
   return(HB)
 }
 
-keypfcountries = data.frame(
-	ISO3 = c(
-		'MLI', "BFA", "GMB", "TZA", "LAO", "MMR","VNM", "THA", "KHM", "PER",
-		"KEN", "GHA", "PNG", "MWI", "COL", "UGA", "GIN","BGD", "COD", "NGA", "CMR", "ETH",
-		"CIV", "MDG","GAB", "BEN", "SEN", "IDN", "SDN", "MRT","VEN", "IND", "MOZ", "ZMB"
-	),
-	fullname = c(
-		"Mali",                         	"Burkina_Faso",
-		"Gambia",                           "Tanzania",
-		"Laos",                             "Myanmar",
-		"Vietnam",                          "Thailand",
-		"Cambodia",                         "Peru",
-		"Kenya",                            "Ghana",
-		"Papua_New_Guinea",                 "Malawi",
-		"Colombia",                         "Uganda",
-		"Guinea",                           "Bangladesh",
-		"Democratic_Republic_of_the_Congo", "Nigeria",
-		"Cameroon",                         "Ethiopia",
-		"Cote_dIvoire",                     "Madagascar",
-		"Gabon",                            "Benin",
-		"Senegal",                          "Indonesia",
-		"Sudan",                            "Mauritania",
-		"Venezuela",                        "India",
-		"Mozambique",                       "Zambia"
-	)
-)
-
 ################################################################################
 ##Loading data##################################################################
 ################################################################################
 #load world map at relatively coarse level for better visualisation
 world_sf = rnaturalearth::ne_countries(returnclass = "sf",scale=110)
-#Pf relevant countries
-pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
-#pfrelevantctry <- world_sf %>% dplyr::filter( SOV_A3 %in% keypfcountries$ISO3 )
 #load world map at relatively coarse level for some maps
 giscosub <- giscoR::gisco_countries[!(gisco_countries$ISO3_CODE=='ATA'),]
 #load Hbs raw data points
@@ -642,8 +612,8 @@ fig1bplot <- function(ocean,myarea,myhexa,wsf,pf1,pf2,pf3,pf4,
           geom_sf(data = pf4[myboundary,], shape = 21, aes (fill = Pf), color = 'gray35',  size = sizept,linewidth=mylinewidth) + 
           scale_color_manual(values = c("black", "white")) + 
           scale_fill_manual(values = c("green1", "green2","green3","green4"))+
-         geom_sf(data = myboundary,fill = 'transparent', col = 'gray35', lwd = 1)# +  # land (over oceans)
-        #geom_sf(data = areabox,fill = 'NA', col = 'gray35',lwd = 1)  # area (square)
+         geom_sf(data = myboundary,fill = 'transparent', col = 'gray35', lwd = 1) +  # land (over oceans)
+        geom_sf(data = areabox,fill = 'NA', col = 'gray35',lwd = 1)  # area (square)
        
       #legend only
       hbsplegend <- hbsp + 
@@ -740,88 +710,6 @@ ggsave(paste0(file_name,'.svg'), plot = africahex[[1]], device = "svg",width = 1
 ggsave(paste0(file_name,'legend.pdf'), plot = africahex[[2]], device = "pdf",width = 10,height=10)
 ggsave(paste0(file_name,'legend.svg'), plot = africahex[[2]], device = "svg",width = 10,height=10)
 
-#make plot for the world (only hbs in hexagons) using rob projection
-fig1cplot <- function(ocean,land,myhexa,wsf,
-                         flatcrs = flatcrs,
-                         maphbs=TRUE){
-  mylinewidth = 1  
-  myboundary <- land
-  #myhexa$HbS <- myhexa$mean 
-  myhexa$HbS <- round(myhexa$HbS,3)
-  nbreaks = 6
-  #make fixed scale for HbS
-  #maxHbS <- max(myhexa$HbS,na.rm=TRUE )
-  hbslabels <- hbsbreaks <- round(seq(from=min(myhexa$HbS,na.rm=TRUE ),to=max(myhexa$HbS,na.rm=TRUE ),length.out= nbreaks),2)
-  hbslims <- c(0,hbsbreaks[nbreaks]+0.01)
-  areabox <- rectangle %>% 
-      st_sfc(crs = "WGS84")  %>%
-      st_as_sf()
-  oceanaround <- sf::st_difference(areabox,world_sf)
-  allland <- land
-  #myhexa <- myhexa #sf::st_intersection(myhexa,allland)  
-    #main plot
-    hbsp <- ggplot() +
-      geom_sf(data = areabox,fill = 'NA', col = 'NA') +  # area (square)
-      geom_sf(data = oceanaround,fill = oceancolor, col = 'NA') +  # ocean
-      geom_sf(data = allland,fill = landcolor, col = 'gray95') +  # land
-      geom_sf(data = myhexa,aes(fill = HbS), col = 'gray35', lwd = .01,alpha=0.6)+# hexagons
-      geom_sf(data = allland,fill = 'NA', col = 'gray95')   # land
-
-    if(maphbs == TRUE) {
-      hbsp <- hbsp +  
-      geom_sf(data = wsf[myboundary,], aes(color = Dataset), shape = 22, fill = "orange", size = sizept,linewidth=mylinewidth) +
-     # geom_sf(data = myboundary,fill = 'transparent', col = 'gray35', lwd = 1) +  # land (over oceans)
-     # geom_sf(data = areabox,fill = 'NA', col = 'gray35',lwd = 1) +  # area (square)
-      scale_color_manual(values = c("black", "white")) +
-      scale_fill_viridis_c(option = 'rocket',direction = -1,breaks = hbslabels,limits=hbslims)
-    } else {
-      hbsp <- hbsp +  
-     # geom_sf(data = myboundary,fill = 'transparent', col = 'gray35', lwd = 1) +  # land (over oceans)
-      #geom_sf(data = areabox,fill = 'NA', col = 'gray35',lwd = 1) +  # area (square)
-      scale_fill_viridis_c(option = 'rocket',direction = -1,breaks = hbslabels,limits=hbslims)
-    }
-      #scale_fill_viridis_c(option = 'rocket',direction = -1)
-      #legend only
-      hbsplegend <- hbsp + 
-        theme(legend.position='bottom',legend.direction = "vertical")+
-        guides(color=guide_legend(title="HbS\ndataset",title.position="top",
-                                  override.aes = list(alpha = 1),order=1),
-               fill = guide_legend(title="HbS frequency\nmean estimate",title.position="top",
-                                   override.aes = list(alpha = 1),order=2))
-      #legend only
-      hbsplegend <- hbsp + 
-        theme(legend.position='bottom',legend.direction = "vertical")+
-        guides(color=guide_legend(title="HbS\ndataset",title.position="top",
-                                  override.aes = list(alpha = 1),order=1),
-               fill = guide_legend(title="HbS frequency\nmean estimate",title.position="top",
-                                   override.aes = list(alpha = 1),order=2))
-    legendfig <- ggpubr::get_legend(hbsplegend)  
-    legendfig <- ggpubr::as_ggplot(legendfig)
-    #complete the main plot
-    hbsp <-  hbsp +
-      guides(colour = "none",fill = "none") +
-      coord_sf(crs = flatcrs, expand = T) +
-      theme_void()    # In case we want unprojected map 
-  #   theme(legend.position = "none",   # Hide legend if j=2 doesn't exist
-  #        axis.title=element_blank(),
-  #        panel.border = element_blank(),
-  #        panel.background = element_blank() ,
-  #        panel.grid.major = element_line(color=gray(.65),linewidth=0.35))
-  
-  return(list(hbsp,legendfig))
-}
-
-countrylist <- unique(pfrelevantctry$sovereignt)
-worldjusthex <- fig1cplot(ocean,land=mostworld,myhexa=countrydfi,wsf,
-                        flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
-                        maphbs=FALSE)
-
-#save plot and legend separately  
-file_name <- paste0(args$outdir,"/fig3","_world_hbs_hex")
-ggsave(paste0(file_name,'.pdf'), plot = worldjusthex[[1]], device = "pdf",width = 24,height=13.5)
-ggsave(paste0(file_name,'.svg'), plot = worldjusthex[[1]], device = "svg",width = 24,height=13.5)
-ggsave(paste0(file_name,'legend.pdf'), plot = worldjusthex[[2]], device = "pdf",width = 24,height=13.5)
-ggsave(paste0(file_name,'legend.svg'), plot = worldjusthex[[2]], device = "svg",width = 24,height=13.5)
 
 #make hexagon sample plots for graphic (simulation for illustration)############
 ################################################################################

@@ -1,6 +1,6 @@
 rule create_figure1:
 	output:
-		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig1bhex_tza.pdf"
+		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig3_world_hbs_hex.pdf"
 	input:
 		grid = rules.create_grid.output.rds.format( type = "{type}", size = "{size}", divide = "{divide}", area = "global" ),
 		fit = (

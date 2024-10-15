@@ -1,6 +1,7 @@
 library( argparse )
 library( dplyr )
 library( sf )
+library( magrittr )
 
 load.entry.from.Rdata <- function( filename, what ) {
   env = new.env()
@@ -74,7 +75,24 @@ source( 'code/functions.R' )
 
 echo( "++ Loading world from %s\n", args$world )
 world_sf = load.entry.from.Rdata( args$world, "world_sf" )
-extents = compute.HbS.prediction.extent( world_sf, args$piel )
+notpiel = 0.005
+extents = compute.HbS.prediction.extent( world_sf, args$piel,notpiel=notpiel )
+flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+#plot HbS extent map
+HbSextentmap <- ggplot() +
+        geom_sf(data = extents, fill='burlywood', col = 'grey45',size = 0.5)+
+        geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
+        ggtitle(paste0('Spatial coverage where we make HbS prediction\n Region with Piel HbS mean values >',
+        notpiel*100,'% and added countries where HBS data are spatially dense\n\n'))+
+        coord_sf(crs = flatcrs, expand = F) +
+      	theme_void() +
+      	theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+
+ggsave(filename=paste0(args$output,'HbSextentmap.pdf'), 
+plot = HbSextentmap, device = "pdf",width = 16,height=10)
+ggsave(filename=paste0(args$output,'HbSextentmap.svg'), 
+plot = HbSextentmap, device = "svg",width = 16,height=10)
+
 
 keypfcountries = data.frame(
 	ISO3 = c(
@@ -103,7 +121,8 @@ keypfcountries = data.frame(
 	)
 )
 
-pfrelevantctry <- world_sf %>% dplyr::filter( SOV_A3 %in% keypfcountries$ISO3 )
+pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
+#world_sf %>% dplyr::filter( SOV_A3 %in% keypfcountries)
 
 grid <- sf::st_make_grid(
 	pfrelevantctry,
@@ -111,6 +130,20 @@ grid <- sf::st_make_grid(
 	what = "polygons",
 	square = switch( args$type, "square" = TRUE, "hexagon" = FALSE )
 )
+
+#Andre's edit
+#keep polygons in the relevant pf countries to visualise the discretised study area
+gridclip <- sf::st_intersection(grid,pfrelevantctry)
+#check how the grid looks like (to be removed if no issue)############################
+gridmap <- ggplot() +
+        geom_sf(data = gridclip, fill='burlywood', col = 'grey45',size = 0.5)+
+        geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
+         coord_sf(crs = flatcrs, expand = F) +
+      	theme_void() +
+      	theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+ggsave(filename=paste0(args$output,'grid.pdf'), 
+plot = gridmap, device = "pdf",width = 16,height=10)
+########################################################################################
 grid <- sf::st_sf(
 	polygon_id = 1:length(lengths(grid)),
 	grid
@@ -119,8 +152,7 @@ grid$centroid = sf::st_centroid(grid$grid)
 if( args$by == "none" ) {
 	# Intersect with the prediction extents
 	grid = sf::st_intersection( grid, extents )
-
-	# Add in country variable for centroid.  This turns out slightly tricky but here goes
+  	# Add in country variable for centroid.  This turns out slightly tricky but here goes
 	# TODO: use
 	# sf::st_nearest_feature to get nearest to centroid instead.
 	nearest = sf::st_nearest_feature( grid, world_sf )
