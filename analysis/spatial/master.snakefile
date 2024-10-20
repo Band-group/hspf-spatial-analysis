@@ -67,7 +67,7 @@ def dict_product(dicts):
 master_hspf_analyses = list(dict_product( config ))
 master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: summarise_hspf, summarise_HbS_fits, create_figure2
+localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2
 
 rule all:
 	input:
@@ -108,7 +108,7 @@ rule all:
 			covariates = covariates
 		),
 		fig1 = expand(
-			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/fig3_world_hbs_hex.pdf",
+			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/samplingprocedure.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
