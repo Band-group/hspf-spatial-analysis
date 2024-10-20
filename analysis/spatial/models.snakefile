@@ -40,7 +40,8 @@ rule plot_hbs_fit:
 
 rule create_grid:
 	output:
-		rds = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds"
+		rds = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds",
+		pdf = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rdsHbSextentmap.pdf"
 	input:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
@@ -66,8 +67,8 @@ rule aggregate_HbS:
 	params:
 		modeldir = rules.fit_hbs_map.params.outdir,
 		script = srcdir( "code/aggregate_HbS_over_polygons.R" ),
-		number_of_posterior_samples = 100,
-		samples_per_polygon = 10
+		number_of_posterior_samples = 50,
+		samples_per_polygon = 50
 	shell: """
 		Rscript --vanilla {params.script} \
 			--HbSfit {params.modeldir} \
