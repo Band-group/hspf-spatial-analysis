@@ -13,7 +13,7 @@ echo <- function( text, ... ) {
 install.prerequisites <- function() {
   #install packages
   #INLA used to fit Bayesian models
-  libraries = c( "INLA", "sf", "geodata" )
+  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2" )
   lapply( libraries, library, character.only = TRUE, quietly = TRUE )
   #basic packages and parallel computing packages (add more if needed)
 #  list.of.packages <- c("tictoc","fmesher", "parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
@@ -2124,21 +2124,37 @@ aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME
 aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column ) {
   library(dplyr)
   library(sf)
-
   #convert polyID vector into symbol
   polyid = sym( polygon_id_column )
 
-  # Perform the spatial join with the polygons
-  joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
- 
-  # Aggregate the data by shapeName and source, summing all numeric variables
-  # Here shapeName is the name used to describe ADM2 regions
-  joined <- (
-    joined
+############################################################################################################################
+# Andre added this line because no spatial join is needed if we have polygon_id attached
+# This comes after trying to optimise the st_sample process (which is very slow if not parallelised)
+  # Note that I hard-coded polygon_id in the by argument (sorry for that not sure how to solve it)
+  polygonsdf <- data.frame(polygons)
+  #put polygon id as character(need same class for left join)
+  polygonsdf$polygon_id <- as.character(polygonsdf$polygon_id)
+  dataagg <- (
+    data
     %>% dplyr::group_by(!!polyid)
-    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
+    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) median(x, na.rm = TRUE)))
   )
-  joined = joined[,c(polygon_id_column, colnames(data))]
+  #make sure that polygon id is a character object for left join
+  dataagg$polygon_id <- as.character(dataagg$polygon_id)
+  joined <- dplyr::left_join(   
+    dataagg, polygonsdf, by='polygon_id' ) #, largest = TRUE )
+  ############################################################################################################################
+  #former spatial join
+  #joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
+  # joined <- (
+  #   joined
+  #   %>% dplyr::group_by(!!polyid)
+  #   %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
+  # )
+  #joined = joined[,c(polygon_id_column, colnames(dataagg))]
+  joined = joined[,c(colnames(dataagg))]
+  
+
   # Compute centroids of the polygons
   polygon_centroids <- polygons %>%
     sf::st_centroid() %>%
