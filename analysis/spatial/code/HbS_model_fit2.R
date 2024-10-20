@@ -212,18 +212,17 @@ verbose = TRUE
        geom_sf(data = worldcrop,fill='gray85',col='transparent') +
        inlabru::gg(modelfit$mesh,edge.color="navy",int.color="navy",
                 alpha=0.3,edge.linewidth = 0.01,int.linewidth = 0.01,
-				color='transparent',ext.linewidth = 0.5,crs=flatcrs)+
+				ext.linewidth = 0.5,crs=flatcrs)+
 	   #geom_sf(data = worldcrop,fill='transparent',col='gray35') +		
        geom_sf(data = ocean_sf,fill='white',col='transparent') +
        geom_sf(data = continents_sf,fill='transparent',col='black',size=0.5)+
        xlab("")+ylab("")+
        ylim(-7470000, 8470000)+ #equivalent in lat/lon proj as ylim(-60,85)
        coord_sf(crs = flatcrs, expand = F) +
-       theme_void() +
-       theme(panel.grid.major = element_line(color = gray(.75), linetype = "dashed", linewidth = 0.75))
+       theme_void() + theme.panelgrid 
 	#save plot
-	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.pdf"),width = 16,height=10)
-	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.svg"),width = 16,height=10)
+	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.pdf"),width = 19.2,height=12)
+	ggsave(HbSpmesh,file=paste0(args$outdir,"/HbSmesh.svg"),width = 19.2,height=12)
     echo( "++ Plot of the mesh (%d vertices) generated and saved.", modelfit$mesh$n)
 	#compute posterior samples
 	posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_samples, modelfit$fit )
