@@ -85,8 +85,7 @@ HbSextentmap <- ggplot() +
         ggtitle(paste0('Spatial coverage where we make HbS prediction\n Region with Piel HbS mean values >',
         notpiel*100,'% and added countries where HBS data are spatially dense\n\n'))+
         coord_sf(crs = flatcrs, expand = F) +
-      	theme_void() +
-      	theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+      	theme_void() + theme.panelgrid 
 
 ggsave(filename=paste0(args$output,'HbSextentmap.pdf'), 
 plot = HbSextentmap, device = "pdf",width = 16,height=10)
@@ -139,8 +138,7 @@ gridmap <- ggplot() +
         geom_sf(data = gridclip, fill='burlywood', col = 'grey45',size = 0.5)+
         geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
          coord_sf(crs = flatcrs, expand = F) +
-      	theme_void() +
-      	theme(panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.75))
+      	theme_void() + theme.panelgrid 
 ggsave(filename=paste0(args$output,'grid.pdf'), 
 plot = gridmap, device = "pdf",width = 16,height=10)
 ########################################################################################
