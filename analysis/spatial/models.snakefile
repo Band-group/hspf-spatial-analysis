@@ -40,8 +40,7 @@ rule plot_hbs_fit:
 
 rule create_grid:
 	output:
-		rds = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds",
-		pdf = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rdsHbSextentmap.pdf"
+		rds = "output/grids/grid-type={type}-size={size}-division={divide}-area={area}.rds"
 	input:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
