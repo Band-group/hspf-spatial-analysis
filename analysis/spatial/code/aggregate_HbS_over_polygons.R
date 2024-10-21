@@ -72,11 +72,13 @@ posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_sample
 # or a random sample from each polygon (slower)
 # We fine tuned the st_sample process for our (slow) case study since we encounter in some cases very small polygons which make the procedure very slow if not adapted
 slowok = TRUE # Andre: seems that the fast mode leads to some errors...tbc
+minpolysize <- 15000 #minimum polygon size (in sq.m here) above which we are not applying a buffer area
 if( slowok ) {
 	echo( "++ Accurate (slow) sampling mode activated in aggregated_HbS_over_polygons.R\nwith number of polygons= ")
 	echo(paste0(nrow(polygons),"\n"))
 	#define a function to sample in parallel points for each polygon of a polygons object (useful for large polygons with tidy strange subpolygons)
-	efficient_sf_sample <- function(i,polygons=polygons,size=args$samples_per_polygon,exact=TRUE,type="regular") {
+	efficient_sf_sample <- function(i,polygons=polygons,size=args$samples_per_polygon,
+									exact=TRUE,type="regular",minpolysize = minpolysize) {
 	sf::sf_use_s2(FALSE) 
 	mypoli <- polygons[i, ]
 	#if multiple polygons (typically very small or with very thin width)
@@ -84,7 +86,6 @@ if( slowok ) {
   	mypoli <- sf::st_as_sfc(sf::st_bbox(mypoli),crs=crs(sf::st_crs(polygons)))
 	}
 	radius <- 1 #add a buffer area radius value in degree
-	minpolysize <- 15000 #minimum polygon size above which we are not applying a buffer area
 	if(sqrt(as.numeric(sf::st_area(mypoli)))< minpolysize) { #equiv. of a square edge in meter smaller than...
 	mypoli <- sf::st_buffer(mypoli,dist = radius, nQuadSegs = 100)
 	}
@@ -107,7 +108,8 @@ if( slowok ) {
       library(parallel)
 	  library(doParallel)
 	  echo(paste0("++ Parallel sampling activated\n", "with ",nbcores, " cores"))
-      sampled_list <- parallel::mclapply(1:nrow(polygons), efficient_sf_sample,exact=TRUE,polygons=polygons,mc.cores = nbcores)
+      sampled_list <- parallel::mclapply(1:nrow(polygons), efficient_sf_sample,
+	  exact=TRUE,polygons=polygons,minpolysize = minpolysize,mc.cores = nbcores)
 	} else {
 		echo( "++ Sampling without parallisation activated\n")
 		sf::sf_use_s2(FALSE) 
