@@ -239,17 +239,18 @@ plot.fit <- function(
 	)
 }
 
+blank.plot = function(xlim = c( 0, 1 ), ylim = c( 0, 1 ), xlab = '', ylab = '', ... ) {
+		plot( 0, 0, col = 'white', xlim = xlim, ylim = ylim, bty = 'n', xaxt = 'n', yaxt = 'n', xlab = xlab, ylab = ylab, ... )
+	}
+
+fig2plot_function <- function() 
 {
-	pdf( file = args$output, width = 9, height = 7 )
 	par( mar = c( 0, 0, 0, 0 ))
 	layout(
 		layout.m,
 		widths = c( 0.05, 0.35, 0.15, 0.15, 0.05, 1, 0.25, 1, 0.25, 1, 0.25, 0.25, 0.05, 0.4, 0.05 ),
 		heights = c( 0.05, 0.25, 0.05, 1, 0.15, 1, 0.15, 1, 0.15, 1, 0.05, 0.25, 0.05)
 	)
-	blank.plot = function(xlim = c( 0, 1 ), ylim = c( 0, 1 ), xlab = '', ylab = '', ... ) {
-		plot( 0, 0, col = 'white', xlim = xlim, ylim = ylim, bty = 'n', xaxt = 'n', yaxt = 'n', xlab = xlab, ylab = ylab, ... )
-	}
 	area.names = c(
 		eaf = "East Africa only",
 		waf = "West Africa only",
@@ -319,5 +320,15 @@ plot.fit <- function(
 		bty = 'n',
 		xpd = NA
 	)
-	dev.off()
+	
 }
+
+# save plot as svg
+svg(file = sub(".pdf", ".svg", args$output), width = 18, height = 14)
+fig2plot_function()
+dev.off()  
+
+# save plot as pdf
+pdf( file = args$output, width = 9, height = 7 )
+fig2plot_function()
+dev.off()
