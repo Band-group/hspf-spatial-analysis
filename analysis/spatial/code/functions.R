@@ -25,9 +25,11 @@ install.prerequisites <- function() {
   sf::sf_use_s2(FALSE) 
 }
 
-theme.panelgrid <-  theme(
-  panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.5),
-  legend.position = "none", panel.ontop = TRUE)
+# theme.panelgrid <-  theme(
+#   panel.grid.major = element_line(color = gray(.85), linetype = "dashed", linewidth = 0.5),
+#   legend.position = "none", panel.ontop = TRUE)
+
+theme.panelgrid <-  theme(legend.position = "none")  
 
 #functions
 load.entry.from.Rdata <- function( filename, what ) {
