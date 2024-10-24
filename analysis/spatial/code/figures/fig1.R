@@ -227,8 +227,11 @@ mysub <- function(mypts,mypoly,mycrs){
 }
 
 #Some useful colors for the plots###############################################
-oceancolor <- "#8293A3" #color of the ocean
-landcolor <- "#DFD3C5" #color of the land
+# oceancolor <- "#8293A3" # nice blue color of the ocean
+oceancolor <- "transparent" #color of the ocean
+# landcolor <- "#DFD3C5" #beige color of the land
+# landcolor <- "#D3D3D3" #light grey color of the land
+landcolor <- "#333333" # dark grey color of the land
 
 #Projections and visualisation angle for unprojected plot#######################
 # to focus on Africa and Asia
@@ -252,7 +255,7 @@ rectangle <- st_polygon(list(cbind(c(seq(-180, 179, len = 100), rep(180, 100),
 #Note that it saves the plot and the legend separately for better integration####
 library(ggnewscale)#necessary for two color palette in one plot
 graphabsplot <- function(bkg=NULL,world,ocean,wsf,pfsf,flat=TRUE,
-                         flatcrs = flatcrs,mysize=1.25,mylinewidth = 0.3){ 
+                         flatcrs = flatcrs,mysize=1.05,mylinewidth = 0.3){ 
                             # Base layers (differ based on flat or not)
   if (flat == TRUE) {
     myocean <- rectangle %>% 
@@ -275,7 +278,7 @@ graphabsplot <- function(bkg=NULL,world,ocean,wsf,pfsf,flat=TRUE,
     ggnewscale::new_scale_colour() +
     geom_sf(data = pfsf, aes(color = source, shape = allele), fill = 'chartreuse', alpha = 0.9, 
             size = mysize, linewidth = mylinewidth) +
-    scale_color_manual(values = c("black", "grey45", "gray90"), name = "Pf dataset",
+    scale_color_manual(values = c("black", "grey35", "gray75"), name = "Pf dataset",
                        guide = guide_legend(override.aes = list(fill = NA, shape = 21, alpha = 1), order = 2)) +
     scale_shape_manual(values = c(21, 22, 23, 24), name = "Pf allele",
                        guide = guide_legend(override.aes = list(alpha = 1), order = 3))
@@ -356,14 +359,14 @@ hbsrasplot <- function(rectangle,world,hbsstack,
     j <- j+1
     fig1a <- ggplot()+ 
       geom_sf(data = myocean,fill = oceancolor, col = NA) +  # ocean
-      geom_sf(data = world,fill = landcolor, col = NA, linewidth = .5) +  # land (over oceans)
+      geom_sf(data = world,fill = landcolor, col = NA) +  # land (over oceans)
       ggspatial::layer_spatial(hbsmap[[mystat]],aes(fill= after_stat(band1))) +
       scale_fill_binned(breaks=mybreaks,type= "viridis", option= mycolortype,
       na.value='transparent', labels = scales::label_percent())+
       #scico::scale_fill_scico(palette = scicopal,na.value='transparent')+  
       #scale_fill_viridis_c(option=viridisoption,direction = -1,na.value= "transparent",
       #breaks=mybreaks,labels=mylabels )+
-      ggspatial:: annotation_spatial(world,fill="transparent",col="grey90",linewidth=0.5)+ 
+      ggspatial:: annotation_spatial(world,fill="transparent",col="grey90",linewidth=0.25)+ 
       theme_void()
     
     #save legend separately 
@@ -398,7 +401,7 @@ pfsf_rob <- mysub(pfsf,giscosub,4326)
 #make and save raw HbS and Pf flat plots and legends for multiple projections###
 for (i in 1:length(myprojs)) {
 flatplot <- graphabsplot(bkg=NULL,giscosub,oceanrob,wsfrob,pfsf_rob,flat=TRUE,
-                        flatcrs = myprojs[[i]],mysize = 1.5,mylinewidth=0.05)
+                        flatcrs = myprojs[[i]],mysize = 1.05,mylinewidth=0.05)
 ggsave(paste0(args$outdir,"/worlddata",names(myprojs)[[i]],".pdf"),flatplot[[1]],width = 12,height = 6)
 ggsave(paste0(args$outdir,"/worlddata",names(myprojs)[[i]],".svg"),flatplot[[1]],width = 12,height = 6)
 ggsave(paste0(args$outdir,"/worlddatalegend",names(myprojs)[[i]],".pdf"),flatplot[[2]],width = 6,height = 6)
@@ -522,7 +525,7 @@ countrydfi <- countrydfi %>%
 fig1bplot <- function(myarea,myhexa,wsf,pfsf=NULL,
                          flatcrs = flatcrs,sizept = 1,
                          maphbs=TRUE,mappf=TRUE,pfvarsize=FALSE, mylinewidth = NULL,
-                         viridisoption="rocket"){
+                         viridisoption="rocket",countrybordercol= 'gray35'){
   #if the user provides a list of countries 
   if(class(myarea)[1]== "list") {
   myboundary <- world_sf[world_sf$sovereignt %in% myarea[[i]],]  
@@ -555,7 +558,7 @@ hbsp <- ggplot() +
   }  else {
   boundarywidth <- 2.5*mylinewidth
   hbsp <- hbsp + geom_sf(data = hexas, aes(fill = HbS), col = 'gray85', linewidth  = mylinewidth)  }
-  hbsp <- hbsp + geom_sf(data = myboundary, fill = 'transparent', col = 'gray35', linewidth  = boundarywidth)
+  hbsp <- hbsp + geom_sf(data = myboundary, fill = 'transparent', col = countrybordercol, linewidth  = boundarywidth)
 
 # geom_sf(data = areabox, fill = NA, col = 'gray35', lwd = 1)                    # area (square)
 # Add HbS data if maphbs is TRUE
@@ -621,9 +624,9 @@ echo('Fig1: so far it run until fig1bplot\n')
 #debug(fig1bplot)
 mywgs84 <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 fig1bhexa <- fig1bplot(myarea=tza,myhexa=countrydfi,wsf,pfsf,
-                      flatcrs = mywgs84,
-                      sizept = 3,maphbs=TRUE,mappf=TRUE,
-                      pfvarsize=FALSE,mylinewidth = 0.3,viridisoption="rocket")
+                      flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=TRUE,
+                      pfvarsize=FALSE,mylinewidth = 1,viridisoption="rocket",
+                      countrybordercol= 'gray90')
 ggsave(file=paste0(args$outdir,"/fig1bhex_tza.pdf"),fig1bhexa[[1]], width = 6, height = 7 )
 ggsave(file=paste0(args$outdir,"/fig1bhex_tza.svg"),fig1bhexa[[1]], width = 6, height = 7 )
 ggsave(file=paste0(args$outdir,"/fig1bhex_tzalegend.pdf"),fig1bhexa[[2]], width = 6, height = 3)
@@ -636,8 +639,9 @@ countrylist <- list("Democratic Republic of the Congo",'Mali',c('Ghana','Togo','
 for (i in 1:length(countrylist)) {
 echo( "++ Doing Figure 3 %s...\n", countrylist[[i]] )
 fig3maps <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                       flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=TRUE,
-                       pfvarsize=TRUE,mylinewidth = 0.3,viridisoption="rocket")
+                       flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=FALSE,
+                       pfvarsize=TRUE,mylinewidth = 2.5,viridisoption="rocket",
+                       countrybordercol= 'gray90')
 
 #save plot and legend separately  
 allcountries <- paste(countrylist[[i]],collapse = '-')
@@ -653,7 +657,7 @@ ggsave(paste0(file_name,'legend.svg'), plot = fig3maps[[2]], device = "svg",widt
 mostworld <- world_sf[!(world_sf$continent %in% c("Antarctica")),]
 countrylist <- unique(mostworld$sovereignt)
 worldhex <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                        flatcrs = myprojs[[1]],sizept = 2,maphbs=FALSE,mappf=TRUE,
+                        flatcrs = myprojs[[1]],sizept = 2,maphbs=FALSE,mappf=FALSE,
                         pfvarsize=FALSE,mylinewidth = NULL,viridisoption="rocket")
 #save plot and legend separately  
 file_name <- paste0(args$outdir,"/fig3","_world")
@@ -679,7 +683,7 @@ ggsave(paste0(file_name,'legend.svg'), plot = worldjusthex[[2]], device = "svg",
 africa <- world_sf[(world_sf$continent %in% c("Africa")),]
 countrylist <- unique(africa$sovereignt)
 africahex <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                      flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=TRUE,
+                      flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=FALSE,
                       pfvarsize=FALSE,mylinewidth = NULL,viridisoption="rocket")
 #save plot and legend separately  
 file_name <- paste0(args$outdir,"/fig3","_Africa")
@@ -714,18 +718,19 @@ meandf <- data.frame(mean_HbS = mean(HbS_freq),
                     mean_Pf = mean(Pf_freq))
 # Plot using ggplot2 and hexbin
 hexp <- ggplot(df, aes(x = HbS_freq, y = Pf_freq)) +
-  geom_hex(bins = 30, aes(fill = ..count..), color = "white") +
-  scale_fill_viridis_c(option = "E") +
+  geom_hex(bins = 30, aes(fill = after_stat(count)), color = "white") +
+  #scale_fill_viridis_c(option = "E") +
+  scale_fill_gradient(low = "black", high = "gray90") +
   geom_density_2d(color="gray98")+
-  geom_point(data=meandf,aes(x = mean_HbS, y = mean_Pf, color = "red"), size = 5, shape = 21, fill = "red") +  # Highlight mean
-  geom_segment(data=meandf,aes(x = mean_HbS, y = 0, xend = mean_HbS, yend = mean_Pf), linetype = "dashed", color = "red",linewidth = 1) +  # Dashed line to x-axis
-  geom_segment(data=meandf,aes(x = 0, y = mean_Pf, xend = mean_HbS, yend = mean_Pf), linetype = "dashed", color = "red",linewidth = 1)  # Dashed line to y-axis
+  geom_point(data=meandf,aes(x = mean_HbS, y = mean_Pf, color = "white"), size = 5, shape = 21, fill = "white") +  # Highlight mean
+  geom_segment(data=meandf,aes(x = mean_HbS, y = 0, xend = mean_HbS, yend = mean_Pf), linetype = "solid", color = "white",linewidth = 1) +  # Dashed line to x-axis
+  geom_segment(data=meandf,aes(x = 0, y = mean_Pf, xend = mean_HbS, yend = mean_Pf), linetype = "solid", color = "white",linewidth = 1)  # Dashed line to y-axis
 
 #legend only
 hexplegend <- hexp + 
   theme(legend.position='bottom',legend.direction = "horizontal")+
   guides(color = "none",
-         fill = guide_legend(title="Number of samples (out of 10,000)\nwithin a specific range of\ HbS and Pf sample values",title.position="top",
+         fill = guide_legend(title="",title.position="top",#"Number of samples (out of 10,000)\nwithin a specific range of\ HbS and Pf sample values"
                              override.aes = list(alpha = 1),order=2))
 legendfig <- ggpubr::get_legend(hexplegend)  
 legendfig <- ggpubr::as_ggplot(legendfig)
@@ -734,15 +739,15 @@ legendfig <- ggpubr::as_ggplot(legendfig)
 hexp <-  hexp +
   labs(
     title = "",
-    x = "HbS frequency sampled from the joint distribution HbS-Pf",
-    y = "Pf allele sampled from the joint distribution HbS-Pf"
+    x = "HbS sample value",
+    y = "Pf+ sample value"
   ) +
   guides(color = "none",fill = "none") +
   theme_minimal() +
   theme(
-    text = element_text(size = 12),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 10),
+    text = element_text(size = 24),
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 18),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   ) 
