@@ -14,7 +14,7 @@ types = [
 ]
 
 covariates = [ 'none' ]
-cellsizes = [ '1' ]
+cellsizes = [ '1', '2' ]
 
 def srcdir(x):
 	return x
@@ -42,7 +42,7 @@ config = {
 	"covariates": [ "none" ],
 	"type": [ 'hexagon' ],
 	"divide": [ 'none' ],
-	"size": ['1'],
+	"size": ['2'],
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 	"regression_model": [ 'bym2', 'norandom' ],
 	"min_km_to_survey_pt": [ '200'],
