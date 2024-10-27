@@ -204,7 +204,7 @@ mypf <- mypf %>%
   dplyr::select(lon, lat, allele, N, source)
 
 # View the transformed dataframe
-#head(mypf);nrow(mypfd)
+#head(mypf);nrow(mypf)
 
 #make pf not great again but as an sf object
 pfsf <- df2sf(mypf,coords=c('lon','lat'),crs=4326)
@@ -231,7 +231,7 @@ mysub <- function(mypts,mypoly,mycrs){
 oceancolor <- "transparent" #color of the ocean
 # landcolor <- "#DFD3C5" #beige color of the land
 # landcolor <- "#D3D3D3" #light grey color of the land
-landcolor <- "#333333" # dark grey color of the land
+landcolor <- "#979797" # solid (medium) grey color of the land
 
 #Projections and visualisation angle for unprojected plot#######################
 # to focus on Africa and Asia
@@ -546,6 +546,7 @@ fig1bplot <- function(myarea,myhexa,wsf,pfsf=NULL,
     mostworld <-  world_sf[!(world_sf$continent %in% c("Antarctica")),]
     allland <- myboundary <- mostworld
     }
+  myhexa <- sf::st_make_valid(myhexa)  
   hexas <- sf::st_intersection(myhexa,myboundary) 
 # Simplified main plot function
 hbsp <- ggplot() +
@@ -625,7 +626,7 @@ echo('Fig1: so far it run until fig1bplot\n')
 mywgs84 <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 fig1bhexa <- fig1bplot(myarea=tza,myhexa=countrydfi,wsf,pfsf,
                       flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=TRUE,
-                      pfvarsize=FALSE,mylinewidth = 1,viridisoption="rocket",
+                      pfvarsize=FALSE,mylinewidth = 0.25,viridisoption="rocket",
                       countrybordercol= 'gray90')
 ggsave(file=paste0(args$outdir,"/fig1bhex_tza.pdf"),fig1bhexa[[1]], width = 6, height = 7 )
 ggsave(file=paste0(args$outdir,"/fig1bhex_tza.svg"),fig1bhexa[[1]], width = 6, height = 7 )
@@ -640,7 +641,7 @@ for (i in 1:length(countrylist)) {
 echo( "++ Doing Figure 3 %s...\n", countrylist[[i]] )
 fig3maps <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
                        flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=FALSE,
-                       pfvarsize=TRUE,mylinewidth = 2.5,viridisoption="rocket",
+                       pfvarsize=TRUE,mylinewidth = NULL,viridisoption="rocket",
                        countrybordercol= 'gray90')
 
 #save plot and legend separately  
