@@ -4,6 +4,7 @@
 
 # Note on generalising this:
 # - input grid type (hexagon/squares)
+# - input grid size (1 or 2 degrees)
 # - properly use the posterior sample of HbS (only one sample used so far)
 # - Pf only 1st allele used
 # - No covariates / fixed effects at the mo
@@ -236,7 +237,7 @@ fitbym_to_posterior_samples <- function(
 			data = regression.data,
 			Ntrials = n, # this is specific to binomial as we need to tell it the number of examined
 			control.predictor = list(compute = TRUE), # compute gives you the marginals of the linear predictor
-			control.compute = list(return.marginals.predictor=TRUE, waic = TRUE, cpo = TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF
+			control.compute = list(return.marginals.predictor=TRUE, waic = TRUE, cpo = TRUE, mlik=TRUE, config = TRUE), # model diagnostics and config = TRUE gives you the GMRF,mlik = TRUE to compute marg.likelihood
 			control.inla = list(strategy = "laplace", npoints = 21),#better approximation and increase evaluation points
 			#list(int.strategy = "grid", diff.logdens = 4),#to improve CPO computation
 			verbose = FALSE,
