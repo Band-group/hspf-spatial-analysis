@@ -45,12 +45,12 @@ fit = readRDS( args$fit )
 summary = (
 	fit$sampled.parameters
 	%>% summarise(
-		beta.mean = mean(beta),
+		beta.mean = mean(beta,na.rm=TRUE),
 		beta.q2.5 = quantile( beta, 0.025 ),
 		beta.q25 = quantile( beta, 0.25 ),
 		beta.q50 = quantile( beta, 0.5 ),
 		beta.q75 = quantile( beta, 0.75 ),
-		beta.q97.5 = quantile( beta, 0.975 )
+		beta.q97.5 = quantile( beta, 0.75 )
 	)
 )
 
@@ -63,10 +63,10 @@ result = bind_cols(
 		model = fit$model,
 		transform = fit$transform,
 		n_data_points = nrow( fit$data ),
-		mean_cpo = mean( fit$summary$cpo ),
-		mean_waic = mean( fit$summary$waic ),
-		mean_ll_integrated = mean( fit$marginal_ll_integrated ),
-		mean_ll_gaussian = mean( fit$marginal_ll_gaussian )
+		mean_cpo = mean( fit$summary$cpo,na.rm=TRUE ),
+		mean_waic = mean( fit$summary$waic,na.rm=TRUE ),
+		mean_ll_integrated = mean( fit$summary$marginal_ll_integration,na.rm=TRUE ),
+		mean_ll_gaussian = mean( fit$summary$marginal_ll_gaussian,na.rm=TRUE )
 	),
 	summary
 )
