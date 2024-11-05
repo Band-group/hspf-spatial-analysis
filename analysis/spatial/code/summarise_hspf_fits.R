@@ -1,5 +1,8 @@
 library( dplyr )
 library( argparse )
+library( knitr )
+library( kableExtra )
+library( stringr )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -56,6 +59,10 @@ summary = (
 
 result = bind_cols(
 	tibble(
+		celltype = fit$celltype,
+		cellsize = fit$cellsize,
+		HbSr0 = fit$r0,
+		HbSsigma0 = fit$sigma0,
 		allele = fit$allele,
 		area = args$area,
 		countries = paste( fit$areas, collapse = "," ),
@@ -71,8 +78,63 @@ result = bind_cols(
 	summary
 )
 
-echo( "++ Ok, writing results to %s...\n", args$output )
+echo( "++ Ok, saving results as a .tsv table to %s...\n", args$output )
 readr::write_tsv( result, args$output, append = file.exists( args$output ))
+
+updatedresult <- readr::read_tsv(args$output)
+
+# Save table as latex
+resulttex <- updatedresult %>%
+  select(-countries) %>%
+  mutate(across(where(is.numeric), ~ round(., 2)))
+# Remove underscore in pf allele (generate issues later)
+resulttex$allele <- gsub("_", "", resulttex$allele)
+resulttex$allele <- gsub("\\+", "", resulttex$allele)
+
+#get unique range and sigma for file name 
+addsuffix <- paste0("r0=",unique(fit$r0),"-sigma0=", unique(fit$sigma0))
+
+# Rename columns for better readability
+colnames(resulttex) <- c("Type", "Size", "$\\rho_0$","$\\sigma_0$","Pf allele", 
+                    "Domain", "km" ,"Model", "Link", "N", "CPO", "WAIC", "LL(Int.)", 
+                    "LL(Gauss.)", "Mean", 
+                    "Q2.5", "Q25", "Median", "Q75", "Q97.5")
+#remove some variables
+resulttex <- resulttex %>%
+  select(-c(Q25,Q75))
+#rename some entries
+resulttex <- resulttex %>% 
+  mutate(across('Model', stringr::str_replace, 'norandom', 'Besag')) %>% 
+  mutate(across('Model', stringr::str_replace, 'bym2', 'BYM')) %>% 
+  mutate(across('Domain', stringr::str_replace, 'waf', 'West Af.')) %>% 
+  mutate(across('Domain', stringr::str_replace, 'eaf', 'East Af.'))
+
+resulttex$Domain <- resulttex$Domain %>% stringr::str_to_title()
+resulttex$Link <- resulttex$Link %>% stringr::str_to_title()
+resulttex$Type <- resulttex$Type %>% stringr::str_to_title()
+
+# Create a formatted table with multicolumns
+captiontext <- "Results summary. Assessing the effects of HbS allele frequency on P.falciparum (Pf) allele frequency in Africa
+(West Africa: Gambia, Senegal, Mali, Benin, Burkina Faso, Ivory Coast, Ghana, Guinea, Mauritania, Nigeria, Senegal, Togo, 
+Angola, Cameroon; East Africa: Ethiopia, Kenya, Madagascar, Malawi, Mozambique, Rwanda, Uganda, and United Republic of Tanzania; 
+Gabon; Other African countries: Central African Republic, Republic of the Congo, Democratic Republic of the Congo). 
+Models are specified as follows: Spatial unit (cell) type and size (hexagon: distance between oppositve edges; square: edge length. Unit: degree) of the discretised spatial domain;
+Penalised complexity prior thresholds on the spatial random field (range and sigma) for the HbS models; 
+Pf allele locus; Study domain; Radius distance used to subset spatial units; Type of spatial Pf model (Besag includes only structured effects; BYM includes both structured and unstructured effects); Pf model link function; 
+Number of observations in Pf model; Predictive performance metrics including Conditional predictive ordinates (CPO), Watanabe-Akaike information criterion (WAIC), log likelihood 
+estimated with integrative or Gaussian approximations; Estimated values (mean, median, quantiles 0.025, 0.5 (median), 0.975) of the HbS effects on Pf allele frequency."
+
+echo( "++ Ok, saving results as a .tex table to %s...\n", args$output )
+resulttex <- resulttex %>%
+  kable("latex", booktabs = TRUE, caption = captiontext, longtable = TRUE,
+        escape=FALSE,linesep=c("", "", "","", "", "","", "\\addlinespace")) %>%
+  kable_classic(full_width = F) %>%
+  add_header_above(c("Spatial unit" = 2, "HbS priors" = 2, rep("",6), "Predictive Performance" = 4, "Estimated HbS effect" = 4)) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 7,
+                repeat_header_continued = "\\textit{(Continued on next page...)}") 
+# Save the table to a .tex file
+resulttex_name = gsub( "[.]tsv$", "", args$output)
+save_kable(resulttex, file = paste0(resulttex_name,"_",addsuffix,".tex"))
 
 echo( "++ Success.\n" )
 echo( "++ Thank you for using summarise_hspf_fits.R!\n" )
