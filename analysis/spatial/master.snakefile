@@ -1,20 +1,20 @@
 ranges = [
-#	'10.0',
+	'10.0',
 	'25.0',
-#	'50.0'
+	'50.0'
 ]
 sigmas = [
 	'0.6',
-#	'1.0'
+	'1.0'
 ]
 
 types = [
 	'hexagon',
-#	'square'
+	'square'
 ]
 
 covariates = [ 'none' ]
-cellsizes = [ '1', '2' ]
+cellsizes = [ '1','2' ]
 
 def srcdir(x):
 	return x
@@ -27,12 +27,12 @@ areas = {
 	],
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-	'gambia': [ 'Gambia' ],
-	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
-	'mali': [ 'Mali' ],
-	'tanzania': [ 'United Republic of Tanzania' ],
-	'DRC': [ 'Democratic Republic of the Congo' ],
+#	'gambia+senegal': [ 'Gambia', 'Senegal' ],
+#	'gambia': [ 'Gambia' ],
+#	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
+#	'mali': [ 'Mali' ],
+#	'tanzania': [ 'United Republic of Tanzania' ],
+#	'DRC': [ 'Democratic Republic of the Congo' ],
 	'global': None
 }
 
@@ -40,9 +40,9 @@ config = {
 	"r0": ranges,
 	"sigma0": sigmas,
 	"covariates": [ "none" ],
-	"type": [ 'hexagon' ],
+	"type": types,
 	"divide": [ 'none' ],
-	"size": ['2'],
+	"size": cellsizes,
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 	"regression_model": [ 'bym2', 'norandom' ],
 	"min_km_to_survey_pt": [ '200'],
@@ -112,7 +112,7 @@ rule all:
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
-			type = [ "hexagon" ],
+			type = types,
 			size = cellsizes,
 			divide = ["none"]
 		),
@@ -122,7 +122,7 @@ rule all:
 			sigma0 = sigmas,
 			covariates = covariates,
 			min_km_to_survey_pt = [ '200' ],
-			type = [ "hexagon" ],
+			type = types,
 			size = cellsizes,
 			divide = ["none"],
 			regression_model = [ 'norandom', 'bym2' ],
@@ -135,7 +135,7 @@ rule all:
 #			sigma0 = sigmas,
 #			covariates = covariates,
 #			min_km_to_survey_pt = [ '200' ],
-#			type = [ "hexagon" ],
+#			type = types,
 #			size = cellsizes,
 #			divide = ["none"],
 #			regression_model = [ 'norandom', 'bym2' ],
