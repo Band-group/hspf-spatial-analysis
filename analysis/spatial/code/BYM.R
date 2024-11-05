@@ -35,6 +35,18 @@ parse_arguments <- function() {
 		help = "Path to grid to use.",
 		required = TRUE
 	)
+		parser$add_argument(
+		"--size",
+		type = "character",
+		help = "Size of the spatial unit in degree",
+		required = TRUE
+	)
+		parser$add_argument(
+		"--type",
+		type = "character",
+		help = "Type of the spatial unit (hexagon,square)",
+		required = TRUE
+	)
 	parser$add_argument(
 		"--pf_aggregated",
 		type = "character",
@@ -106,6 +118,18 @@ parse_arguments <- function() {
 		type = "double",
 		help = "number of threads to use in inla model-fitting code",
 		default = 1
+	)
+	parser$add_argument(
+		"--r0",
+		type = "character",
+		help = "range0 hyperpar. of HbS model",
+		required = T
+	)
+	parser$add_argument(
+		"--sigma0",
+		type = "character",
+		help = "sigma0 hyperpar. of HbS model",
+		required = T
 	)
 	parser$add_argument(
 		"--output",
@@ -421,6 +445,10 @@ echo(
 
 result$areas = args$areas
 result$min_km_to_survey_pt = args$min_km_to_survey_pt
+result$cellsize <- args$size
+result$celltype <- args$type
+result$r0 <- args$r0
+result$sigma0 <- args$sigma0
 
 echo( "++ Writing results to %s...\n", args$output )
 saveRDS( result, args$output )
