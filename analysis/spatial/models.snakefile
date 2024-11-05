@@ -185,12 +185,16 @@ rule fit_hspf_in_areas:
 	params:
 		script = srcdir( "code/BYM.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
-	threads: 8
+	threads: 10
 	shell: """
 		Rscript --vanilla {params.script} \
 		--world {input.world} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
+		--size {wildcards.size} \
+		--type {wildcards.type} \
+		--r0 {wildcards.r0} \
+		--sigma0 {wildcards.sigma0} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
 		--locus {wildcards.locus} \
@@ -226,6 +230,10 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		--world {input.world} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
+		--size {wildcards.size} \
+		--type {wildcards.type} \
+		--r0 {wildcards.r0} \
+		--sigma0 {wildcards.sigma0} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
 		--locus {wildcards.locus} \
@@ -280,7 +288,8 @@ rule plot_hspf_areas:
 
 rule summarise_hspf:
 	output:
-		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
+		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
+		tex = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary_r0={r0}-sigma0={sigma0}.tex"
 	input:
 		fits = lambda w: ([
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
