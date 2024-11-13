@@ -14,7 +14,8 @@ types = [
 ]
 
 covariates = [ 'none' ]
-cellsizes = [ '1','2' ]
+cellsizes = [ '1', '2' ]#,'2'
+surveykms = ['200', '500' ]
 
 def srcdir(x):
 	return x
@@ -45,8 +46,8 @@ config = {
 	"size": cellsizes,
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 	"regression_model": [ 'bym2', 'norandom' ],
-	"min_km_to_survey_pt": [ '200'],
-	"min_N": [ '0', '5' ],
+	"min_km_to_survey_pt": surveykms,
+	"min_N": [ '5' ],#'0', 
 	"area": areas.keys(),
 }
 
@@ -121,7 +122,7 @@ rule all:
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
-			min_km_to_survey_pt = [ '200' ],
+			min_km_to_survey_pt = surveykms,
 			type = types,
 			size = cellsizes,
 			divide = ["none"],
