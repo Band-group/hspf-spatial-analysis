@@ -13,7 +13,7 @@ echo <- function( text, ... ) {
 install.prerequisites <- function() {
   #install packages
   #INLA used to fit Bayesian models
-  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2" )
+  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx" )
   lapply( libraries, library, character.only = TRUE, quietly = TRUE )
   #basic packages and parallel computing packages (add more if needed)
 #  list.of.packages <- c("tictoc","fmesher", "parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
@@ -2020,9 +2020,13 @@ compute.HbS.prediction.extent <- function(
   HbSpredextent <- sf::st_geometry(HbSpredextent)
   HbSpredextent <- sf::st_union(HbSpredextent,is_coverage = TRUE)
   # Make sure that some countries are covered (where we have HbS data)
-  keepcountrynames <- c("Peru","Chile","Brazil","Bolivia","Venezuela","Colombia","Algeria","Ethiopia","Eritrea",
-  "South Africa", "Botzwana","Zimbabwe","United Kingdom","Turkey","Italy","Spain","Portugal","Germany","Thailand",
-  "France","Belgium","Netherlands","Slovakia","Nepal","Myanmar","Malaysia","Japan","India","Laos","Vietnam","Cambodia")
+  keepcountrynames <- c("Peru","Chile","Brazil","Bolivia","Venezuela","Colombia","United Kingdom","Turkey","Italy","Spain","Portugal","Germany","Thailand",
+  "France","Belgium","Netherlands","Slovakia","Nepal","Myanmar","Malaysia","Japan","India","Laos","Vietnam","Cambodia","Saudi Arabia","Oman","Yemen")#,
+  #"Algeria","Ethiopia","Eritrea", "South Africa", "Botzwana","Zimbabwe",)
+  Af <- world_sf[world_sf$CONTINENT == 'Africa', ]
+  keepAfcountrynames <- unique(Af$NAME)
+  # Keep countries outside Africa + all countries in Africa
+  keepcountrynames <- c(keepcountrynames,keepAfcountrynames)
   keepcountries <- world_sf[world_sf$NAME %in% keepcountrynames, ]
   keepcountries <- sf::st_geometry(keepcountries)
   keepcountries <- sf::st_union(keepcountries,is_coverage = TRUE)
