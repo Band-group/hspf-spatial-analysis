@@ -525,7 +525,8 @@ countrydfi <- countrydfi %>%
 fig1bplot <- function(myarea,myhexa,wsf,pfsf=NULL,
                          flatcrs = flatcrs,sizept = 1,
                          maphbs=TRUE,mappf=TRUE,pfvarsize=FALSE, mylinewidth = NULL,
-                         viridisoption="rocket",countrybordercol= 'gray35'){
+                         viridisoption="rocket",countrybordercol= 'gray35',
+                         countrybuffer = FALSE){
   #if the user provides a list of countries 
   if(class(myarea)[1]== "list") {
   myboundary <- world_sf[world_sf$sovereignt %in% myarea[[i]],]  
@@ -564,6 +565,9 @@ hbsp <- ggplot() +
 # geom_sf(data = areabox, fill = NA, col = 'gray35', lwd = 1)                    # area (square)
 # Add HbS data if maphbs is TRUE
 if (maphbs == TRUE) {
+  if (countrybuffer == TRUE) {
+    myboundary <- sf::st_buffer(myboundary, 1)
+  }
   hbsp <- hbsp +
     geom_sf(data = wsf[myboundary, ], aes(color = Dataset), shape = 22, fill = "orange", 
             size = sizept, linewidth = boundarywidth) +
@@ -632,7 +636,20 @@ ggsave(file=paste0(args$outdir,"/fig1bhex_tza.pdf"),fig1bhexa[[1]], width = 6, h
 ggsave(file=paste0(args$outdir,"/fig1bhex_tza.svg"),fig1bhexa[[1]], width = 6, height = 7 )
 ggsave(file=paste0(args$outdir,"/fig1bhex_tzalegend.pdf"),fig1bhexa[[2]], width = 6, height = 3)
 ggsave(file=paste0(args$outdir,"/fig1bhex_tzalegend.svg"),fig1bhexa[[2]], width = 6, height = 3)
-echo('Fig1: Plot Tanzania example fig1bplot completed\n')
+echo('Fig1: Plot Tanzania example fig1bhex_tza completed\n')
+
+#plot for comparing piel vs us in madagascar
+mad <- world_sf[world_sf$name=='Madagascar',]
+fig1bhexa <- fig1bplot(myarea=mad,myhexa=countrydfi,wsf,pfsf,
+                      flatcrs = mywgs84,sizept = 4,maphbs=TRUE,mappf=FALSE,
+                      pfvarsize=FALSE,mylinewidth = 0.25,viridisoption="rocket",
+                      countrybordercol= 'gray90',countrybuffer = TRUE)
+ggsave(file=paste0(args$outdir,"/fig1bhex_mad.pdf"),fig1bhexa[[1]], width = 5, height = 7 )
+ggsave(file=paste0(args$outdir,"/fig1bhex_mad.svg"),fig1bhexa[[1]], width = 5, height = 7 )
+ggsave(file=paste0(args$outdir,"/fig1bhex_madlegend.pdf"),fig1bhexa[[2]], width = 6, height = 3)
+ggsave(file=paste0(args$outdir,"/fig1bhex_madlegend.svg"),fig1bhexa[[2]], width = 6, height = 3)
+echo('Fig1: Plot Madagascar example fig1bhex_mad completed\n')
+
 
 #plot for Figure 3 with HbS values in hexagons and Pf variable size
 countrylist <- list("Democratic Republic of the Congo",'Mali',c('Ghana','Togo','Burkina Faso'), 
