@@ -8,8 +8,7 @@ paths = list(
 	dupes = "data/senegal/all_sampdupes.txt",
 	annotated = "data/senegal/PRJNA972644_annotated.tsv",
 	samples = "data/senegal/PRJNA972644.csv",
-	sites = "data/senegal/sites.tsv",
-	senegal = "data/senegal/shapes/sen_admbnda_adm2_anat_20240520.shp"
+	sites = "data/senegal/sites.tsv"
 )
 
 #functions
@@ -25,14 +24,15 @@ load.entry.from.Rdata <- function( filename, what ) {
 
 dosage = readr::read_table( paths$dosage )
 sample_map = readr::read_tsv( paths$sampmap )
-samples = readr::read_csv( paths$samples )
-annotated = readr::read_tsv( paths$annotated )
-dupes = readr::read_table( paths$dupes, col_names = "sample" )
-senegal = sf::read_sf( paths$senegal )
+#samples = readr::read_csv( paths$samples )
+#annotated = readr::read_tsv( paths$annotated )
+#dupes = readr::read_table( paths$dupes, col_names = "sample" )
 sites = readr::read_tsv( paths$sites, comment = '#' )
 
 variants = dosage[,1:6]
-genotypes = dosage[,7:ncol(dosage)]
+genotypes = as.matrix(dosage[,7:ncol(dosage)])
+# Remove any mixed genotypes
+genotypes[ genotypes == 1 ] = NA
 rownames( genotypes ) = sprintf( "%s:%d:%s>%s", variants$chromosome, variants$position, variants$alleleA, variants$alleleB )
 
 result = tibble::tibble(
@@ -42,7 +42,6 @@ result = tibble::tibble(
 result$country = stringr::str_sub( result$new_sample_name, 1, 3 )
 result$site = stringr::str_sub( result$new_sample_name, 5, 7 )
 result$year = stringr::str_sub( result$new_sample_name, 9, 12 )
-sites = readr::read_tsv( paths$sites, comment = '#' )
 result = (
 	result
 	%>% inner_join( sites %>% select( site = Site, longitude, latitude ), by = "site" )
