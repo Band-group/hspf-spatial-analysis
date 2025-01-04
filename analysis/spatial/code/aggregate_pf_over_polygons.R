@@ -7,7 +7,7 @@ echo <- function( message, ... ) {
 
 parse_arguments <- function() {
 	parser = ArgumentParser(
-		description = 'Aggregate HbS posterior samples (and mean) across polygons'
+		description = 'Aggregate Pf genotype counts across polygons'
 	)
 	parser$add_argument(
 		"--pf",
