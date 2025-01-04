@@ -1,14 +1,34 @@
-library( rnaturalearth )
-library( rnaturalearthhires )
 library( dplyr )
 
+library( argparse )
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Extract Pfsa counts'
+	)
+	parser$add_argument(
+		"--indir",
+		type = "character",
+		help = "path to folder containing Pf7 data",
+		default = "../../../data/senegal"
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to output directory",
+		default = "input/hbs-pf-v2.sqlite",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+
 paths = list(
-	dosage = "data/senegal/reads/fetched/calls.variants.dosage.gz",
-	sampmap = "data/senegal/all_sampmap.txt",
-	dupes = "data/senegal/all_sampdupes.txt",
-	annotated = "data/senegal/PRJNA972644_annotated.tsv",
-	samples = "data/senegal/PRJNA972644.csv",
-	sites = "data/senegal/sites.tsv"
+	dosage = sprintf( "%s/calls.dosage.gz", args$indir ),
+	sampmap = sprintf( "%s/all_sampmap.txt", args$indir ),
+	sites = sprintf( "%s/sites.tsv", args$indir )
 )
 
 #functions
@@ -33,6 +53,11 @@ variants = dosage[,1:6]
 genotypes = as.matrix(dosage[,7:ncol(dosage)])
 # Remove any mixed genotypes
 genotypes[ genotypes == 1 ] = NA
+
+# Fix missing allele calls
+variants$alleleB[ variants$position == 814288 ] = "T"
+variants$alleleB[ variants$position == 814329 ] = "G"
+
 rownames( genotypes ) = sprintf( "%s:%d:%s>%s", variants$chromosome, variants$position, variants$alleleA, variants$alleleB )
 
 result = tibble::tibble(
@@ -51,14 +76,15 @@ by_sample = dplyr::bind_cols(
 	result,
 	t(genotypes)
 ) %>% mutate(
-	source = "schaffner_et_al_2023",
-	study = "schaffner_et_al_2023",
+	source = "Schaffner et al Senegal 2023",
+	study = "https://doi.org/10.1038/s41467-023-43087-4",
+	datatype = 'WGS',
 	country = "Senegal",
 	N = 1,
 	`Pfsa1:ref` = int(`Pf3D7_02_v3:631190:T>A` == 0),
 	`Pfsa1:nonref` = int(`Pf3D7_02_v3:631190:T>A` == 2),
-	`Pfsa2:ref` = NA,
-	`Pfsa2:nonref` = NA,
+	`Pfsa2:ref` = int(`Pf3D7_02_v3:814288:C>T` == 0),
+	`Pfsa2:nonref` = int(`Pf3D7_02_v3:814288:C>T` == 0),
 	`Pfsa3:ref` = int(`Pf3D7_11_v3:1058035:T>A` == 0 ),
 	`Pfsa3:nonref` = int(`Pf3D7_11_v3:1058035:T>A` == 2 ),
 	`Pfsa4:ref` = int(`Pf3D7_04_v3:1121472:T>A` == 0),
@@ -67,6 +93,7 @@ by_sample = dplyr::bind_cols(
 ) %>% select(
 	source,
 	study,
+	datatype,
 	country,
 	site,
 	latitude,
@@ -86,8 +113,10 @@ by_sample = dplyr::bind_cols(
 
 by_site = (
 	by_sample
+	%>% filter( !is.na( latitude ))
+	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, country, site, latitude, longitude
+		source, study, datatype, country, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
@@ -98,7 +127,10 @@ by_site = (
 	)
 )
 
-db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
+options(width=200)
+print( by_site )
+
+db = DBI::dbConnect( RSQLite::SQLite(), args$output )
 DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'schaffner_et_al_2023' ")
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
 DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'schaffner_et_al_2023' ")

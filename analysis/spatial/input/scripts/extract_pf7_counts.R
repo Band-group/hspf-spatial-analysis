@@ -1,6 +1,43 @@
 library( tidyverse )
 library( dplyr )
+library( dbplyr )
 library( rbgen )
+
+library( argparse )
+
+options(width=200)
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Extract Pfsa counts'
+	)
+	parser$add_argument(
+		"--indir",
+		type = "character",
+		help = "path to folder containing Pf7 data",
+		default = "/well/band/projects/pf7/"
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to output directory",
+		default = "input/hbs-pf-v2.sqlite",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+
+paths = list(
+	samples = sprintf( "%s/data/samples/Pf7_samples.txt", args$indir ),
+	genotypes = sprintf( "%s/results/bgen/pf7.filtered.bgen", args$indir )
+)
 
 load.genotypes <- function( filename, SNPs ) {
 	G = bgen.load(
@@ -32,10 +69,6 @@ load.genotypes <- function( filename, SNPs ) {
 	return(G)
 }
 
-paths = list(
-	samples = '/well/band/projects/pf7/data/samples/Pf7_samples.txt',
-	genotypes = "/well/band/projects/pf7/results/bgen/pf7.filtered.bgen"
-)
 samples = read_tsv( paths$samples )
 samples$Country = gsub( " ", "_", samples$Country )
 samples$Country[ grep( "Ivoire", samples$Country)] = "Cote_dIvoire" 
@@ -83,6 +116,7 @@ samples = (
 		longitude = `Admin level 1 longitude`,
 		source = "MalariaGEN Pf7",
 		study = Study,
+		datatype = "WGS",
 		country = Country,
 		site = `Admin level 1`,
 		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
@@ -92,7 +126,8 @@ samples = (
 		`Pfsa3:ref` = 1 - `chr11:1058035:T>A`,
 		`Pfsa3:nonref` = `chr11:1058035:T>A`,
 		`Pfsa4:ref` = 1 - `chr4:1121472:T>A`,
-		`Pfsa4:nonref` = `chr4:1121472:T>A`
+		`Pfsa4:nonref` = `chr4:1121472:T>A`,
+		exclude = 'no'
 	)
 )
 
@@ -103,7 +138,7 @@ by_sample = (
 		N = 1,
 	)
 	%>% select(
-		source, study, country, site, latitude, longitude,
+		source, study, datatype, country, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -115,11 +150,10 @@ by_sample = (
 
 by_site = (
 	by_sample
-	%>% filter(
-		`exclude` == 'no'
-	)
+	%>% filter( !is.na( latitude ))
+	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, country, site, latitude, longitude
+		source, study, datatype, country, site, latitude, longitude
 	)
 	%>% summarise(
 		N = sum(N),
@@ -131,11 +165,12 @@ by_site = (
 	)
 )
 
-{
-	db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
-#	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
-	DBI::dbWriteTable( db, "by_site", by_site, overwrite = TRUE )
-#	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
-	DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = TRUE )
+print( by_site )
+
+echo( "++Outputting to %s...\n", args$output )
+	db = DBI::dbConnect( RSQLite::SQLite(), args$output )
+	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'MalariaGEN Pf7' ")
+	DBI::dbWriteTable( db, "by_site", by_site, append = TRUE, overwrite = FALSE )
+	DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'MalariaGEN Pf7' ")
+	DBI::dbWriteTable( db, "by_sample", by_sample, append = TRUE, overwrite = FALSE )
 	DBI::dbDisconnect( db )
-}

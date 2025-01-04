@@ -1,0 +1,26 @@
+# This is from Table 1 of https://doi.org/10.1038/s41467-023-43087-4
+# Long/Lat is by manual inspection of FIg 1 & Google Maps.
+Site	Map	Region	District	Incidence	M	M	P	longitude	latitude
+GMK	STL	Saint Louis	Richard Toll	0.5	0	4	0	-16.076832	16.398757
+ROS	STL	Saint Louis	Richard Toll	0.8	0	5	2	-15.700055	16.454659
+KTL	KTL	Kaolack	Ndoffane	1.5	6	9	10	-16.047487	14.060110
+TAO	STL	Saint Louis	Richard Toll	1.6	0	2	0	-15.700055	16.454659
+NJC	STL	Matam	Matam	2	3	4	6	-13.290572	15.790833
+ROB	STL	Saint Louis	Richard Toll	2.1	0	9	3	-16.141348	16.276988
+CSS	STL	Saint Louis	Richard Toll	2.1	0	10	12	-15.700055	16.454659
+SLP	SLP	Thiès	Thiès	2.3	40	51	19	-16.924871	14.789214
+DEG	DEG	Dakar	Pikine	2.4	14	26	11	-17.395468	14.754494
+MDR	MDR	Tambacounda	Bakel	4.4	5	13	9	-12.596580	15.058654
+SED	SED	Sedhiou	Sedhiou	4.7	18	23	11	-15.558757	12.704448
+SES	DBL	Diourbel	Diourbel	7.5	13	90	12	-16.345098	14.915328
+KAF	KAF	Ziguinchor	Diouloulou	13.1	16	23	20	-16.600599	13.047957
+KML	KML	Matam	Kanel	13.2	7	10	11	-13.176448	15.489229
+SMS	DBL	Diourbel	Diourbel	15.2	3	39	15	-16.345098	14.915328
+TBA	TBA	Diourbel	Touba	19.1	41	61	17	-15.876201	14.861965
+GAB	GAB	Tambacounda	Bakel	64.3	33	47	25	-12.460285	14.906182
+VLG	VLG	Kolda	Velingara	127.8	21	41	53	-14.110866	13.147354
+KLD	KLD	Kolda	Kolda	208.3	32	70	40	-15.657419	12.603827
+KDG	KED	Kedougou	Kedougou	414.8	45	42	39	-12.291985	12.800300
+TAM	TAM	Tambacounda	Tambacounda	611.2	13	40	35	-13.669305	13.774062
+TBK	KED	Kedougou	Tomboronkoto	937.1	13	16	18	-12.291985	12.800300
+MAK	KED	Kedougou	Kedougou	1076.9	17	26	35	-12.291985	12.800300

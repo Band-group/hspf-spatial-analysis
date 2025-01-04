@@ -3,10 +3,35 @@ library( dplyr )
 library( dbplyr )
 library( rbgen )
 
+library( argparse )
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Extract Pfsa counts'
+	)
+	parser$add_argument(
+		"--indir",
+		type = "character",
+		help = "path to folder containing Pf7 data",
+		default = "../../../data/tanzania"
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to output directory",
+		default = "input/hbs-pf-v2.sqlite",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+
 paths = list(
-	samples = "data/tanzania/Moser_et_al_2021/all_metadata_header.txt",
-	genotypes = "data/tanzania/Moser_et_al_2021/IBC_variants.fixed_genos.biallelic.targets_only.recode.bgen",
-	controls = 'data/tanzania/Moser_et_al_2021/list_of_controls'
+	samples = sprintf( "%s/Moser_et_al_2021/all_metadata_header.txt.gz", args$indir ),
+	genotypes = sprintf( "%s/Moser_et_al_2021/IBC_variants.fixed_genos.biallelic.targets_only.recode.bgen", args$indir ),
+	controls = sprintf( "%s/Moser_et_al_2021/list_of_controls", args$indir )
 )
 
 samples = readr::read_tsv( paths$samples )
@@ -95,6 +120,7 @@ samples = (
 	%>% mutate(
 		source = "Moser et al 2021",
 		study = "Moser et al 2021",
+		datatype = 'MIP',
 		country = "Tanzania",
 		N = 1,
 		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
@@ -112,7 +138,7 @@ samples = (
 by_sample = (
 	samples
 	%>% select(
-		source, study, country, site, latitude, longitude,
+		source, study, datatype, country, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -125,10 +151,11 @@ by_sample = (
 by_site = (
 	by_sample
 	%>% filter( !is.na( latitude ))
+	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, country, site, latitude, longitude
+		source, study, datatype, country, site, latitude, longitude
 	) %>% summarise(
-		N = n(),
+		N = sum(N),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
 		'Pfsa2:ref' = sum(`Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
 		'Pfsa3:ref' = sum(`Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
@@ -137,9 +164,12 @@ by_site = (
 	)
 )
 
-db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
-DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Moser_et_al_2021' ")
+options(width=200)
+print( by_site )
+
+db = DBI::dbConnect( RSQLite::SQLite(), args$output )
+DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Moser et al 2021' ")
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
-DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'Moser_et_al_2021' ")
+DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'Moser et al 2021' ")
 DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = FALSE, append = TRUE )
 DBI::dbDisconnect( db )

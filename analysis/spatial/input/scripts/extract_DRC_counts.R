@@ -1,9 +1,34 @@
 library( tidyverse )
 library( dplyr )
 library( dbplyr )
+library( RSQLite )
+library( argparse )
+
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Extract Pfsa counts'
+	)
+	parser$add_argument(
+		"--indir",
+		type = "character",
+		help = "path to folder containing DRC input data",
+		default = "input/dr_congo"
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to output directory",
+		default = "input/hbs-pf-v2.sqlite",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
 
 paths = list(
-	data = "data/dr_congo/biallelic_processed0.rds"
+	data = sprintf( "%s/biallelic_processed0.rds", args$indir )
 )
 
 data = readRDS( paths$data )
@@ -70,6 +95,7 @@ samples = (
 		longitude = long,
 		source = "Verity et al 2021",
 		study = "Verity et al 2021",
+		datatype = "MIP",
 		country = c(
 			'DRC' = 'Democratic_Republic_of_the_Congo',
 			'Ghana' = 'Ghana',
@@ -95,7 +121,7 @@ samples$exclude[ samples$country != 'Democratic_Republic_of_the_Congo' ] = 'yes'
 by_sample = (
 	samples
 	%>% select(
-		source, study, country, site, latitude, longitude,
+		source, study, datatype, country, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -107,8 +133,10 @@ by_sample = (
 
 by_site = (
 	by_sample
+	%>% filter( !is.na( latitude ))
+	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, country, site, latitude, longitude
+		source, study, datatype, country, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
@@ -119,7 +147,10 @@ by_site = (
 	)
 )
 
-db = DBI::dbConnect( RSQLite::SQLite(), "results/genotypes/hbs-pf-v2.sqlite" )
+options(width=200)
+print( by_site )
+
+db = DBI::dbConnect( RSQLite::SQLite(), args$output )
 DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Verity et al 2021' ")
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
 DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'Verity et al 2021' ")
