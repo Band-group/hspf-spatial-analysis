@@ -80,25 +80,6 @@ echo( "++ Loading world from %s\n", args$world )
 world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 notpiel = 0.005
 extents = compute.HbS.prediction.extent( world_sf, args$piel,notpiel=notpiel )
-flatcrs = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-
-if( is.null( args$areas )) {
-#plot HbS extent map 
-HbSextentmap <- ggplot() +
-        geom_sf(data = extents, fill='burlywood', col = 'grey45',size = 0.5)+
-        geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
-        ggtitle(paste0('Spatial coverage where we make HbS prediction\n Region with Piel HbS mean values >',
-        notpiel*100,'% and added countries where HBS data are spatially dense\n\n'))+
-        coord_sf(crs = flatcrs, expand = F) +
-      	theme_void() + theme.panelgrid 
-
-ggsave(filename=paste0(outputpath,'_HbSextentmap.pdf'), 
-plot = HbSextentmap, device = "pdf",width = 16,height=10)
-ggsave(filename=paste0(outputpath,'_HbSextentmap.svg'), 
-plot = HbSextentmap, device = "svg",width = 16,height=10)
-echo( "++ HbS extent map generated\n")
-}
-
 
 keypfcountries = data.frame(
 	ISO3 = c(
@@ -186,16 +167,6 @@ if( !is.null( args$areas )) {
 	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
 }
 
-#plot grid: check how the grid looks like (then this graph can be removed if no issue)#
-gridmap <- ggplot() +
-        geom_sf(data = grid, fill='burlywood', col = 'grey45',size = 0.5)+
-        geom_sf(data = world_sf, fill = 'transparent', col = 'grey15', size = 0.5) +
-         coord_sf(crs = flatcrs, expand = F) +
-      	theme_void() + theme.panelgrid 
-ggsave(filename=paste0(outputpath,'_grid.pdf'), 
-plot = gridmap, device = "pdf",width = 16,height=10)
-echo( "++ Created grid map\n")
-
 # We currently require this not to split any polygon in two pieces:
 stopifnot( length( unique( grid$polygon_id )) == length( grid$polygon_id ))
 # (Alternatively we could update the identifiers)
@@ -204,5 +175,4 @@ echo( "++ Created %d grid points.", nrow( grid ))
 echo( "++ Saving to %s...", args$output )
 
 saveRDS( grid, file = args$output )
-
 echo( "++ Great success!" )
