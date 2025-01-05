@@ -4,7 +4,7 @@ echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
 }
 
-options(width=300)
+options(width=200)
 missing = NA
 parse_arguments <- function() {
 	parser = ArgumentParser(
@@ -105,27 +105,37 @@ unique_continents <- unique(grid$CONTINENT)
 bottom_right_continent <- unique_continents[length(unique_continents)]  # Assumes last facet is bottom-right
 
 # Step 2: Modify the plot with your specifications
-p <- ggplot(data = grid) +
-  	geom_point(
-    aes(x = piel_et_al, y = hbs_fit, fill = country), 
-    shape = 21, 
-    alpha = 0.35  # Adds transparency to points
-  ) +
-  facet_wrap(~CONTINENT) +
-  theme_minimal(base_size = 20, base_family = "Helvetica") +  # Increase font size and set Helvetica
-  scale_fill_manual(values = palette, name = "Investigated country") +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +  # Dashed 1:1 line
-  xlim(0, 0.25) +
-  ylim(0, 0.25) +
-  labs(
-    x = "Piel et al. (2013)'s estimated mean HbS allele frequency",
-    y = "Estimated mean HbS allele frequency by our model"
-  ) +
-  geom_text(
-    aes(x = 0.18, y = 0.02, label = paste0("Overall fit\nR² = ", r_squared, "\np ", p_value)),
-    data = subset(grid, CONTINENT == bottom_right_continent),  # Only show on the bottom-right panel
-    size = 5, hjust = 0, color = "black", fontface = "italic"
-  ) + theme(legend.position = 'right')+
-  guides(fill=guide_legend(ncol=1,override.aes = list(alpha=1)))
-
+p = (
+	ggplot(data = grid)
+	+ geom_point(
+		aes( x = piel_et_al, y = hbs_fit, fill = country ), 
+		shape = 21, 
+		alpha = 0.35  # Adds transparency to points
+  	)
+	+ facet_wrap(~CONTINENT)
+	+ theme_minimal( base_size = 20, base_family = "Helvetica" )
+	+ scale_fill_manual( values = palette, name = "Investigated country" )
+	+ geom_abline( intercept = 0, slope = 1, linetype = 2 ) # dashed line
+	+ xlim(0, 0.25)
+	+ ylim(0, 0.25)
+	+ labs(
+		x = "Piel et al. (2013)'s estimated mean HbS allele frequency",
+		y = "Estimated mean HbS allele frequency by our model"
+	)
+	+ geom_text(
+		aes( x = 0.18, y = 0.02, label = paste0( "Overall fit\nR² = ", r_squared, "\np ", p_value )),
+		data = subset(grid, CONTINENT == bottom_right_continent),  # Only show on the bottom-right panel
+		size = 5,
+		hjust = 0,
+		color = "black",
+		fontface = "italic"
+	)
+	+ theme( legend.position = 'right' )
+	+ guides(
+		fill = guide_legend(
+			ncol = 1,
+			override.aes = list( alpha = 1 )
+		)
+	)
+)
 ggsave( p, file = args$output, width = 14, height = 10)

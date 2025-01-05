@@ -28,7 +28,7 @@ parse_arguments <- function() {
 		"--pf_survey",
 		type = "character",
 		help = "path to pf by_site data",
-		default = "input/hbs-pf.sqlite"
+		default = "input/hbs-pf-v2.sqlite"
 	)
 	parser$add_argument(
 		"--world",

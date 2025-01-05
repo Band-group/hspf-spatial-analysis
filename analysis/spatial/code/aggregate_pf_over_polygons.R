@@ -13,7 +13,7 @@ parse_arguments <- function() {
 		"--pf",
 		type = "character",
 		help = "path to Pf data",
-		default = "input/hbs-pf.sqlite"
+		default = "input/hbs-pf-v2.sqlite"
 	)
 	parser$add_argument(
 		"--world",
@@ -48,7 +48,7 @@ world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
-data = dbGetQuery( db, "SELECT * FROM by_site WHERE exclude == 'no'" )
+data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
 stopifnot( max( data$N ) == 1 )
 
 aggregation_data = (
@@ -101,20 +101,35 @@ aggregation_data = (
 		`Pfsa34_--`, `Pfsa34_-+`, `Pfsa34_+-`, `Pfsa34_++`
 	)
 )
+
+echo( "++ %d Pf data points loaded.\n", nrow( aggregation_data ))
+
+# Now aggregate into polygons...
+
+echo( "++ Mapping %d points to %d polygons...\n", nrow( aggregation_data ), nrow( polygons ))
 aggregation_data = sf::st_as_sf(
 	aggregation_data,
 	coords = c( "longitude", "latitude" ),
 	crs = sf::st_crs( world_sf )
 )
 
+joined <- sf::st_join(
+	aggregation_data,
+	polygons,
+	join = sf::st_intersects
+) %>% filter( !is.na( polygon_id ))
+joined$geometry = NULL
+echo( "++ ...ok, %d points mapped.\n", nrow( joined ))
+
 # Now aggregated version
 # pf_adm2_agg <- function( pf_data, ctryname, adm2ctry, adm2polyid ) {
 echo( "++ Aggregating %d Pf data points into %d polygons...", nrow( aggregation_data ), nrow( polygons ))
-aggregated = aggregate_pf_data_in_polygons(
-	aggregation_data,
-	polygons,
-	"polygon_id"
+aggregated = (
+	joined
+	%>% group_by( source, polygon_id )
+	%>% summarise( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)) )
 )
+
 # Remove the geometry column, which ain't needed.
 # NB. Look up the grid file to check centroids etc.
 aggregated$geometry = NULL

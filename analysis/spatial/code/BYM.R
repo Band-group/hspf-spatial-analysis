@@ -15,7 +15,7 @@ library(INLA)
 library(dplyr)
 library( argparse )
 
-options( width = 300 )
+options( width = 200 )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -168,10 +168,13 @@ fitbym_to_posterior_samples <- function(
 	countrydfi$Y = countrydfi[[y_name]]
 	countrydfi$n = countrydfi[[n_name]]
 
-	###remove polygon if missing response or sample size
+	### remove polygon if missing response or sample size
 	countrydfi <- countrydfi %>% dplyr::filter(!is.na(Y) & !is.na(n))
-	############################################################
 
+	echo( "++ data for fitting is:" )
+	print( countrydfi, n = 50 )
+
+	############################################################
 	hbs = hbs[ match( countrydfi$polygon_id, hbs$polygon_id ), ]
 	print( dim( countrydfi ))
 	print( dim( hbs ))
@@ -179,11 +182,11 @@ fitbym_to_posterior_samples <- function(
 	#check if redundant polygon_id?
 	stopifnot(
 		length(
-			countrydfi %>%
-			dplyr::group_by(polygon_id) %>%
-			dplyr::filter(n() > 1) %>%
-			dplyr::pull(polygon_id) %>%
-			unique()
+			countrydfi
+			%>% dplyr::group_by(polygon_id)
+			%>% dplyr::filter(n() > 1)
+			%>% dplyr::pull(polygon_id)
+			%>% unique()
 		) == 0
 	)
 
@@ -343,9 +346,7 @@ HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[gri
 echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
 echo( "   (and grouping by polygon_id)...\n" )
 
-pf = (
-  readr::read_tsv( pf_aggregated )
-)
+pf = readr::read_tsv( pf_aggregated )
 
 if( !is.null( args$sources )) {
 	pf = pf %>% filter( source %in% args$sources )
@@ -375,11 +376,13 @@ if( !is.null( args$min_N ) & args$min_N > 0 ) {
 
 echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
 hbs = readr::read_tsv( HbS_aggregated )
-echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
+echo( "++ ...ok, %d points loaded:\n", nrow( hbs ))
+print( hbs )
 
 echo( "++ Loading polygon grid from %s...\n", args$grid )
 grid = readRDS( args$grid )
 echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
+print( grid )
 
 # FIX ME: this restricts to areas intersecting the specified.
 # Polygons may overlap surrounding countries: you may want to consider using the

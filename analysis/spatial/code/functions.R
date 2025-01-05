@@ -923,6 +923,7 @@ predict_inla_binomial_model <- function(
     A.pred = A.pred,
     covariates = covariates
   )
+  colnames(mypred) = sprintf( "posterior_sample_%d", 1:nn )
   #compute posterior summary for each pixel
   pred_mean <- rowMeans( mypred, na.rm = TRUE )
   pred_sd <- apply(mypred, 1, function(x) sd(x, na.rm=TRUE))
@@ -2131,55 +2132,6 @@ aggregate_to_polygons <- function( data, countries, polygons, polygon_id = "NAME
 	return( beehive_aggregated )
 }
 
-aggregate_HbS_samples_in_polygons <- function( data, polygons, polygon_id_column ) {
-  library(dplyr)
-  library(sf)
-  #convert polyID vector into symbol
-  polyid = sym( polygon_id_column )
-
-############################################################################################################################
-# Andre added this line because no spatial join is needed if we have polygon_id attached
-# This comes after trying to optimise the st_sample process (which is very slow if not parallelised)
-  # Note that I hard-coded polygon_id in the by argument (sorry for that not sure how to solve it)
-  polygonsdf <- data.frame(polygons)
-  #put polygon id as character(need same class for left join)
-  polygonsdf$polygon_id <- as.character(polygonsdf$polygon_id)
-  dataagg <- (
-    data
-    %>% dplyr::group_by(!!polyid)
-    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) median(x, na.rm = TRUE)))
-  )
-  #make sure that polygon id is a character object for left join
-  dataagg$polygon_id <- as.character(dataagg$polygon_id)
-  joined <- dplyr::left_join(   
-    dataagg, polygonsdf, by='polygon_id' ) #, largest = TRUE )
-  ############################################################################################################################
-  #former spatial join
-  #joined <- sf::st_join( data, polygons, join = st_intersects ) #, largest = TRUE )
-  # joined <- (
-  #   joined
-  #   %>% dplyr::group_by(!!polyid)
-  #   %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) mean(x, na.rm = TRUE)))
-  # )
-  #joined = joined[,c(polygon_id_column, colnames(dataagg))]
-  joined = joined[,c(colnames(dataagg))]
-  
-
-  # Compute centroids of the polygons
-  polygon_centroids <- polygons %>%
-    sf::st_centroid() %>%
-    sf::st_coordinates() %>%
-    as.data.frame() %>%
-    dplyr::mutate(!!polyid := polygons[[ polygon_id_column ]])
-  
-  # Merge centroid coordinates with the aggregated data
-  joined <- joined %>%
-    dplyr::left_join( polygon_centroids, by = polygon_id_column ) %>%
-    dplyr::rename( longitude = X, latitude = Y )
-
-  return(joined)
-}
-
 aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
   library(dplyr)
   library(sf)
@@ -2195,7 +2147,10 @@ aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
   joined <- (
     joined
     %>% dplyr::group_by(!!polyid, source)
-    %>% dplyr::summarize( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)))
+    %>% dplyr::summarise(
+      
+      dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE))
+    )
     %>% ungroup()
   )
   joined = joined[,c(polygon_id_column, colnames(data))]

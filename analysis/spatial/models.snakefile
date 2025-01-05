@@ -160,7 +160,7 @@ rule aggregate_pf:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	input:
-		pf = "input/hbs-pf.sqlite",
+		pf = "input/hbs-pf-v2.sqlite",
 		polygons = rules.create_grid.output.rds,
 		world = "geodata/naturalearthdata.Rdata"
 	params:

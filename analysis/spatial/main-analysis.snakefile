@@ -10,7 +10,7 @@ types = [
 ]
 
 covariates = [ 'none' ]
-cellsizes = [ '2' ]#,'2'
+cellsizes = [ '1' ]#,'2'
 surveykms = ['200' ]
 
 def srcdir(x):

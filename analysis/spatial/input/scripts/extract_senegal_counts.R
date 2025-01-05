@@ -84,7 +84,7 @@ by_sample = dplyr::bind_cols(
 	`Pfsa1:ref` = int(`Pf3D7_02_v3:631190:T>A` == 0),
 	`Pfsa1:nonref` = int(`Pf3D7_02_v3:631190:T>A` == 2),
 	`Pfsa2:ref` = int(`Pf3D7_02_v3:814288:C>T` == 0),
-	`Pfsa2:nonref` = int(`Pf3D7_02_v3:814288:C>T` == 0),
+	`Pfsa2:nonref` = int(`Pf3D7_02_v3:814288:C>T` == 2),
 	`Pfsa3:ref` = int(`Pf3D7_11_v3:1058035:T>A` == 0 ),
 	`Pfsa3:nonref` = int(`Pf3D7_11_v3:1058035:T>A` == 2 ),
 	`Pfsa4:ref` = int(`Pf3D7_04_v3:1121472:T>A` == 0),
