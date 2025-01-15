@@ -160,7 +160,7 @@ ranks2 = rank( X %>% filter( region_known_antigenic == 0 ))
 
 readr::write_tsv( ranks, "outputs/pf7/betascan/advanced/pf7.betascan.window=5000.p=50.annotated.ranks.tsv.gz" )
 
-# Plot without thinning
+# Plot without thinning 
 manhattan = function( data, xcolumn, column, ylab, ylim = c( 0, 1 ) ) {
 	(
 		ggplot( data = data )

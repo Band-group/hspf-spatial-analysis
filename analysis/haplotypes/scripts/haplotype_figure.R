@@ -285,8 +285,11 @@ source( "scripts/plot.genes.R" )
 source( "scripts/haplotype_figure_impl.R" )
 
 gene.region = focus
-gene.region$start = focus$position - 7500
-gene.region$end = focus$position + 4000
+#gene.region$start = 631190 - 7500
+#gene.region$end = 631190 + 4000
+
+gene.region$start = gene.region$position - 5000
+gene.region$end = gene.region$position + 5000
 
 figure_3(
 	variants,
