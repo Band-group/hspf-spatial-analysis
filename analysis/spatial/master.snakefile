@@ -49,7 +49,7 @@ config = {
 	"divide": [ 'none' ],
 	"size": cellsizes,
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-	"regression_model": [ 'bym2', 'norandom' ],
+	"regression_model": [ 'bym2' ], #, 'norandom' ],
 	"min_km_to_survey_pt": surveykms,
 	"min_N": [ '5' ],#'0', 
 	"area": areas.keys(),
