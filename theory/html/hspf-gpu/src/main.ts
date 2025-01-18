@@ -6,6 +6,8 @@ import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
 import Rainbow from "./Rainbow.js"
+import Greyscale from "./Greyscale.js"
+import D3ColourScheme from "./D3ColourScheme.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
@@ -215,7 +217,7 @@ class Simulation {
 							container,
 							{ 'width': this.geom.width, 'height': this.geom.height },
 							new PaletteScale(
-								(genotype == 'r') ? new Rainbow( 21 ) : new Viridis( 20 ),
+								(genotype == 'r') ? new D3ColourScheme( 21, d3.interpolatePuOr ) : new Viridis( 20 ),
 								(genotype == 'r' ? -1.05 : 0.0), (genotype == 'r' ? 1.05 : 1.0),
 //								0.0, 1.0,
 								function(v) { return nf.format(v * 100) + '%' ; }

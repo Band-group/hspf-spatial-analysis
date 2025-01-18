@@ -81,8 +81,23 @@ export default class SimulationControls {
 		this.featuresControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
 		this.featuresControl.innerHTML = (
 			'<h2>Features</h2>'
+			+ '<fieldset>'
+			+ '<legend>Barrier mode:</legend>'
 			+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
 			+ '<label for="barrier_checkbox">Use barriers?</label>'
+			+ '</fieldset>'
+			+ '<fieldset id="fitness_mode_radio">'
+			+ '<legend>Fitness mode:</legend>'
+			+ '<input type="radio" id="unconstrained" name="fitness_mode" value="unconstrained" checked />'
+			+ '<label for="unconstrained">Unconstrained</label>'
+			+ '<br/>'
+			+ '<input type="radio" id="additive" name="fitness_mode" value="additive"/>'
+			+ '<label for="additive">Additive</label>'
+			+ '<br/>'
+			+ '<input type="radio" id="multiplicative" name="fitness_mode" value="multiplicative"/>'
+			+ '<label for="multiplicative">Multiplicative</label>'
+			+ '<br/>'
+			+ '</fieldset>'
 		) ;
 		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[3] ;
 		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
@@ -229,11 +244,57 @@ export default class SimulationControls {
 
 	getFeatures(): GridData {
 		let checkbox = <HTMLInputElement> document.querySelector("#barrier_checkbox") ;
-		let value = 0.0 ;
+		let fitness_mode = <HTMLInputElement> document.querySelector( 'input[name="fitness_mode"]:checked' ) ;
+		let values = [ 0.0, 0.0 ] ;
 		if( checkbox ) {
-			value = checkbox.checked ? 1.0 : 0.0 ;
+			values[0] = checkbox.checked ? 1.0 : 0.0 ;
 		}
-		return new GridData( [1,1], [ value ] ) ;
+		if( fitness_mode ) {
+			console.log( "!!", fitness_mode.value ) ;
+			this.set_fitness_constraint( fitness_mode.value ) ;
+			this.trigger( 'fitness' ) ;
+			values[1] = {
+				'unconstrained': 0,
+				'additive': 1,
+				'multiplicative': 2
+			}[fitness_mode.value] ;
+		}
+
+		return new GridData( [1,2], values ) ;
+	}
+
+	set_fitness_constraint( mode ) {
+		let a1 = parseFloat( document.querySelector('input[id="fitness-A:--"]').value ) ;
+		let a2 = parseFloat( document.querySelector('input[id="fitness-A:++"]').value ) ;
+		let s1 = parseFloat( document.querySelector('input[id="fitness-S:--"]').value ) ;
+		let s2 = parseFloat( document.querySelector('input[id="fitness-S:++"]').value ) ;
+
+		if( mode == "additive" ) {
+			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
+
+			document.querySelector('input[id="fitness-A:-+"]').value = a1 + (a2-a1)/2 ;
+			document.querySelector('input[id="fitness-A:+-"]').value = a1 + (a2-a1)/2 ;
+			document.querySelector('input[id="fitness-S:-+"]').value = s1 + (s2-s1)/2 ;
+			document.querySelector('input[id="fitness-S:+-"]').value = s1 + (s2-s1)/2 ;
+		} else if( mode == "multiplicative" ) {
+			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
+
+			document.querySelector('input[id="fitness-A:-+"]').value = a1 * Math.sqrt( a2/a1 ) ;
+			document.querySelector('input[id="fitness-A:+-"]').value = a1 * Math.sqrt( a2/a1 ) ;
+			document.querySelector('input[id="fitness-S:-+"]').value = s1 * Math.sqrt( s2/s1 ) ;
+			document.querySelector('input[id="fitness-S:+-"]').value = s1 * Math.sqrt( s2/s1 ) ;
+		} else {
+			document.querySelector('input[id="fitness-A:-+"]').disabled = false ;
+			document.querySelector('input[id="fitness-A:+-"]').disabled = false ;
+			document.querySelector('input[id="fitness-S:-+"]').disabled = false ;
+			document.querySelector('input[id="fitness-S:+-"]').disabled = false ;
+		}
 	}
 
 	drawSpreadDisplay( values: GridData ) {
