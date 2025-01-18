@@ -1,21 +1,27 @@
 ranges = [
-	'10.0',
+#	'10.0',
 	'25.0',
-	'50.0'
+#	'50.0'
 ]
 sigmas = [
 	'0.6',
-	'1.0'
+#	'1.0'
 ]
 
 types = [
 	'hexagon',
-	'square'
+#	'square'
 ]
 
 covariates = [ 'none' ]
-cellsizes = [ '1', '2' ]#,'2'
-surveykms = ['200', '500' ]
+cellsizes = [
+	'1',
+#	'2'
+]
+surveykms = [
+	'200',
+#	'500'
+]
 
 def srcdir(x):
 	return x
@@ -28,12 +34,10 @@ areas = {
 	],
 	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
 	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-#	'gambia+senegal': [ 'Gambia', 'Senegal' ],
-#	'gambia': [ 'Gambia' ],
-#	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
-#	'mali': [ 'Mali' ],
-#	'tanzania': [ 'United Republic of Tanzania' ],
-#	'DRC': [ 'Democratic Republic of the Congo' ],
+	'wwaf': [ 'Gambia', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Mauritania', 'Senegal' ],
+	'ewaf': [ 'Benin', 'Ivory Coast', 'Ghana', 'Nigeria', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
+	'tanzania': [ 'United Republic of Tanzania' ],
+	'DRC': [ 'Democratic Republic of the Congo' ],
 	'global': None
 }
 
@@ -45,7 +49,7 @@ config = {
 	"divide": [ 'none' ],
 	"size": cellsizes,
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-	"regression_model": [ 'bym2', 'norandom' ],
+	"regression_model": [ 'bym2' ], #, 'norandom' ],
 	"min_km_to_survey_pt": surveykms,
 	"min_N": [ '5' ],#'0', 
 	"area": areas.keys(),

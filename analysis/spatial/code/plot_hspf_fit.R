@@ -1,6 +1,6 @@
 library( dplyr )
 library( argparse )
-
+library( scales )
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
 }
@@ -104,7 +104,7 @@ plot(
 	fit$data$hbas_or_ss_mean[w],
 	fit$data$Y[w] / fit$data$n[w],
 	cex = sqrt(fit$data$n)/6,
-	col = fit$data$colour,
+	col = alpha( fit$data$colour, 0.8 ),
 	pch = 19,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 1.0 ),
@@ -112,7 +112,7 @@ plot(
 	xaxt = 'n',
 	yaxt = 'n',
 	xlab = 'HbAS or SS frequency, average',
-	ylab = '',
+	ylab = ''
 )
 
 w = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
