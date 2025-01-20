@@ -104,7 +104,7 @@ export default class HsPfSim {
 		this.pfsa.data.forEach(
 			function( _value, i ) {
 				let genotype = Math.floor(i / innerSize ) ;
-				self.pfsa.data[i] = (hs.data[i % innerSize] == -1) ? -1 : starting_values[genotype] ;
+				self.pfsa.data[i] = (hs.data[i % innerSize] < -0) ? hs.data[i % innerSize] : starting_values[genotype] ;
 			}
 		) ;
 		this.nbhd = this.computeNbhd( this.mapWidthInKm, this.maxDistanceInKm, this.nbhdConcentration, 5000 ) ;
@@ -314,12 +314,12 @@ export default class HsPfSim {
 				//denominator /= totalWeight ;
 				value /= denominator ;
 
-				if( fs == -1 ) {
-					pfsanew[ 0*size + cellidx ] = -1 ;
-					pfsanew[ 1*size + cellidx ] = -1 ;
-					pfsanew[ 2*size + cellidx ] = -1 ;
-					pfsanew[ 3*size + cellidx ] = -1 ;
-					pfsanew[ 4*size + cellidx ] = -1 ;
+				if( fs < 0 ) {
+					pfsanew[ 0*size + cellidx ] = fs ;
+					pfsanew[ 1*size + cellidx ] = fs ;
+					pfsanew[ 2*size + cellidx ] = fs ;
+					pfsanew[ 3*size + cellidx ] = fs ;
+					pfsanew[ 4*size + cellidx ] = fs ;
 				} else {
 					// unpack values into the four map layers
 					pfsanew[ 0*size + cellidx ] = value[0] ;
@@ -331,7 +331,10 @@ export default class HsPfSim {
 					let f1_ = value[2] + value[3] ;
 					let f_1 = value[1] + value[3] ;
 					let d = value[3] - f1_ * f_1 ;
-					let r = d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)) ;
+					let r = clamp(
+						d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)),
+						-1.0, 1.0
+					) ;
 					pfsanew[ 4*size + cellidx ] = r ;
 				}
 			}`

@@ -107,11 +107,17 @@ export default class TiffDisplay {
 			@location(1) uv: vec2f,
 		  ) -> @location(0) vec4f {
 			let a = textureSample(data, textureSampler, uv).r ;
-
 			// contour lines / clipping
 			// Let's work out the palette colour, then adjust it.
 			let paletteLevels = f32(${paletteLevels}) ;
-			let q = u32( clamp( a, 0.0, 0.99 )*paletteLevels ) ;
+			let q = u32(
+				clamp(
+					a,
+					f32( palette_breaks[0] ),
+					f32( palette_breaks[${paletteLevels}] )
+				)
+				* paletteLevels
+			) ;
 			var result = binned_colour( a, palette, palette_breaks ) ;
 			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
 			let w = fwidth(a) ;
@@ -124,9 +130,13 @@ export default class TiffDisplay {
 			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
 			// Fix off-map colours to background...
 			result = mix(
-				result,
-				vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
-				1.0 - smoothstep(-0.01, 0.0, a)
+				mix(
+					result,
+					vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
+					1.0 - smoothstep(-0.01, 0.0, a)
+				),
+				vec4f( 1.0, 1.0, 1.0, 0.5 ),
+				1.0 - smoothstep( -2.01, -1.0, a )
 			) ;
 			return result ;
 		  }

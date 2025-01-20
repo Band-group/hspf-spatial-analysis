@@ -32,6 +32,14 @@ export default class PaletteScale {
 		return new GridData( [ this.m_breaks.length, 1 ], this.m_breaks ) ;
 	}
 
+	get min() {
+		return this.m_breaks[0] ;
+	}
+
+	get max() {
+		return this.m_breaks[ this.m_breaks.length - 1 ] ;
+	}
+
 	draw_legend(
 		svg: any,
 		geom = {
