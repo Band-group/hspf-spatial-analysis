@@ -36,11 +36,37 @@ read_simulation_snapshot <- function(
 	stopifnot( magic == 'Hspf' )
 	metadata = readBin( input, integer(), size = 4, n = 5, endian = "big" )
 	names(metadata) = c( "file_format_version", "number_of_layers", "height", "width", "data_offset" )
-	stopifnot( metadata['file_format_version'] == 1 )
+	stopifnot( metadata['file_format_version'] == 2 )
 	stopifnot( metadata['number_of_layers'] == 5 )
-	# Skip the relevant number of bytes
-	readBin( input, character(), size = 1, n = metadata['data_offset'] )
 
+	print( metadata )
+	indicators = c(
+		'iteration',
+		'fitness',
+		'twoBiteRate',
+		'nbhdConcentration'
+	)
+	offset = 0
+	parameters = list()
+	while( offset < metadata['data_offset' ]) {
+		what = readBin( input, integer(), size = 4, n = 1, endian = "big" )
+		size = readBin( input, integer(), size = 4, n = 1, endian = "big" )
+		type = indicators[[what]]
+		if( type == 'iteration' ) {
+			stopifnot( size == 4 )
+			parameters[[type]] = readBin( input, integer(), size = 4, n = 1, endian = "big" )
+		} else if( type %in% c( "twoBiteRate", "nbhdConcentration" )) {
+			stopifnot( size == 4 )
+			parameters[[type]] = readBin( input, numeric(), size = 4, n = 1, endian = "big" )
+		} else if( type == 'fitness' ) {
+			stopifnot( size == 32 )
+			fitness = matrix( NA, nrow = 4, ncol = 2, dimnames = list( c( '--', '-+', '+-', '++' ), c( "A", "S" )))
+			fitness[,] = readBin( input, numeric(), size = 4, n = 8, endian = "big" )
+			parameters[[type]] = fitness
+		}
+		offset = offset + 8 + size
+	}
+	stopifnot( offset == metadata['data_offset'] )
 	data = array(
 		NA,
 		dim = metadata[ c( 'number_of_layers', 'height', 'width' ) ],
@@ -62,24 +88,29 @@ read_simulation_snapshot <- function(
 		)
 	}
 	close( input )
-	return( data )
+	return( list(
+		metadata = metadata[1:4],
+		parameters = parameters,
+		data = data
+	))
 }
 
 read.simulation.snapshots = function( filenames, extent, crs ) {
 	sims = list()
 	for( name in names( filenames )) {
 		X = read_simulation_snapshot( filenames[[name]] ) ;
-		X[X < 0] = NA
+		X$data[X$data < 0] = NA
 		sims[[name]] = list(
+			parameters = X$parameters,
 			raster = c(
-				terra::rast( X[1,,], extent = extent, crs = crs ),
-				terra::rast( X[2,,], extent = extent, crs = crs ),
-				terra::rast( X[3,,], extent = extent, crs = crs ),
-				terra::rast( X[4,,], extent = extent, crs = crs ),
-				terra::rast( X[5,,], extent = extent, crs = crs )
+				terra::rast( X$data[1,,], extent = extent, crs = crs ),
+				terra::rast( X$data[2,,], extent = extent, crs = crs ),
+				terra::rast( X$data[3,,], extent = extent, crs = crs ),
+				terra::rast( X$data[4,,], extent = extent, crs = crs ),
+				terra::rast( X$data[5,,], extent = extent, crs = crs )
 			)
 		)
-		names( sims[[name]]$raster ) = dimnames(X)[[1]]
+		names( sims[[name]]$raster ) = dimnames(X$data)[[1]]
 	}
 	return( sims )
 }
@@ -94,37 +125,51 @@ args = list(
 	polygons = "analysis/spatial/output/grids/grid-type=hexagon-size=1-division=none-area=global.rds",
 	# HbS should be the same map used by the simulation.
 	HbS = "theory/html/hspf-gpu/public/2024-03-05-MEAN-nobarrier.2x.tif",
+	# HbS should be the same map used by the simulation.
+	HbS_aggregated = "analysis/spatial/output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv",
 	# Pfsa should contain frames to plot.
-	pfsa = list(
-		single_locus_fit 	= "~/Downloads/simulation_loci=1_85_55.hspf", #"~/Downloads/simulation_notwobite_newmap.hspf",
-		`two_locus_fit_1`   = "~/Downloads/simulation_loci=2_twobite=50_solution1.hspf",
-		`two_locus_fit_2`   = "~/Downloads/simulation_loci=2_twobite=50_solution2.hspf",
-		`waf`   			= "~/Downloads/simulation_loci=1_85_55.hspf",
-		`maf`   			= "~/Downloads/simulation_notwobite.hspf",
-		`eaf`   			= "~/Downloads/simulation_loci=1_85_85.hspf"
-	),
 	pf = "analysis/spatial/output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=global.tsv",
 	world = "analysis/spatial/geodata/naturalearthdata.Rdata",
 	areas = list(
 		'waf' = c(
 			'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania',
-			'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon',
-			'Ghana', 'Togo', 'Gabon', 'Angola', 'Nigeria'
+			'Nigeria', 'Togo', 'Benin'
 		),
-		'eaf' = c( 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania')
+		'maf' = c(
+			'Cameroon', 'Angola', 'Gabon', 'Democratic Republic of the Congo'
+		),
+		'eaf' = c( 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania' )
 	)
-)
-
-grid = readRDS( args$polygons ) %>% filter( CONTINENT == 'Africa' )
-HbS = terra::rast( args$HbS )
-sims = aggregate_over_grid(
-	read.simulation.snapshots( args$pfsa, terra::ext(HbS), terra::crs(HbS) ),
-	grid
 )
 
 #africa = load.entry.from.Rdata( args$world, "world_sf" ) %>% filter( CONTINENT == "Africa" )
 africa = rnaturalearth::ne_countries( returnclass = "sf", scale = 110 ) %>% filter( continent == "Africa" )
 africa = sf::st_union( africa )
+
+grid = readRDS( args$polygons ) %>% filter( CONTINENT == 'Africa' )
+HbS = terra::rast( args$HbS )
+
+simulation.filenames = c(
+	single_locus_0 = "~/Downloads/simulation_g=1.hspf",
+	single_locus_10 = "~/Downloads/simulation_g=10.hspf",
+	single_locus_20 = "~/Downloads/simulation_g=20.hspf",
+	single_locus_30 = "~/Downloads/simulation_g=30.hspf",
+	single_locus_40 = "~/Downloads/simulation_g=40.hspf",
+	single_locus_50 = "~/Downloads/simulation_g=50.hspf",
+	single_locus_60 = "~/Downloads/simulation_g=60.hspf",
+	single_locus_70 = "~/Downloads/simulation_g=70.hspf",
+	single_locus_200 = "~/Downloads/simulation_g=200.hspf"
+#	`two_locus_fit_1`   = "theory/html/hspf-gpu/public/simulation.hspf", #"~/Downloads/simulation_loci=2_twobite=50_solution1.hspf",
+#	`two_locus_fit_2`   = "~/Downloads/simulation_loci=2_twobite=50_solution2.hspf",
+#	`waf`   			= "theory/html/hspf-gpu/public/simulation_waf.hspf",
+#	`maf`   			= "~/Downloads/simulation_notwobite.hspf",
+#	`eaf`   			= "theory/html/hspf-gpu/public/simulation_eaf.hspf"
+)
+
+sims = aggregate_over_grid(
+	read.simulation.snapshots( simulation.filenames, terra::ext(HbS), terra::crs(HbS) ),
+	grid
+)
 
 pf.data = (
 	grid
@@ -140,6 +185,18 @@ pf.data$eaf_sim = sims$eaf$aggregated$pp[ match( pf.data$polygon_id, sims$eaf$ag
 
 country.palette = country.colours()
 pf.data$country = factor( pf.data$SOVEREIGNT, levels = names(country.palette))
+
+HbS.data = readr::read_tsv( args$HbS_aggregated )
+HbS.data = (
+	HbS.data
+	%>% mutate( HbS_mean = rowMeans( as.matrix( HbS.data[,grep( "posterior_sample", colnames( HbS.data))])))
+	%>% mutate( HbAS_or_SS = HbS_mean^2 + 2 * HbS_mean * ( 1 - HbS_mean ))
+	%>% select( polygon_id, HbS_mean, HbAS_or_SS )
+)
+pf.data = (
+	pf.data
+	%>% inner_join( HbS.data, by = "polygon_id" )
+)
 
 blank.plot = function( xlim = c( 0, 1 ), xlab = '', ylim = c( 0, 1 ), ylab = '', ... ) {
 	plot( 0, 0, col = 'white', xaxt = 'n', yaxt = 'n', bty = 'n', xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab, ... )
@@ -229,12 +286,13 @@ fig4 = function(
 	}
 
 	fitnesses = list(
-		waf = c( `-A` = 1, `-S` = 0.01, `+A` = 0.85, `+S` = 0.55 ),
-		eaf = c( `-A` = 1, `-S` = 0.01, `+A` = 0.85, `+S` = 0.85 )
+		waf = c( `-A` = 1, `-S` = 0.01, `+A` = 0.86, `+S` = 0.64 ),
+		eaf = c( `-A` = 1, `-S` = 0.01, `+A` = 0.88, `+S` = 0.88 )
 	)
 	for( the_area in c( "waf", "eaf" )) {
 		par( mar = c( 4, 3, 1, 1 ))
 		pfd = pf.data %>% filter( area == the_area )
+
 		plot(
 			(pfd$`Pfsa1_+` / pfd$Pfsa1_N ),
 			pfd[[ sprintf( "%s_sim", the_area ) ]],
@@ -284,8 +342,85 @@ fig4 = function(
 	}
 }
 
+fig4_v2 = function(
+	sims,
+	pf.data,
+	africa,
+	aesthetic = list(
+		colour = list(
+			sim = function( frequency ) {
+				viridis(length(used.levels))
+			},
+			country = country.palette,
+			border = "grey"
+		)
+	),
+	boxes = FALSE
+) {
+	layout(
+		matrix( c(
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 1, 0, 2, 0, 3, 0, 4, 0, 9, 9, 9, 9,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 0,
+				0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 9, 9, 9,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+			), nrow = 5, byrow = T
+		),
+		widths = c( 0.1, rep( c( 1, 0.05 ), 5 ), 1, 0.1 ),
+		heights = c( 0.1, 1, 0.1, 1, 0.2 )
+	)
+	par( mar = c( 0, 0, 0, 0 ))
+
+	frequency.breaks = c( -0.01, seq( from = 0.01, to = 0.05, by = 0.01 ), seq( from = 0.1, to = 1, by = 0.1 ))
+	frequency.break.names = sprintf( "<%.0f%%", breaks[-1] * 100 )
+	sim.palette = viridis::viridis( length(frequency.breaks) - 1 )
+	ld.breaks = seq( from = -1.05, to = 1, by = 0.1 )
+	ld.break.names = sprintf( "<%.0f%%", breaks[-1] * 100 )
+	ld.palette = PuOr[ seq( from = 1, to = 260, length = 20 )] # viridis::cividis( length(ld.breaks) - 1 )
+
+	names = sprintf( "single_locus_%d", c( 10, 20, 30, 40, 50, 60, 70, 80, 200 ))
+	for( name in names ) {
+		plot( sf::st_geometry(africa), col = rgb(0,0,0,0.1), border = NA )
+		plot(
+			sf::st_geometry( sims[[name]]$aggregated$grid ),
+			col = sim.palette[cut( sims[[name]]$aggregated$pp, breaks = frequency.breaks )],
+			border = NA,
+			add = TRUE
+		)
+		plot( sf::st_geometry(africa), col = rgb(0,0,0,0.1), bg = "transparent", add = TRUE )
+	}
+	legend(
+		-16, -4,
+		ncol = 2,
+		legend = frequency.break.names,
+		col = sim.palette,
+		pch = 19,
+		bty = 'n',
+		cex = 1.5
+	)
+	if( boxes ) {
+		axis(1)
+		axis(2)
+		box()
+	}
+	draw_fitness_table = function(
+		fitnesses
+	) {
+		fmt = function(x) { sprintf( "%.0f%%", x * 100 )}
+		xs = c( 0.05, 0.1, 0.25 )
+		ys = c( 0.9, 0.85, 0.78 ) - 0.2
+		text( xs[1], ys[1] + 0.12, "Relative fitness:", adj = c( 0, 1 ), xpd = NA )
+		text( xs[2:3], ys[1], c( "A", "S" ), adj = c( 0, 0 ), xpd = NA )
+		text( xs[1], ys[2:3], c( "-", "+" ), adj = c( 1, 0.5 ), xpd = NA )
+		text( xs[2], ys[2], fmt(fitnesses['-A']), adj = c( 0, 0.5 ), col = 'grey20', xpd = NA )
+		text( xs[3], ys[2], fmt(fitnesses['-S']), adj = c( 0, 0.5 ), col = 'grey50', xpd = NA )
+		text( xs[2], ys[3], fmt(fitnesses['+A']), adj = c( 0, 0.5 ), col = 'grey50', xpd = NA )
+		text( xs[3], ys[3], fmt(fitnesses['+S']), adj = c( 0, 0.5 ), font = 2, xpd = NA )
+	}
+}
+
 {
-	pdf( file = "/tmp/fig4.pdf", width = 8, height = 12 )
-	fig4( sims, pf.data, africa, boxes = FALSE )
+	pdf( file = "analysis/spatial/tmp/fig4.pdf", width = 8, height = 7 )
+	fig4_v2( sims, pf.data, africa, boxes = FALSE )
 	dev.off()
 }
