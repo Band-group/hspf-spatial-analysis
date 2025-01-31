@@ -64,14 +64,30 @@ Type objective_function<Type>::operator() () {
     }
 }
 
+// Eg
+// Q = [
+//        -1  2  -1  0    0   0  0 0 0
+//         0 -1   3  -1  -1  -1  0 0 0
+// etc
+// ]
+// Then Qv =
+// [ -v1 + 2v2 -v3      ]
+// [ -v2 + 3v3 -v4 -v5  ]
+//
+// and v^t Q v
+//
+// [ -v1^2 + 2v1v2 -v1v3 -v2^2 +3v2v3 - v2v4 -v2v5 ... ]
+//
+// 
+
 // ICAR penalty term
-// vector<Type> Qv = Q * v2;
+vector<Type> Qv = Q * v2;
 
 // std::cerr << "nllbefore = " << nll << ".\n"; 
+Type penalty2 = -Type(0.5) * (v2.transpose() * Qv).sum();
 
-// Type penalty2 = -Type(0.5) * (v2 * Qv).sum();
-
-// std::cerr << "penalty calculation: original = " << penalty2 << ", new = " << penalty << "\n" ;
+std::cerr << "v[1:4] = " << v[0] << ", " << v[1] << ", " << v[2] << ", " << v[3] << ".\n" ;
+std::cerr << "penalty calculation: original = " << penalty2 << ", new = " << penalty << "\n" ;
 nll -= penalty ;
 
 // std::cerr << "nllafter = " << nll << ".\n"; 
@@ -82,8 +98,8 @@ nll -= penalty ;
 // // std::cerr << "D[1:4] = " << D(0) << " " << D(1) << " " 
 // //           << D(2) << " " << D(3) << ".\n";
 
-//  std::cerr << "Q[1,1:4] = " << Q(0,0) << " " << Q(0,1) << " " 
-//            << Q(0,2) << " " << Q(0,3) << ".\n";
+std::cerr << "Q[1,1:4] = " << Q(0,0) << " " << Q(0,1) << " " 
+          << Q(0,2) << " " << Q(0,3) << ".\n";
 
 
 // Not sure about this - BYM doesn't seem to have it
