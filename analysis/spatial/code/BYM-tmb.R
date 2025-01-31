@@ -526,28 +526,28 @@ fitbym_to_posterior_samples <- function(
     if(model %in% c('bym2')) {
       data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
                    adj_matrix = adj_matrix)
-      myrandom <- c('u','v')
+      random_effects <- c( 'u', 'v' )
     }
     if(model %in% c('besag')) {
       data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
                    adj_matrix = adj_matrix)
-      myrandom <- c('v')
+      random_effects <- c( 'v' )
     }
     if(model %in% c('iid')) {
       data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
                    adj_matrix = adj_matrix)
-      myrandom <- c('u') 
+      random_effects <- c( 'u' ) 
     }
     if(model %in% c('norandom')) {
       data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
                    adj_matrix = adj_matrix)
-      myrandom <- NULL
+      random_effects <- NULL
     }
     # Build and optimize model
     obj <- TMB::MakeADFun(
       data = data,
       parameters = TMBpara,
-      random = myrandom, #u: iid term, v: spatial term, considered 'random effects'
+      random = random_effects, # u: iid term, v: spatial term, considered 'random effects'
       DLL = model,
       inner.control = list(
         maxit = 10000,           # Increase maximum iterations
