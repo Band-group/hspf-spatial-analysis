@@ -54,6 +54,18 @@ parse_arguments <- function() {
 }
 
 args = parse_arguments()
+
+if(is.null(args)) {
+	args = list()
+	args$HbSfit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/"
+	args$world = "geodata/naturalearthdata.Rdata"
+	args$polygons = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
+	args$number_of_posterior_samples = 30
+	args$samples_per_polygon = 25
+	args$sampling_mode = 'original'
+	args$output = ""
+}
+
 print( args )
 
 #install packages
@@ -84,14 +96,13 @@ posterior.samples = INLA::inla.posterior.sample( args$number_of_posterior_sample
 
 # We fine tuned the st_sample process for our (slow) case study since we encounter in some
 # cases very small polygons which make the procedure very slow if not adapted
-mode = "original" # or "andre-fast"
 minpolysize <- 15000 # minimum polygon size (in sq.m here) above which we are not applying a buffer area
 radius <- 1 # add a buffer area radius value in degree
-if( mode == "original" ) {
+if( args$sampling_mode == "original" ) {
 	echo( "++ Finding %d sample locations for each of %d polygons using mode \"%s\"...\n", args$samples_per_polygon, nrow(polygons), mode )
 	prediction_locations = sf::st_sample(
 		polygons,
-		type = "random",
+		type = "regular",
 		size = rep( args$samples_per_polygon, nrow( polygons )),
 		by_polygon = TRUE,
 		exact = TRUE
@@ -100,7 +111,7 @@ if( mode == "original" ) {
 	prediction_locations$polygon_id = rep( polygons$polygon_id, each = args$samples_per_polygon )
 	echo( "++ Ok, prediction locations (length %d) are:\n", nrow( prediction_locations ) )
 	print( prediction_locations )
-} else if( mode == "andre-fast" ) {
+} else if( args$sampling_mode == "andre-fast" ) {
 	echo( "++ Accurate (slow) sampling mode activated in aggregated_HbS_over_polygons.R\nwith number of polygons= ")
 	echo(paste0(nrow(polygons),"\n"))
 	#define a function to sample in parallel points for each polygon of a polygons object (useful for large polygons with tidy strange subpolygons)
@@ -139,11 +150,18 @@ if( mode == "original" ) {
     nbcores <- pmin( 124, parallelly::availableCores(omit = 2), nrow(polygons) )
     #define model name
     if (Sys.info()["sysname"] == "Linux" && nbcores > 20) {
-      library(parallel)
-	  library(doParallel)
-	  echo(paste0("++ Parallel sampling activated\n", "with ",nbcores, " cores"))
-      sampled_list <- parallel::mclapply(1:nrow(polygons), efficient_sf_sample,
-	  exact=TRUE,polygons=polygons,minpolysize = minpolysize,radius=radius,mc.cores = nbcores)
+		library(parallel)
+		library(doParallel)
+		echo(paste0("++ Parallel sampling activated\n", "with ",nbcores, " cores"))
+		sampled_list <- parallel::mclapply(
+			1:nrow(polygons),
+			efficient_sf_sample,
+			exact = TRUE,
+			polygons = polygons,
+			minpolysize = minpolysize,
+			radius = radius,
+			mc.cores = nbcores
+		)
 	} else {
 		echo( "++ Sampling without parallisation activated\n")
 		sf::sf_use_s2(FALSE) 
@@ -220,18 +238,54 @@ echo( "++ Aggregating %d posterior samples across %d polygons...", ncol(predicti
 
 aggregated = (
 	dplyr::bind_cols(
-		tibble( polygon_id = prediction_locations[['polygon_id']] ),
+		tibble(
+			polygon_id = prediction_locations[['polygon_id']]
+		),
 		predictions$predictions
 	)
 	%>% group_by( polygon_id )
-	%>% summarise( dplyr::across(dplyr::where(is.numeric),  \(x) median(x, na.rm = TRUE)))
+	%>% summarise(
+		dplyr::across(dplyr::where(is.numeric),  \(x) median(x, na.rm = TRUE))
+	)
 )
 
+compute_linear_approximation <- function( data ) {
+	la.data = tibble(
+		HbS = data$HbS,
+		x = data$longitude - mean(data$longitude),
+		y = data$latitude - mean(data$latitude) 
+	)
+	coeffs = coef( lm( HbS ~ x + y, data = la.data ))
+	return( tibble(
+		la_mean = coeffs[[1]],
+		la_dlongitude = coeffs[[2]],
+		la_dlatitude = coeffs[[3]]
+	))
+}
+
+linear_approximation = (
+	dplyr::bind_cols(
+		polygon_id = prediction_locations[['polygon_id']],
+		longitude = sf::st_coordinates( prediction_locations )[,1],
+		latitude = sf::st_coordinates( prediction_locations )[,2],
+		HbS = predictions$mean
+	)
+	%>% group_by( polygon_id )
+	%>% summarise(
+		compute_linear_approximation( pick( everything() ))
+	)
+)
+
+# Sanity check: everything is in the same order
+stopifnot( length( which( gradient$polygon_id != aggregated$polygon_id )) == 0 )
 # the above only reflects matching polygons.  Make this script always output all polygons, and in the right order.
 M = match( polygons$polygon_id, aggregated$polygon_id )
 result = tibble::tibble(
 	polygon_id = polygons$polygon_id,
-	aggregated[M,2:ncol(aggregated)]
+	longitude = sf::st_coordinates( polygons$centroid )[,1],
+	latitude = sf::st_coordinates( polygons$centroid )[,2],
+	linear_approximation[M,2:4],
+	aggregated[M,2:ncol(aggregated)],
 )
 
 # sanity check
@@ -243,3 +297,53 @@ echo( "++ Success." )
 echo( "++ Saving myresult to %s", args$output )
 readr::write_tsv( result, file = args$output )
 echo( "++ Great success!  I like!" )
+
+if(0) {
+	library( viridis )
+	plot.data = dplyr::bind_cols(
+		polygons,
+		result[, c( "la_mean", "la_dlongitude", "la_dlatitude" )],
+	) %>% mutate(
+		longitude = sf::st_coordinates( polygons$centroid )[,1],
+		latitude = sf::st_coordinates( polygons$centroid )[,2],
+		angle = atan(la_dlatitude/la_dlongitude),
+		radius = 0.5,
+		scale = 25,
+		la_norm = sqrt( la_dlongitude^2 + la_dlatitude^2 )
+	)
+
+	w = which( plot.data$la_norm < 0.01 )
+	plot.data$la_dlongitude[w] = 0.01 * plot.data$la_dlongitude[w] / plot.data$la_norm[w]
+	plot.data$la_dlatitude[w] = 0.01 * plot.data$la_dlatitude[w] / plot.data$la_norm[w]
+
+	p = (
+		ggplot(
+			data = plot.data
+		)
+		+ geom_sf( aes( fill = la_mean ))
+	#	+ geom_spoke(
+	#		mapping = aes(
+	#			x = longitude,
+	#			y = latitude,
+	#			angle = angle,
+	#			radius = radius
+	#		),
+	#		arrow = arrow( length = unit( .02, 'inches' ) ),
+	#		linewidth = 0.5
+	#	)
+		+ geom_segment(
+			mapping = aes(
+				x = longitude,
+				y = latitude,
+				xend = longitude + scale * la_dlongitude,
+				yend = latitude + scale * la_dlatitude
+			),
+			arrow = arrow( length = unit( .02, 'inches' ) ),
+			linewidth = 0.25,
+			colour = 'black'
+		)
+		+ scale_fill_viridis()
+	)
+
+	ggsave( p, file = "tmp/gradients.pdf")
+}
