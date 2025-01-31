@@ -423,8 +423,8 @@ fitbym_to_posterior_samples <- function(
   }
   
   #C++ file to be compiled ################
-  compile(paste0("code/",model,".cpp"))
-  dyn.load(dynlib(paste0("code/",model)))
+  compile(paste0("code/tmb/",model,".cpp"))
+  dyn.load(dynlib(paste0("code/tmb/",model)))
   #dyn.unload(dynlib(paste0("code/",model)))
   #########################################
   
