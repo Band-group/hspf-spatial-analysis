@@ -1,4 +1,4 @@
-p[library( ggplot2 ) # Needed for theme()
+library( ggplot2 ) # Needed for theme()
 
 # Useful variant of message() that allows sprintf-style arguments
 # %d = integer
