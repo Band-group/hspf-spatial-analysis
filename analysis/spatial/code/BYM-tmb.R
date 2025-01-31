@@ -148,7 +148,7 @@ parse_arguments <- function() {
 ######################################################################
 
 fitbym_to_posterior_samples <- function(
-    mygrid, hbs, pf,
+    our_grid, hbs, pf,
     y_name = "Pfsa1_+",
     n_name = "Pfsa1_N",
     hbs_columns = "posterior_mean",
@@ -168,7 +168,7 @@ fitbym_to_posterior_samples <- function(
     threads = 1
 ) {
   countrydfi = (
-    mygrid
+    our_grid
     %>% dplyr::left_join( pf, by = "polygon_id" )
   )
   print( countrydfi )
@@ -178,8 +178,8 @@ fitbym_to_posterior_samples <- function(
   ### remove polygon if missing response or sample size
   countrydfi <- countrydfi %>% dplyr::filter(!is.na(Y) & !is.na(n))
   countrydfi <- sf::st_make_valid(countrydfi)
-  echo( "++ data for fitting is:" )
-  print( countrydfi, n = 50 )
+  echo( "++ data for fitting is:\n" )
+  print( table( countrydfi$sources ) )
   
   ############################################################
   hbs = hbs[ match( countrydfi$polygon_id, hbs$polygon_id ), ]
@@ -245,7 +245,7 @@ fitbym_to_posterior_samples <- function(
     # Andre: remove this line if it causes problems (which it might not)
     LDFLAGS = "-L/well/band/projects/pfsa-spatial/miniconda/lib/R/lib"
   )
-  dyn.load(dynlib(paste0("code/tmb/",model)))
+  dyn.load(dynlib(sprintf("code/tmb/%s",model)))
   #dyn.unload(dynlib(paste0("code/",model)))
   #########################################
   
@@ -286,31 +286,33 @@ fitbym_to_posterior_samples <- function(
     nball <- mstconnect(countrydfi, nb, distance="centroid")
     ######################################################
     # check the network
-    #plot(st_geometry(countrydfi), border = "grey");
-    #coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(countrydfi)))
-    #plot(nball,coords, add = T,lwd=1, col="red")
-    #plot(nb, coords, add = T, col="blue",lwd=0.5)
+    pdf( "tmp/nbhd.pdf" )
+    plot(st_geometry(countrydfi), border = "grey");
+    coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(countrydfi)))
+    plot(nball,coords, add = T,lwd=1, col="red")
+    plot(nball, coords, add = T, col="blue",lwd=0.5)
+    dev.off()
     ######################################################
     
     td = tempdir()
     tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
-    spdep::nb2INLA( tempfile, nball)
+    spdep::nb2INLA( tempfile, nball )
     g <- INLA::inla.read.graph(filename = tempfile )
     adj_matrix <- INLA::inla.graph2matrix(g)
-  } 
+  }
   #scale Q matrix
-  # Q = -inla.graph2matrix(g)
-  # diag(Q) = 0
-  # diag(Q) = -rowSums(Q)
-  # n = dim(Q)[1]
-  # Q.scaled <- inla.scale.model(Q,constr = list(A = matrix(1, 1, n), e=0))
+  Q = -inla.graph2matrix(g)
+  diag(Q) = 0
+  diag(Q) = -rowSums(Q)
+  n = dim(Q)[1]
+  Q.scaled <- inla.scale.model( Q, constr = list(A = matrix(1, 1, n), e=0 ) )
   
   #TMB BYM parameters (initial values)
   TMBpara <- list(
     intercept = 0.1, 
     HbAS_or_SS = 1, 
     u = rep(0.1, n),  # Assuming 'y' is your response vector
-    v = rep(0.1, n-1),  # v has dimension n-1 because it is forced to sum to 0 in the TMB model
+    v = rep(1, n-1),  # v has dimension n-1 because it is forced to sum to 0 in the TMB model
     log_tau_u = 0.1,  # Neutral start
     log_tau_v = 1.0   # Neutral start
   )
@@ -406,12 +408,16 @@ fitbym_to_posterior_samples <- function(
     ############################################################################
     #posterior.parameters = inla.posterior.sample( number_of_posterior_samples, fit )
     #a very rough sampling (before implementing TMBstan or other)
-    hbs.sample <- rnorm(n=number_of_posterior_samples, 
-                        mean=fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$mean,
-                        sd=fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$sd)
-    intercept.sample <- rnorm(n=number_of_posterior_samples, 
-                              mean=fitted.parameters[fitted.parameters$parameter=='intercept',]$mean,
-                              sd=fitted.parameters[fitted.parameters$parameter=='intercept',]$sd)
+    hbs.sample <- rnorm(
+      n = number_of_posterior_samples, 
+      mean = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$mean,
+      sd = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$sd
+    )
+    intercept.sample <- rnorm(
+      n = number_of_posterior_samples, 
+      mean = fitted.parameters[fitted.parameters$parameter=='intercept',]$mean,
+      sd = fitted.parameters[fitted.parameters$parameter=='intercept',]$sd
+    )
     
     sampled.parameters <- data.frame(
       hbs.sample = rep(sample,number_of_posterior_samples),
@@ -442,8 +448,30 @@ fitbym_to_posterior_samples <- function(
   )
 }
 
-
+args = NULL
 args = parse_arguments()
+
+if( is.null( args )) {
+  args = list()
+  args$threads = 1
+  args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
+  args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+  args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+  args$sources = NULL
+  args$min_N = 5
+  args$locus = "Pfsa1"
+  args$areas = NULL
+  args$world = "geodata/naturalearthdata.Rdata"
+  args$min_km_to_survey_pt = 200
+  args$HbS_survey = "input/cleanHbSdata.csv"
+  args$posterior_samples_per_hbs_sample = 1
+  args$model = "bym2"
+  args$size = "1"
+  args$type = "hexagon"
+  args$r0 = "25.0"
+  args$sigma0 = "0.6"
+}
+
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
 HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
@@ -452,7 +480,6 @@ echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
 echo( "   (and grouping by polygon_id)...\n" )
 
 pf = readr::read_tsv( pf_aggregated )
-
 if( !is.null( args$sources )) {
 	pf = pf %>% filter( source %in% args$sources )
 }
@@ -526,7 +553,7 @@ result = fitbym_to_posterior_samples(
 	hbs, pf,
 	y_name = sprintf( "%s_+", args$locus ),
 	n_name = sprintf( "%s_N", args$locus ),
-	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
+	hbs_columns = "posterior_sample_1", #grep( "posterior_sample", colnames(hbs), value = T ),
 	model = args$model,
 	transform = "identity",
 #	transform = "logit",
