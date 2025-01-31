@@ -14,6 +14,10 @@ library(spdep)
 library(INLA)
 library(dplyr)
 library( argparse )
+library(TMB)
+library(igraph)
+library(Matrix)
+library(units)
 
 options( width = 200 )
 
@@ -350,6 +354,15 @@ fitbym_to_posterior_samples <- function(
     model = "bym2", # or "iid" or "norandom" or "besag"
     transform = "identity",
     link = "logit",
+    prior = list(
+      prec = list(
+        prior = "pc.prec",
+        param = c(0.5 / 0.31, 0.01)),
+      phi = list(
+        prior = "pc",
+        param = c(0.5, 2 / 3)
+      )
+    ),
     number_of_posterior_samples = 100,
     threads = 1
 ) {
@@ -423,7 +436,14 @@ fitbym_to_posterior_samples <- function(
   }
   
   #C++ file to be compiled ################
-  compile(paste0("code/tmb/",model,".cpp"))
+  #Sys.setenv( LD_LIBRARY_PATH = "/well/band/projects/pfsa-spatial/miniconda/lib/R" )
+  compile(
+    sprintf( "code/tmb/%s.cpp", model ),
+    # KLUDGE: on GB cluster, R is broken and this lib path is not found automatically.
+    # To fix manually I am including the library path here.
+    # Andre: remove this line if it causes problems (which it might not)
+    LDFLAGS = "-L/well/band/projects/pfsa-spatial/miniconda/lib/R/lib"
+  )
   dyn.load(dynlib(paste0("code/tmb/",model)))
   #dyn.unload(dynlib(paste0("code/",model)))
   #########################################
@@ -437,7 +457,7 @@ fitbym_to_posterior_samples <- function(
   #if spatial term in the model
   #Define spatial matrix and all the necessary for running TMB BYM
   #update this if necessary
-  if(model %in% c('besag','bym2')) {
+  if( model %in% c('besag','bym2') ) {
     nb <- spdep::poly2nb(countrydfi,queen = TRUE)#,snap=mysnap)
     # Find nodes without neighbors
     mstconnect <- function(polys, nb, distance="centroid"){
