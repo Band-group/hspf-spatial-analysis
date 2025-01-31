@@ -6,9 +6,12 @@ import SimulationControls from "./SimulationControls.js"
 import PaletteScale from "./PaletteScale.js"
 import Viridis from "./Viridis.js"
 import Rainbow from "./Rainbow.js"
+import Greyscale from "./Greyscale.js"
+import D3ColourScheme from "./D3ColourScheme.js"
 import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
+import serialise_simulation from "./serialise.js"
 import { PfsaCounts, LatLong } from "./Types.js"
 //import { writeArrayBuffer } from 'geotiff';
 //import { writeGeoTiff } from 'geotiff';
@@ -148,13 +151,13 @@ class Simulation {
 		// Replace all NAs in HbS map are replaced with -1.
 		this.data.forEach( function( grid ) {
 			grid.data.forEach( function( value, i ) {
-				if( value < 0 || isNaN( value )) {
-					grid.data[i] = -1 ;
+				if( isNaN( value )) {
+					grid.data[i] = -2 ;
 				}
 			})
 		}) ;
-		this.outerPadding = 64 ;
-		this.data.forEach( elt => elt.pad( this.outerPadding, -1 )) ;
+		this.outerPadding = 16 ;
+		this.data.forEach( elt => elt.pad( this.outerPadding, -2 )) ;
 
 		this.counts = counts ;
 		console.log( "COUNTS", this.counts ) ;
@@ -215,9 +218,9 @@ class Simulation {
 							container,
 							{ 'width': this.geom.width, 'height': this.geom.height },
 							new PaletteScale(
-								(genotype == 'r') ? new Rainbow( 21 ) : new Viridis( 20 ),
-								(genotype == 'r' ? -1.05 : 0.0), (genotype == 'r' ? 1.05 : 1.0),
-//								0.0, 1.0,
+								(genotype == 'r') ? new D3ColourScheme( 21, d3.interpolatePuOr ) : new Viridis( 20 ),
+								(genotype == 'r' ? -1.05 : 0.0),
+								(genotype == 'r' ? 1.05 : 1.0),
 								function(v) { return nf.format(v * 100) + '%' ; }
 							),
 							this.device,
@@ -319,16 +322,6 @@ class Simulation {
 
 	render() {
 		let dims = [this.hspf.pfsa.dimensions[2], this.hspf.pfsa.dimensions[1] ] ;
-		// print out a value at one cell, for sanity check
-		if( this.m_iteration % 100 == 0 ) {
-			console.log(
-				"pf",
-				this.hspf.pfsa.data[ 0 * (dims[0]*dims[1]) + 400.5*dims[0]],
-				this.hspf.pfsa.data[ 1 * (dims[0]*dims[1]) + 400.5*dims[0]],
-				this.hspf.pfsa.data[ 2 * (dims[0]*dims[1]) + 400.5*dims[0]],
-				this.hspf.pfsa.data[ 3 * (dims[0]*dims[1]) + 400.5*dims[0]]
-			) ;
-		}
 //		this.displays['pf--'].draw( this.hspf.pfsa, 0 ) ;
 		this.displays['pf-+'].draw( this.hspf.pfsa, 1 ) ;
 		this.displays['pf+-'].draw( this.hspf.pfsa, 2 ) ;
@@ -372,6 +365,7 @@ class Simulation {
 		let pfsa = this.hspf.pfsa ;
 		let pad = this.outerPadding ;
 		let padded_dims = pfsa.m_dimensions ;
+		padded_dims = [ padded_dims[1], padded_dims[2] ] ;
 		let dims = {
 			width: this.tiffs[0].width,
 			height: this.tiffs[0].height
@@ -421,15 +415,17 @@ class Simulation {
 			ProjectedCSTypeGeoKey: 0
 			////////////////////////////////
 		} ;
-		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
+//		const arrayBuffer = await writeGeotiffF32( data, metadata ) ;
+		const arrayBuffer = serialise_simulation( this.hspf.hs, this.hspf.pfsa, this.outerPadding ) ;
+
 		console.log( arrayBuffer ) ;
 		const dataView = new DataView(arrayBuffer) ;
 		console.log( "DATAVIEW", dataView ) ;
-		const blob = new Blob([dataView], { type: "image/tiff" } ) ;
+		const blob = new Blob([dataView], { type: "application/octet-stream" } ) ;
 		const downloadUrl = URL.createObjectURL(blob);
 		const a = document.createElement( 'a' );
 		a.href = downloadUrl;
-		a.download = "pfsa.tiff";
+		a.download = "simulation.hspf";
 		a.click();
 		URL.revokeObjectURL(downloadUrl);
 		//setTimeout(resolve, 100);
@@ -447,7 +443,8 @@ async function run() {
 	controls.on( 'snapshot', function(values: GridData) { console.log( "SNAPSHOT", values.at([0,0]) ) ; }) ;
 
 	let simulation = await Simulation.create(
-		"./2024-03-05-MEAN-nobarrier.2x.tif",
+//		"./2024-03-05-MEAN-nobarrier.2x.tif",
+		"./hbsfilter.tif",
 		"./counts_by_adm1.tsv",
 		"./geographic_barriers.tsv"
 	) ;
@@ -468,7 +465,7 @@ async function run() {
 
 	controls.on( 'features', function(values:GridData) {
 //		simulation.displays.pf00.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
-		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
+//		simulation.displays.hs.annotate_barriers( (values.at([0,0])== 1) ? simulation.barriers : [] ) ;
 //		simulation.displays.pf00.annotate_counts( simulation.counts ) ;
 //		simulation.displays.hs.annotate_counts( simulation.counts ) ;
 	}) ;
