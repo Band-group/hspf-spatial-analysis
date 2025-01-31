@@ -97,6 +97,12 @@ export default class SimulationControls {
 			+ '<input type="radio" id="multiplicative" name="fitness_mode" value="multiplicative"/>'
 			+ '<label for="multiplicative">Multiplicative</label>'
 			+ '<br/>'
+			+ '<input type="radio" id="dominant" name="fitness_mode" value="dominant"/>'
+			+ '<label for="dominant">Dominant</label>'
+			+ '<br/>'
+			+ '<input type="radio" id="overdominant" name="fitness_mode" value="overdominant"/>'
+			+ '<label for="overdominant">Over-dominant</label>'
+			+ '<br/>'
 			+ '</fieldset>'
 		) ;
 		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[3] ;
@@ -149,8 +155,21 @@ export default class SimulationControls {
 				self.trigger( 'snapshot' ) ;
 			}
 		) ;
-		this.fitnessControl.addEventListener( 'input', _elt => self.trigger( 'fitness' )) ;
-		this.featuresControl.addEventListener( 'input', _elt => self.trigger( 'features' )) ;
+		this.fitnessControl.addEventListener(
+			'input', function(_elt) {
+				self.constrain_fitness() ;
+				self.trigger( 'fitness' ) ;
+			} 
+		) ;
+		this.featuresControl.addEventListener(
+			'input',
+			function( _elt ) {
+				self.constrain_fitness() ;
+				// Features may change fitness values if the constrain changes, so update that too.
+				self.trigger( 'fitness' ) ;
+				self.trigger( 'features' ) ;
+			}
+		) ;
 		this.spreadControl.addEventListener( 'input', _elt => self.trigger( 'spread' )) ;
 		this.on( 'spread', function( values: GridData ) { self.drawSpreadDisplay( values ) ; }) ;
 	}
@@ -250,17 +269,21 @@ export default class SimulationControls {
 			values[0] = checkbox.checked ? 1.0 : 0.0 ;
 		}
 		if( fitness_mode ) {
-			console.log( "!!", fitness_mode.value ) ;
-			this.set_fitness_constraint( fitness_mode.value ) ;
-			this.trigger( 'fitness' ) ;
 			values[1] = {
 				'unconstrained': 0,
 				'additive': 1,
-				'multiplicative': 2
+				'multiplicative': 2,
+				'dominant': 3,
+				'overdominant': 3
 			}[fitness_mode.value] ;
 		}
 
 		return new GridData( [1,2], values ) ;
+	}
+
+	constrain_fitness() {
+		let fitness_mode = <HTMLInputElement> document.querySelector( 'input[name="fitness_mode"]:checked' ) ;
+		this.set_fitness_constraint( fitness_mode.value ) ;
 	}
 
 	set_fitness_constraint( mode ) {
@@ -289,6 +312,26 @@ export default class SimulationControls {
 			document.querySelector('input[id="fitness-A:+-"]').value = a1 * Math.sqrt( a2/a1 ) ;
 			document.querySelector('input[id="fitness-S:-+"]').value = s1 * Math.sqrt( s2/s1 ) ;
 			document.querySelector('input[id="fitness-S:+-"]').value = s1 * Math.sqrt( s2/s1 ) ;
+		} else if( mode == "dominant" ) {
+			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
+
+			document.querySelector('input[id="fitness-A:-+"]').value = a2 ;
+			document.querySelector('input[id="fitness-A:+-"]').value = a2 ;
+			document.querySelector('input[id="fitness-S:-+"]').value = s1 ;
+			document.querySelector('input[id="fitness-S:+-"]').value = s1 ;
+		} else if( mode == "overdominant" ) {
+			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
+			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
+
+			document.querySelector('input[id="fitness-A:-+"]').value = a2 / 2.0 ;
+			document.querySelector('input[id="fitness-A:+-"]').value = a2 / 2.0 ;
+			document.querySelector('input[id="fitness-S:-+"]').value = s1 / 2.0 ;
+			document.querySelector('input[id="fitness-S:+-"]').value = s1 / 2.0 ;
 		} else {
 			document.querySelector('input[id="fitness-A:-+"]').disabled = false ;
 			document.querySelector('input[id="fitness-A:+-"]').disabled = false ;

@@ -494,21 +494,21 @@ const encodeIfds = (ifds) => {
 	offset += 4;
 
 	ifds.forEach((ifd, i) => {
-	const noffs = _writeIFD(bin, data, ifdo, ifd);
-	ifdo = noffs[1];
-	if (i < ifds.length - 1) {
-		bin.writeUint(data, noffs[0], ifdo);
-	}
+		const noffs = _writeIFD(bin, data, ifdo, ifd);
+		ifdo = noffs[1];
+		if (i < ifds.length - 1) {
+			bin.writeUint(data, noffs[0], ifdo);
+		}
 	});
 
 	if (data.slice) {
-	return data.slice(0, ifdo).buffer;
+		return data.slice(0, ifdo).buffer;
 	}
 
 	// node hasn't implemented slice on Uint8Array yet
 	const result = new Uint8Array(ifdo);
 	for (let i = 0; i < ifdo; i++) {
-	result[i] = data[i];
+		result[i] = data[i];
 	}
 	return result.buffer;
 };
@@ -558,19 +558,19 @@ const encodeImage = (values, width, height, metadata) => {
 const convertToTids = (input) => {
 	const result = {};
 	for (const key in input) {
-	if (key !== 'StripOffsets') {
-		if (!name2code[key]) {
-		console.error(key, 'not in name2code:', Object.keys(name2code));
+		if (key !== 'StripOffsets') {
+			if (!name2code[key]) {
+				console.error(key, 'not in name2code:', Object.keys(name2code));
+			}
+			result[name2code[key]] = input[key];
 		}
-		result[name2code[key]] = input[key];
-	}
 	}
 	return result;
-};
+} ;
 
 const toArray = (input) => {
 	if (Array.isArray(input)) {
-	return input;
+		return input;
 	}
 	return [input];
 };
@@ -600,9 +600,9 @@ const encodeImageF32 = (values: Float32Array, width: number, height: number, met
 	
 	if (metadata) {
 		for (const i in metadata) {
-		if (metadata.hasOwnProperty(i)) {
-		ifd[i] = metadata[i];
-		}
+			if (metadata.hasOwnProperty(i)) {
+				ifd[i] = metadata[i];
+			}
 		}
 	}
 	const samplesPerPixel = ifd[277];
@@ -610,9 +610,9 @@ const encodeImageF32 = (values: Float32Array, width: number, height: number, met
 	const resultLength = numBytesInIfd + (width * height * samplesPerPixel * 4) ;
 	let result = new Uint8Array(resultLength);
 	{
-		const prfx = new Uint8Array( encodeIfds([ifd]));
+		const prfx = new Uint8Array( encodeIfds([ifd]) );
 		times(prfx.length, (i) => {
-		result[i] = prfx[i];
+			result[i] = prfx[i];
 		});
 	}
 
@@ -645,11 +645,11 @@ export function writeGeotiffF32(data: Int32Array, metadata) {
 		width = data[0][0].length;
 		flattenedValues = [];
 		times(height, (rowIndex) => {
-		times(width, (columnIndex) => {
-		times(numBands, (bandIndex) => {
-		flattenedValues.push(data[bandIndex][rowIndex][columnIndex]);
-		});
-		});
+			times(width, (columnIndex) => {
+				times(numBands, (bandIndex) => {
+					flattenedValues.push(data[bandIndex][rowIndex][columnIndex]);
+				});
+			});
 		});
 	}
 	
@@ -717,14 +717,14 @@ export function writeGeotiffF32(data: Int32Array, metadata) {
 	if (!metadata.GeoAsciiParams) {
 		let geoAsciiParams = '';
 		geoKeys.forEach((name) => {
-		const code = Number(name2code[name]);
-		const tagType = fieldTagTypes[code];
-		if (tagType === 'ASCII') {
-		geoAsciiParams += `${metadata[name].toString()}\u0000`;
-		}
+			const code = Number(name2code[name]);
+			const tagType = fieldTagTypes[code];
+			if (tagType === 'ASCII') {
+				geoAsciiParams += `${metadata[name].toString()}\u0000`;
+			}
 		});
 		if (geoAsciiParams.length > 0) {
-		metadata.GeoAsciiParams = geoAsciiParams;
+			metadata.GeoAsciiParams = geoAsciiParams;
 		}
 	}
 	
@@ -733,26 +733,26 @@ export function writeGeotiffF32(data: Int32Array, metadata) {
 	
 		const GeoKeyDirectory = [1, 1, 0, NumberOfKeys];
 		geoKeys.forEach((geoKey) => {
-		const KeyID = Number(name2code[geoKey]);
-		GeoKeyDirectory.push(KeyID);
-	
-		let Count;
-		let TIFFTagLocation;
-		let valueOffset;
-		if (fieldTagTypes[KeyID] === 'SHORT') {
-		Count = 1;
-		TIFFTagLocation = 0;
-		valueOffset = metadata[geoKey];
-		} else if (geoKey === 'GeogCitationGeoKey') {
-		Count = metadata.GeoAsciiParams.length;
-		TIFFTagLocation = Number(name2code.GeoAsciiParams);
-		valueOffset = 0;
-		} else {
-		console.log(`[geotiff.js] couldn't get TIFFTagLocation for ${geoKey}`);
-		}
-		GeoKeyDirectory.push(TIFFTagLocation);
-		GeoKeyDirectory.push(Count);
-		GeoKeyDirectory.push(valueOffset);
+			const KeyID = Number(name2code[geoKey]);
+			GeoKeyDirectory.push(KeyID);
+		
+			let Count;
+			let TIFFTagLocation;
+			let valueOffset;
+			if (fieldTagTypes[KeyID] === 'SHORT') {
+				Count = 1;
+				TIFFTagLocation = 0;
+				valueOffset = metadata[geoKey];
+			} else if (geoKey === 'GeogCitationGeoKey') {
+				Count = metadata.GeoAsciiParams.length;
+				TIFFTagLocation = Number(name2code.GeoAsciiParams);
+				valueOffset = 0;
+			} else {
+				console.log(`[geotiff.js] couldn't get TIFFTagLocation for ${geoKey}`);
+			}
+			GeoKeyDirectory.push(TIFFTagLocation);
+			GeoKeyDirectory.push(Count);
+			GeoKeyDirectory.push(valueOffset);
 		});
 		metadata.GeoKeyDirectory = GeoKeyDirectory;
 	}
@@ -760,7 +760,7 @@ export function writeGeotiffF32(data: Int32Array, metadata) {
 	// delete GeoKeys from metadata, because stored in GeoKeyDirectory tag
 	for (const geoKey of geoKeys) {
 		if (metadata.hasOwnProperty(geoKey)) {
-		delete metadata[geoKey];
+			delete metadata[geoKey];
 		}
 	}
 	
@@ -782,9 +782,9 @@ export function writeGeotiffF32(data: Int32Array, metadata) {
 		'YPosition',
 		'RowsPerStrip',
 	].forEach((name) => {
-	if (metadata[name]) {
-		metadata[name] = toArray(metadata[name]);
-	}
+		if (metadata[name]) {
+			metadata[name] = toArray(metadata[name]);
+		}
 	});
 	
 	const encodedMetadata = convertToTids(metadata);
