@@ -10,23 +10,29 @@
 # - No covariates / fixed effects at the mo
 # - 
 
-library(spdep)
-library(INLA)
-library(dplyr)
-library( argparse )
-library(TMB)
-library(igraph)
-library(Matrix)
-library(units)
-
-options( width = 200 )
-
-echo <- function( message, ... ) {
-	cat( sprintf( message, ... ))
+# I've moved bits into {} brackets as they are easier to run in one go.
+# (This file is taking a lot of re-running!)
+{
+	library(spdep)
+	library(INLA)
+	library(dplyr)
+	library( argparse )
+	library(TMB)
+	library(igraph)
+	library(Matrix)
+	library(units)
 }
 
-get.name <- function(x) {
-	deparse( substitute( x ))
+{
+	options( width = 200 )
+
+	echo <- function( message, ... ) {
+		cat( sprintf( message, ... ))
+	}
+
+	get.name <- function(x) {
+		deparse( substitute( x ))
+	}
 }
 
 parse_arguments <- function() {
@@ -147,406 +153,414 @@ parse_arguments <- function() {
 # TMB fitting method for BYM and other spatial models################
 ######################################################################
 
-fitbym_to_posterior_samples <- function(
-    our_grid, hbs, pf,
-    y_name = "Pfsa1_+",
-    n_name = "Pfsa1_N",
-    hbs_columns = "posterior_mean",
-    model = "bym2", # or "iid" or "norandom" or "besag"
-    transform = "identity",
-    link = "logit",
-    prior = list(
-      prec = list(
-        prior = "pc.prec",
-        param = c(0.5 / 0.31, 0.01)),
-      phi = list(
-        prior = "pc",
-        param = c(0.5, 2 / 3)
-      )
-    ),
-    number_of_posterior_samples = 100,
-    threads = 1
+fitit <- function(
+	tmb_obj,
+	control = list(
+		eval.max = 1000,
+		iter.max = 1000
+	)
 ) {
-  countrydfi = (
-    our_grid
-    %>% dplyr::left_join( pf, by = "polygon_id" )
-  )
-  print( countrydfi )
-  countrydfi$Y = countrydfi[[y_name]]
-  countrydfi$n = countrydfi[[n_name]]
-  
-  ### remove polygon if missing response or sample size
-  countrydfi <- countrydfi %>% dplyr::filter(!is.na(Y) & !is.na(n))
-  countrydfi <- sf::st_make_valid(countrydfi)
-  echo( "++ data for fitting is:\n" )
-  print( table( countrydfi$sources ) )
-  
-  ############################################################
-  hbs = hbs[ match( countrydfi$polygon_id, hbs$polygon_id ), ]
-  print( dim( countrydfi ))
-  print( dim( hbs ))
-  
-  #check if redundant polygon_id?
-  stopifnot(
-    length(
-      countrydfi
-      %>% dplyr::group_by(polygon_id)
-      %>% dplyr::filter(n() > 1)
-      %>% dplyr::pull(polygon_id)
-      %>% unique()
-    ) == 0
-  )
-  
-  #RINLA needs ID from 1 to ...otherwise leads to issue during fitting process
-  countrydfi$ID <- 1:nrow(countrydfi)
-  
-  transform.fn = get( transform )
-  #formula for BYM model with pc priors (without  F.E., to be updated)
-  if( model == 'norandom' ) {
-    myformula <- (
-      Y ~ -1
-      + intercept
-      + transform.fn(HbAS_or_SS)
-    )
-    
-  } else if( model == 'iid' ) {
-    myformula <- (
-      Y ~ -1
-      + intercept
-      + transform.fn(HbAS_or_SS)
-      + f( ID, model = "iid" )
-    )
-    
-  } else if( model == 'bym2' ) {
-    myformula <- (
-      Y ~ -1
-      + intercept
-      + transform.fn(HbAS_or_SS)
-      + f( ID, model = model, graph = g, hyper = prior, scale.model = TRUE, constr = TRUE )
-    )
-    
-  } else if( model == 'besag' ) {
-    myformula <- (
-      Y ~ -1
-      + intercept
-      + transform.fn(HbAS_or_SS)
-      + f( ID, model = model, graph = g )
-    )
-  } else {
-    stop( sprintf( "Unrecognised model \"%s\".  (I only support 'norandom', 'besag', 'bym2' or 'iid' currently.)", model ))
-  }
-  
-  #C++ file to be compiled ################
-  #Sys.setenv( LD_LIBRARY_PATH = "/well/band/projects/pfsa-spatial/miniconda/lib/R" )
-  compile(
-    sprintf( "code/tmb/%s.cpp", model ),
-    # KLUDGE: on GB cluster, R is broken and this lib path is not found automatically.
-    # To fix manually I am including the library path here.
-    # Andre: remove this line if it causes problems (which it might not)
-    LDFLAGS = "-L/well/band/projects/pfsa-spatial/miniconda/lib/R/lib"
-  )
-  dyn.load(dynlib(sprintf("code/tmb/%s",model)))
-  #dyn.unload(dynlib(paste0("code/",model)))
-  #########################################
-  
-  fitted.parameters = tibble()
-  sampled.parameters = tibble()
-  summary = tibble()
-  
-  n = nrow(countrydfi)
-  
-  #if spatial term in the model
-  #Define spatial matrix and all the necessary for running TMB BYM
-  #update this if necessary
-  if( model %in% c('besag','bym2') ) {
-    nb <- spdep::poly2nb(countrydfi,queen = TRUE)#,snap=mysnap)
-    # Find nodes without neighbors
-    mstconnect <- function(polys, nb, distance="centroid"){
-      if(distance == "centroid"){
-        coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
-        dmat = as.matrix(dist(coords))
-      } else if(distance == "polygon"){
-        dmat = sf::st_distance(polys) + units::set_units(1000, "m") # offset for adjacencies
-        diag(dmat) = 0 # no self-intersections
-      }else{
-        stop("Unknown distance method")
-      }
-      
-      gfull = igraph::graph_from_adjacency_matrix(dmat, weighted=TRUE, mode="undirected")
-      gmst = igraph::mst(gfull)
-      #gmst = gfull
-      edgemat = as.matrix(igraph::as_adj(gmst))
-      edgelistw = spdep::mat2listw(edgemat,style="M")
-      edgenb = edgelistw$neighbour
-      attr(edgenb,"region.id") = attr(nb, "region.id")
-      allnb = spdep::union.nb(nb, edgenb)
-      return(allnb)
-    }
-    #slow if polygon distance is used#####################
-    nball <- mstconnect(countrydfi, nb, distance="centroid")
-    ######################################################
-    # check the network
-    pdf( "tmp/nbhd.pdf" )
-    plot(st_geometry(countrydfi), border = "grey");
-    coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(countrydfi)))
-    plot(nball,coords, add = T,lwd=1, col="red")
-    plot(nball, coords, add = T, col="blue",lwd=0.5)
-    dev.off()
-    ######################################################
-    
-    td = tempdir()
-    tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
-    spdep::nb2INLA( tempfile, nball )
-    g <- INLA::inla.read.graph(filename = tempfile )
-    adj_matrix <- INLA::inla.graph2matrix(g)
-  }
-  #scale Q matrix
-  Q = -inla.graph2matrix(g)
-  diag(Q) = 0
-  diag(Q) = -rowSums(Q)
-  n = dim(Q)[1]
-  Q.scaled <- inla.scale.model( Q, constr = list(A = matrix(1, 1, n), e=0 ) )
-  
-  #TMB BYM parameters (initial values)
-  TMBpara <- list(
-    intercept = 0.1, 
-    HbAS_or_SS = 1, 
-    u = rep(0.1, n),  # Assuming 'y' is your response vector
-    v = rep(1, n-1),  # v has dimension n-1 because it is forced to sum to 0 in the TMB model
-    log_tau_u = 0.1,  # Neutral start
-    log_tau_v = 1.0   # Neutral start
-  )
-  
-  #loop to run regression for each posterior sample of HbS
-  for( sample in hbs_columns ) {
-    #sample <- hbs_columns[1] #for test
-    regression.data <- data.frame(
-      countrydfi,
-      intercept = rep(1, length(countrydfi$Y)),
-      HbAS_or_SS = hbs[[sample]]^2 + 2*hbs[[sample]]*(1-hbs[[sample]])
-    )
-    
-    if(model %in% c('bym2')) {
-      data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
-                   adj_matrix = adj_matrix)
-      random_effects <- c( 'u', 'v' )
-    }
-    if(model %in% c('besag')) {
-      data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
-                   adj_matrix = adj_matrix)
-      random_effects <- c( 'v' )
-    }
-    if(model %in% c('iid')) {
-      data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
-                   adj_matrix = adj_matrix)
-      random_effects <- c( 'u' ) 
-    }
-    if(model %in% c('norandom')) {
-      data <- list(y = regression.data$Y, N = regression.data$n, x = regression.data$HbAS_or_SS, 
-                   adj_matrix = adj_matrix)
-      random_effects <- NULL
-    }
-    # Build and optimize model
-    obj <- TMB::MakeADFun(
-      data = data,
-      parameters = TMBpara,
-      random = random_effects, # u: iid term, v: spatial term, considered 'random effects'
-      DLL = model,
-      inner.control = list(
-        maxit = 10000,           # Increase maximum iterations
-        tol = 1e-8,             # Tolerance for convergence
-        trace = TRUE,           # Print progress
-        step.tol = 1e-12,       # Step tolerance
-        mgcmax = 1e+20,         # Maximum gradient component
-        sir = TRUE,             # Use saddle point approximation if needed
-        newton = TRUE          # Avoid Newton method if causing issues
-      )
-    )
-    #various options to fit the model (optimization procedures)
-    #Option 1: using nlminb
-    opt <- nlminb(obj$par, obj$fn, obj$gr, control = list(eval.max = 1000, iter.max = 1000))
-    
-    #Option 2: using optim (different variation: BFGS performs better when dimension of parameter is high.
-    #opt <- optim(obj$par, obj$fn, obj$gr, method = "BFGS",control=list(maxit = 25000,ndeps=0.001))     # 
-    
-    # Get estimates and uncertainties
-    # This will need to be updated (using MCMC, other? to get uncertainty)
-    report <- sdreport(obj)
-    #summary(report, "fixed") 
-    #summary(report, "random") 
-    
-    ############################################################################
-    #TMB version################################################################
-    #create approx. 95 CI and mode
-    TMBfixfit <- data.frame(summary(report, "fixed"))
-    colnames(TMBfixfit) <- c('mean','sd')
-    TMBfixfit$`0.025quant` <- TMBfixfit$mean - 1.96 * TMBfixfit$sd
-    TMBfixfit$`0.5quant` <- TMBfixfit$mean
-    TMBfixfit$`0.975quant` <-  TMBfixfit$mean + 1.96 * TMBfixfit$sd
-    TMBfixfit$mode <- TMBfixfit$mean
-    
-    fitted.parameters = bind_rows(
-      fitted.parameters,
-      bind_cols(
-        hbs.sample = sample,
-        model = model,
-        parameter = c( names(report$par.fixed)),
-        TMBfixfit)
-    )
-    summary = bind_rows(
-      summary,
-      tibble(
-        hbs.sample = sample,
-        model = model,
-        cpo = NA,
-        waic = report$gradient.fixed[1],#not waic but max gradient component
-        marginal_ll_integration = NA,
-        marginal_ll_gaussian = NA
-      )
-    )
-    #replace with TMB distribution sampling#####################################
-    ############################################################################
-    #posterior.parameters = inla.posterior.sample( number_of_posterior_samples, fit )
-    #a very rough sampling (before implementing TMBstan or other)
-    hbs.sample <- rnorm(
-      n = number_of_posterior_samples, 
-      mean = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$mean,
-      sd = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$sd
-    )
-    intercept.sample <- rnorm(
-      n = number_of_posterior_samples, 
-      mean = fitted.parameters[fitted.parameters$parameter=='intercept',]$mean,
-      sd = fitted.parameters[fitted.parameters$parameter=='intercept',]$sd
-    )
-    
-    sampled.parameters <- data.frame(
-      hbs.sample = rep(sample,number_of_posterior_samples),
-      model = rep(model,number_of_posterior_samples),
-      intercept = intercept.sample,
-      beta = hbs.sample)
-    
-    sampled.parameters <- as_tibble(sampled.parameters)
-    
-    ############################################################################
-    
-    echo( "... ++ Ok, successfully fit model for %s..\n", sample )
-  }
-  # fix parameter name for the transform
-  fitted.parameters$parameter = gsub( "^transform[.]fn[(]", sprintf( "%s(", transform ), fitted.parameters$parameter )
-  return(
-    list(
-      model = model,
-      data = countrydfi,
-      transform = transform,
-      link = link,
-      prior = prior,
-      allele = y_name,
-      fitted.parameters = fitted.parameters,
-      sampled.parameters = sampled.parameters,
-      summary = summary
-    )
-  )
+	fit <- nlminb(
+		tmb_obj$par,
+		tmb_obj$fn,
+		tmb_obj$gr,
+		control = control
+	)
+
+	report <- sdreport(tmb_obj)
+
+	TMBfixfit = (
+		tibble::rownames_to_column(
+			as.data.frame(
+				summary(report, "fixed")
+			),
+			"parameter"
+		)
+		%>% mutate( mean = Estimate, sd = `Std. Error` )
+		%>% select( parameter, mean, sd )
+		%>% mutate(
+			`0.025quant` = mean - 1.96*sd,
+			`0.5quant` = mean,
+			`0.975quant`= mean + 1.96*sd,
+			`mode` = mean
+		)
+	)
+	return(
+		list(
+			fit = fit,
+			estimates = TMBfixfit,
+			report = report
+		)
+	)
 }
 
-args = NULL
-args = parse_arguments()
+fitbym_to_posterior_samples <- function(
+	our_grid, hbs, pf,
+	y_name = "Pfsa1_+",
+	n_name = "Pfsa1_N",
+	hbs_columns = "posterior_mean",
+	model = "bym2", # or "iid" or "norandom" or "besag"
+	transform = "identity",
+	link = "logit",
+	prior = list(
+		prec = list(
+		prior = "pc.prec",
+		param = c(0.5 / 0.31, 0.01)),
+		phi = list(
+		prior = "pc",
+		param = c(0.5, 2 / 3)
+		)
+	),
+	number_of_posterior_samples = 100,
+	threads = 1
+) {
+	countrydfi = (
+		our_grid
+		%>% dplyr::left_join( pf, by = "polygon_id" )
+		%>% dplyr::select(
+			polygon_id,
+			sources,
+			Y = all_of( y_name ),
+			n = all_of( n_name)
+		)
+		%>% dplyr::filter(!is.na(Y) & !is.na(n))
+	)
+	hbs = hbs[ match( countrydfi$polygon_id, hbs$polygon_id ), ]
+
+	echo( "++ data for fitting is:\n" )
+	print( table( countrydfi$sources ) )
+
+	#check if redundant polygon_id?
+	stopifnot(
+		length(
+			countrydfi
+			%>% dplyr::group_by(polygon_id)
+			%>% dplyr::filter(n() > 1)
+			%>% dplyr::pull(polygon_id)
+			%>% unique()
+		) == 0
+	)
+
+	transform.fn = get( transform )
+
+	#if spatial term in the model
+	#Define spatial matrix and all the necessary for running TMB BYM
+	#update this if necessary
+	if( model %in% c('besag','bym2') ) {
+		nb <- spdep::poly2nb(countrydfi,queen = TRUE) #,snap=mysnap)
+		make_graph_connected <- function(polys, nb, distance="centroid") {
+			if(distance == "centroid"){
+				coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
+				dmat = as.matrix(dist(coords))
+			} else if( distance == "polygon" ) {
+				dmat = sf::st_distance(polys) + units::set_units(1000, "m") # offset for adjacencies
+				diag(dmat) = 0 # no self-intersections
+			} else {
+				stop("Unknown distance method")
+			}
+			
+			gfull = igraph::graph_from_adjacency_matrix(dmat, weighted=TRUE, mode="undirected")
+			gmst = igraph::mst(gfull)
+			#gmst = gfull
+			edgemat = as.matrix(igraph::as_adj(gmst))
+			edgelistw = spdep::mat2listw(edgemat,style="M")
+			edgenb = edgelistw$neighbour
+			attr(edgenb,"region.id") = attr(nb, "region.id")
+			allnb = spdep::union.nb(nb, edgenb)
+			return( allnb )
+		}
+		#slow if polygon distance is used#####################
+		nball <- make_graph_connected( countrydfi, nb, distance="centroid" )
+		######################################################
+		# plot the graph before and after
+		#pdf( "tmp/nbhd.pdf" )
+		#layout( matrix( 1:2, ncol = 1 ))
+		#coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(countrydfi)))
+		#plot(st_geometry(countrydfi), border = "grey");
+		#plot(nb,coords, add = T,lwd=1, col="red")
+		#plot(nb, coords, add = T, col="blue",lwd=0.5)
+		#plot(st_geometry(countrydfi), border = "grey");
+		#plot(nball,coords, add = T,lwd=1, col="red")
+		#plot(nball, coords, add = T, col="blue",lwd=0.5)
+		#dev.off()
+		######################################################
+		
+		td = tempdir()
+		tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
+		spdep::nb2INLA( tempfile, nball )
+		g <- INLA::inla.read.graph(filename = tempfile )
+		adj_matrix <- INLA::inla.graph2matrix(g)
+	}
+
+	{
+		#scale Q matrix
+		Q = -inla.graph2matrix(g)
+		diag(Q) = 0
+		diag(Q) = -rowSums(Q)
+		n = dim(Q)[1]
+		Q.scaled <- inla.scale.model( Q, constr = list(A = matrix(1, 1, n), e=0 ) )
+	}
+
+	random_effects = list(
+		'bym2' = c( 'u', 'v' ),
+		'besag' = c( 'u', 'v' ),
+		'iid' = c( 'u' ),
+		'norandom' = NULL
+	)[[ model ]]
+
+	fitted.parameters = tibble()
+	sampled.parameters = tibble()
+	summary = tibble()
+
+	# Load needed TMB model
+	modelfile = sprintf( "code/tmb/%s", model )
+	#dyn.unload(dynlib( modelfile ))
+	compile( sprintf( "%s.cpp", modelfile ) )
+	dyn.load( dynlib( modelfile ))
+
+	#loop to run regression for each posterior sample of HbS
+	for( sample in hbs_columns ) {
+		data = list(
+			y = countrydfi$Y,
+			N = countrydfi$n,
+			x = hbs[[sample]]^2 + 2*hbs[[sample]]*(1-hbs[[sample]]),
+			# Test case: estimate slope close to 1, no spatial effect
+			# x = logodds((data$y+0.1) / (data$N+0.2)) 
+			Q = Q,
+			prior_halfnormal_sd_tau = 100.0
+		)
+
+		n = length(data$y)
+		parameters <- list(
+			intercept = 0.1, 
+			beta = 0, 
+			u = rep(0, n),
+			v = rep(0, n),  # v has dimension n; it is constrained in the TMB model to have mean 0
+			log_tau = 0.1,    # Specify tau in log space: easier to keep it +ve
+			logodds_phi = 0        # specify phi on log odds scale
+		)
+
+		# Build and optimize model
+		obj <- TMB::MakeADFun(
+			data = data,
+			parameters = TMBpara,
+			random = random_effects, # u: iid term, v: spatial term, considered 'random effects'
+			DLL = model,
+			inner.control = list(
+				maxit = 10000,           # Increase maximum iterations
+				tol = 1e-8,             # Tolerance for convergence
+				trace = TRUE,           # Print progress
+				step.tol = 1e-12,       # Step tolerance
+				mgcmax = 1e+20,         # Maximum gradient component
+				sir = TRUE,             # Use saddle point approximation if needed
+				newton = TRUE          # Avoid Newton method if causing issues
+			)
+		)
+		fit = fitit( obj ) ;
+		print( fit$estimates )
+
+		#various options to fit the model (optimization procedures)
+		#Option 1: using nlminb
+		#Option 2: using optim (different variation: BFGS performs better when dimension of parameter is high.
+		#opt <- optim(obj$par, obj$fn, obj$gr, method = "BFGS",control=list(maxit = 25000,ndeps=0.001))     # 
+		
+		# Get estimates and uncertainties
+		# This will need to be updated (using MCMC, other? to get uncertainty)
+		#summary(report, "fixed") 
+		#summary(report, "random") 
+		
+		############################################################################
+		#create approx. 95 CI and mode
+		fitted.parameters = bind_rows(
+			fitted.parameters,
+			bind_cols(
+				hbs.sample = sample,
+				model = model,
+				fit$estimates
+			)
+		)
+		summary = bind_rows(
+			summary,
+			tibble(
+				hbs.sample = sample,
+				model = model,
+				cpo = NA,
+				waic = fit$report$gradient.fixed[1], # not waic but max gradient component
+				marginal_ll_integration = NA,
+				marginal_ll_gaussian = NA
+			)
+		)
+		#replace with TMB distribution sampling#####################################
+		############################################################################
+		#posterior.parameters = inla.posterior.sample( number_of_posterior_samples, fit )
+		#a very rough sampling (before implementing TMBstan or other)
+		hbs.sample <- rnorm(
+			n = number_of_posterior_samples, 
+			mean = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$mean,
+			sd = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$sd
+		)
+		intercept.sample <- rnorm(
+			n = number_of_posterior_samples, 
+			mean = fitted.parameters[fitted.parameters$parameter=='intercept',]$mean,
+			sd = fitted.parameters[fitted.parameters$parameter=='intercept',]$sd
+		)
+		
+		sampled.parameters <- data.frame(
+			hbs.sample = rep(sample,number_of_posterior_samples),
+			model = rep(model,number_of_posterior_samples),
+			intercept = intercept.sample,
+			beta = hbs.sample)
+		
+		sampled.parameters <- as_tibble(sampled.parameters)
+		
+		############################################################################
+		
+		echo( "... ++ Ok, successfully fit model for %s..\n", sample )
+	}
+	# fix parameter name for the transform
+	fitted.parameters$parameter = gsub( "^transform[.]fn[(]", sprintf( "%s(", transform ), fitted.parameters$parameter )
+	return(
+		list(
+			model = model,
+			data = countrydfi,
+			transform = transform,
+			link = link,
+			prior = prior,
+			allele = y_name,
+			fitted.parameters = fitted.parameters,
+			sampled.parameters = sampled.parameters,
+			summary = summary
+		)
+	)
+}
+
+{
+	args = NULL
+	args = parse_arguments()
+}
 
 if( is.null( args )) {
-  args = list()
-  args$threads = 1
-  args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
-  args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
-  args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
-  args$sources = NULL
-  args$min_N = 5
-  args$locus = "Pfsa1"
-  args$areas = NULL
-  args$world = "geodata/naturalearthdata.Rdata"
-  args$min_km_to_survey_pt = 200
-  args$HbS_survey = "input/cleanHbSdata.csv"
-  args$posterior_samples_per_hbs_sample = 1
-  args$model = "bym2"
-  args$size = "1"
-  args$type = "hexagon"
-  args$r0 = "25.0"
-  args$sigma0 = "0.6"
+	args = list()
+	args$threads = 1
+	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
+	args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+	args$sources = NULL
+	args$min_N = 5
+	args$locus = "Pfsa1"
+	args$areas = NULL
+	args$world = "geodata/naturalearthdata.Rdata"
+	args$min_km_to_survey_pt = 200
+	args$HbS_survey = "input/cleanHbSdata.csv"
+	args$posterior_samples_per_hbs_sample = 1
+	args$model = "bym2"
+	args$size = "1"
+	args$type = "hexagon"
+	args$r0 = "25.0"
+	args$sigma0 = "0.6"
 }
 
-grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
-HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
+{
+	grid_name = gsub( "[.]rds$", "", basename( args$grid ))
+	pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
+	HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
 
-echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
-echo( "   (and grouping by polygon_id)...\n" )
+	echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
+	echo( "   (and grouping by polygon_id)...\n" )
 
-pf = readr::read_tsv( pf_aggregated )
-if( !is.null( args$sources )) {
-	pf = pf %>% filter( source %in% args$sources )
+	pf = readr::read_tsv( pf_aggregated )
+	if( !is.null( args$sources )) {
+		pf = pf %>% filter( source %in% args$sources )
+	}
+
+	pf = (
+	pf %>% group_by( polygon_id )
+	%>% summarise(
+		`Pfsa1_+` = sum(`Pfsa1_+`),
+		Pfsa1_N = sum( Pfsa1_N ),
+		`Pfsa2_+` = sum( `Pfsa2_+` ),
+		Pfsa2_N = sum( Pfsa2_N ),
+		`Pfsa3_+` = sum(`Pfsa3_+`),
+		Pfsa3_N = sum( Pfsa3_N ),
+		`Pfsa4_+` = sum( `Pfsa4_+` ),
+		Pfsa4_N = sum( Pfsa4_N ),
+		sources = paste(sort(unique( source )), collapse = " and " )
+	)
+	)
+	echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
+
+	if( !is.null( args$min_N ) & args$min_N > 0 ) {
+		echo( "++ Restricting to points with > %d observations...\n", args$min_N )
+		pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= args$min_N, ]
+		echo( "++ ...ok, %d points remain.\n", nrow( pf ))
+	}
+
+	echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
+	hbs = readr::read_tsv( HbS_aggregated )
+	echo( "++ ...ok, %d points loaded:\n", nrow( hbs ))
+	print( hbs )
+
+	echo( "++ Loading polygon grid from %s...\n", args$grid )
+	grid = readRDS( args$grid )
+	echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
+	print( grid )
+
+	# FIX ME: this restricts to areas intersecting the specified.
+	# Polygons may overlap surrounding countries: you may want to consider using the
+	# country-split grid versions for this.  (But I quite like the overlaps.)
+	if( !is.null( args$areas )) {
+		echo( "++ Loading world from %s...\n", args$world )
+		source( "code/functions.R" )
+		world_sf = load.entry.from.Rdata( args$world, "world_sf" )
+
+		echo( "++ focussing on these areas: %s.\n", paste( args$areas, collapse = ", " ))
+		focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
+		intersection = sf::st_intersects( grid$grid, focus_area )
+		grid = grid[ which( sapply( intersection, length ) > 0 ), ]
+		echo( "++ Ok, %d grid cells retained:\n", nrow( grid ) )
+		print( table( grid$SUBREGION, grid$SOVEREIGNT ))
+	}
+
+	echo( "++ Finding grid cells within %d km of HbS survey points...\n", args$min_km_to_survey_pt )
+	echo( "++ Loading HbS survey data from %s...\n", args$HbS_survey )
+	survey = readr::read_csv(
+		args$HbS_survey,
+		col_types = "cddddddddcdddcdd"
+	)
+	echo( "++ ...ok, %d points loaded.\n", nrow( survey ))
+	survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = 4326 )
+	survey$longitude = sf::st_coordinates(survey)[,1]
+	survey$latitude = sf::st_coordinates(survey)[,2]
+	hbsbuffer = sf::st_buffer( survey, args$min_km_to_survey_pt*1000 )
+	in_range_grid = sf::st_filter( grid, hbsbuffer )
+	grid$in_range = 0
+	grid$in_range[ grid$polygon_id %in% in_range_grid$polygon_id ] = 1
+	echo( "++ ...%d (of %d) grid cells are in range and will be used in the analysis.\n", length( which( grid$in_range == 1 )), nrow( grid ))
+
 }
 
-pf = (
-  pf %>% group_by( polygon_id )
-  %>% summarise(
-	`Pfsa1_+` = sum(`Pfsa1_+`),
-	Pfsa1_N = sum( Pfsa1_N ),
-	`Pfsa2_+` = sum( `Pfsa2_+` ),
-	Pfsa2_N = sum( Pfsa2_N ),
-	`Pfsa3_+` = sum(`Pfsa3_+`),
-	Pfsa3_N = sum( Pfsa3_N ),
-	`Pfsa4_+` = sum( `Pfsa4_+` ),
-	Pfsa4_N = sum( Pfsa4_N ),
-	sources = paste(sort(unique( source )), collapse = " and " )
-  )
-)
-echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
-
-if( !is.null( args$min_N ) & args$min_N > 0 ) {
-	echo( "++ Restricting to points with > %d observations...\n", args$min_N )
-	pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= args$min_N, ]
-	echo( "++ ...ok, %d points remain.\n", nrow( pf ))
+# For testing purposes
+{
+	our_grid = grid
+	y_name = sprintf( "%s_+", args$locus )
+	n_name = sprintf( "%s_N", args$locus )
+	hbs_columns = "posterior_sample_1"
+	model = args$model
+	transform = "identity"
+#	transform = "logit",
+	link = "logit"
+	prior = list(
+		prec = list(
+			prior = "pc.prec",
+			param = c(0.5 / 0.31, 0.01)),
+		phi = list(
+			prior = "pc",
+			param = c(0.5, 2 / 3)
+		)
+	)
+	number_of_posterior_samples = args$posterior_samples_per_hbs_sample
+	threads = args$threads
 }
-
-echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
-hbs = readr::read_tsv( HbS_aggregated )
-echo( "++ ...ok, %d points loaded:\n", nrow( hbs ))
-print( hbs )
-
-echo( "++ Loading polygon grid from %s...\n", args$grid )
-grid = readRDS( args$grid )
-echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
-print( grid )
-
-# FIX ME: this restricts to areas intersecting the specified.
-# Polygons may overlap surrounding countries: you may want to consider using the
-# country-split grid versions for this.  (But I quite like the overlaps.)
-if( !is.null( args$areas )) {
-	echo( "++ Loading world from %s...\n", args$world )
-	source( "code/functions.R" )
-	world_sf = load.entry.from.Rdata( args$world, "world_sf" )
-
-	echo( "++ focussing on these areas: %s.\n", paste( args$areas, collapse = ", " ))
-	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
-	intersection = sf::st_intersects( grid$grid, focus_area )
-	grid = grid[ which( sapply( intersection, length ) > 0 ), ]
-	echo( "++ Ok, %d grid cells retained:\n", nrow( grid ) )
-	print( table( grid$SUBREGION, grid$SOVEREIGNT ))
-}
-
-echo( "++ Finding grid cells within %d km of HbS survey points...\n", args$min_km_to_survey_pt )
-echo( "++ Loading HbS survey data from %s...\n", args$HbS_survey )
-survey = readr::read_csv(
-	args$HbS_survey,
-	col_types = "cddddddddcdddcdd"
-)
-echo( "++ ...ok, %d points loaded.\n", nrow( survey ))
-survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = 4326 )
-survey$longitude = sf::st_coordinates(survey)[,1]
-survey$latitude = sf::st_coordinates(survey)[,2]
-hbsbuffer = sf::st_buffer( survey, args$min_km_to_survey_pt*1000 )
-in_range_grid = sf::st_filter( grid, hbsbuffer )
-grid$in_range = 0
-grid$in_range[ grid$polygon_id %in% in_range_grid$polygon_id ] = 1
-echo( "++ ...%d (of %d) grid cells are in range and will be used in the analysis.\n", length( which( grid$in_range == 1 )), nrow( grid ))
 
 result = fitbym_to_posterior_samples(
 	grid %>% filter( in_range == 1 ),
