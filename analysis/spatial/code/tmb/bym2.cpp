@@ -48,6 +48,9 @@ Type objective_function<Type>::operator() () {
 
 	// -- Prior parameters ---
 	DATA_SCALAR( prior_halfnormal_sd_tau );
+	DATA_SCALAR( prior_independent_sd );
+	DATA_SCALAR( prior_intercept_sd );
+	DATA_SCALAR( prior_beta_sd );
 
 	// --- Parameters ---
 	PARAMETER(         intercept ) ; // Fixed intercept
@@ -89,11 +92,11 @@ Type objective_function<Type>::operator() () {
 	nll -= log_dN( sum(v)/v.size(), 0.0, 0.00001 ) ;
 
 	// Priors
-	nll -= log_dN( intercept,  0.0, 10.0 ) ;		 // Weak 0-centred prior on intercept
-	nll -= log_dN( beta, 0.0, 10.0 ) ;				 // Weak 0-centred prior on beta
+	nll -= log_dN( intercept,  0.0, prior_intercept_sd ) ;		 // Weak 0-centred prior on intercept
+	nll -= log_dN( beta,       0.0, prior_beta_sd      ) ;		 // Weak 0-centred prior on beta
 	// half-normal prior on tau
-	nll -= log(2) + log_dhalfN( tau, 0.0, prior_halfnormal_sd_tau ) ; // normal on log of precision
-	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
+	nll -= log_dhalfN( tau, 0.0, prior_halfnormal_sd_tau ) ; // normal on log of precision
+	nll -= sum( log_dN( u, 0.0, prior_independent_sd )) ; // independent random effects are standard gaussian
 
 	// ICAR (spatial) penalty term
 	vector<Type> Qv = Q * v;
@@ -109,7 +112,7 @@ Type objective_function<Type>::operator() () {
 	vector<Type> predictor = (
 		intercept
 		+ (beta * x)
-		+ sd_of_random_effects * sqrt(1-phi)*u + sd_of_random_effects * sqrt(phi)*v
+		//+ sd_of_random_effects * sqrt(1-phi)*u + sd_of_random_effects * sqrt(phi)*v
 	) ;
 	vector<Type> p = invlogit( predictor ) ; // Logit link for binomial
 	nll -= sum( dbinom(y, N, p, true) ); 

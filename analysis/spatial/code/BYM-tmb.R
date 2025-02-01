@@ -216,7 +216,7 @@ fitbym_to_posterior_samples <- function(
 ) {
 	countrydfi = (
 		our_grid
-		%>% dplyr::left_join( pf, by = "polygon_id" )
+		%>% dplyr::inner_join( pf, by = "polygon_id" )
 		%>% dplyr::select(
 			polygon_id,
 			sources,
@@ -314,7 +314,7 @@ fitbym_to_posterior_samples <- function(
 
 	# Load needed TMB model
 	modelfile = sprintf( "code/tmb/%s", model )
-	#dyn.unload(dynlib( modelfile ))
+	dyn.unload(dynlib( modelfile ))
 	compile( sprintf( "%s.cpp", modelfile ) )
 	dyn.load( dynlib( modelfile ))
 
@@ -327,7 +327,10 @@ fitbym_to_posterior_samples <- function(
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			Q = Q,
-			prior_halfnormal_sd_tau = 100.0
+			prior_halfnormal_sd_tau = 1.0,
+			prior_independent_sd = 1.0,
+			prior_beta_sd = 100.0,
+			prior_intercept_sd = 100.0
 		)
 
 		n = length(data$y)
