@@ -248,29 +248,29 @@ fitbym_to_posterior_samples <- function(
 	#update this if necessary
 	if( model %in% c('besag','bym2') ) {
 		nb <- spdep::poly2nb(countrydfi,queen = TRUE) #,snap=mysnap)
-		make_graph_connected <- function(polys, nb, distance="centroid") {
-			if(distance == "centroid"){
-				coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
-				dmat = as.matrix(dist(coords))
-			} else if( distance == "polygon" ) {
-				dmat = sf::st_distance(polys) + units::set_units(1000, "m") # offset for adjacencies
-				diag(dmat) = 0 # no self-intersections
-			} else {
-				stop("Unknown distance method")
-			}
+#		make_graph_connected <- function(polys, nb, distance="centroid") {
+#			if(distance == "centroid"){
+#				coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
+#				dmat = as.matrix(dist(coords))
+#			} else if( distance == "polygon" ) {
+#				dmat = sf::st_distance(polys) + units::set_units(1000, "m") # offset for adjacencies
+#				diag(dmat) = 0 # no self-intersections
+#			} else {
+#				stop("Unknown distance method")
+#			}
 			
-			gfull = igraph::graph_from_adjacency_matrix(dmat, weighted=TRUE, mode="undirected")
-			gmst = igraph::mst(gfull)
+#			gfull = igraph::graph_from_adjacency_matrix(dmat, weighted=TRUE, mode="undirected")
+#			gmst = igraph::mst(gfull)
 			#gmst = gfull
-			edgemat = as.matrix(igraph::as_adj(gmst))
-			edgelistw = spdep::mat2listw(edgemat,style="M")
-			edgenb = edgelistw$neighbour
-			attr(edgenb,"region.id") = attr(nb, "region.id")
-			allnb = spdep::union.nb(nb, edgenb)
-			return( allnb )
-		}
+#			edgemat = as.matrix(igraph::as_adj(gmst))
+#			edgelistw = spdep::mat2listw(edgemat,style="M")
+#			edgenb = edgelistw$neighbour
+#			attr(edgenb,"region.id") = attr(nb, "region.id")
+#			allnb = spdep::union.nb(nb, edgenb)
+#			return( allnb )
+#		}
 		#slow if polygon distance is used#####################
-		nball <- make_graph_connected( countrydfi, nb, distance="centroid" )
+#		nball <- make_graph_connected( countrydfi, nb, distance="centroid" )
 		######################################################
 		# plot the graph before and after
 		#pdf( "tmp/nbhd.pdf" )
