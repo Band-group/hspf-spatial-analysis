@@ -357,17 +357,17 @@ fitbym_to_posterior_samples <- function(
 		dyn.load( dynlib( modelfile ))
 		obj <- TMB::MakeADFun(
 			data = data,
-			parameters = TMBpara,
+			parameters = parameters,
 			random = random_effects, # u: iid term, v: spatial term, considered 'random effects'
 			DLL = model,
 			inner.control = list(
-				maxit = 10000,           # Increase maximum iterations
+				maxit = 10000,          # Increase maximum iterations
 				tol = 1e-8,             # Tolerance for convergence
 				trace = TRUE,           # Print progress
 				step.tol = 1e-12,       # Step tolerance
 				mgcmax = 1e+20,         # Maximum gradient component
 				sir = TRUE,             # Use saddle point approximation if needed
-				newton = TRUE          # Avoid Newton method if causing issues
+				newton = TRUE           # Avoid Newton method if causing issues
 			)
 		)
 		fit = fitit( obj ) ;
