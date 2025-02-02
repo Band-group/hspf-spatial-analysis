@@ -33,7 +33,7 @@ namespace {
 			(value >= mean)
 			?
 			( log(2) + log_dN( value, mean, sd ) )
-			: 
+			:
 			-10000
 		) ;
 	}
@@ -48,6 +48,7 @@ Type objective_function<Type>::operator() () {
 
 	// -- Prior parameters ---
 	DATA_SCALAR( prior_halfnormal_sd_tau );
+	DATA_SCALAR( prior_halfnormal_mean_tau );
 	DATA_SCALAR( prior_intercept_sd );
 	DATA_SCALAR( prior_beta_sd );
 
@@ -65,6 +66,7 @@ Type objective_function<Type>::operator() () {
 	//
 	// Optionally Q can also be 'rescaled' 
 	DATA_SPARSE_MATRIX(Q); 
+	DATA_MATRIX(connected_components); 
 
 	// Transformed precision parameters
 	Type tau = exp(log_tau) ;
@@ -88,13 +90,21 @@ Type objective_function<Type>::operator() () {
 	// Spatial coefficient v is supposed to sum to 0
 	// (Actually on each connected component - multiple ccs not implemented yet)
 	// Implement this here by having a strict prior on mean(v)
-	nll -= log_dN( sum(v)/v.size(), 0.0, 0.00001 ) ;
+	nll -= sum(
+		log_dN(
+			connected_components * v,
+			0.0,
+			0.00001
+		)
+	 ) ;
 
 	// Priors
 	nll -= log_dN( intercept,  0.0, prior_intercept_sd ) ;		 // Weak 0-centred prior on intercept
 	nll -= log_dN( beta,       0.0, prior_beta_sd      ) ;		 // Weak 0-centred prior on beta
-	// half-normal prior on tau
-	nll -= log_dhalfN( tau, 0.0, prior_halfnormal_sd_tau ) ; // normal on log of precision
+
+	// FIX ME!  Prior on tau, or log tau, or on sd?  What prior?  Help!
+	// nll -= log_dN( tau, prior_halfnormal_mean_tau, prior_halfnormal_sd_tau ) ;
+	nll -= log_dN( log_tau, 0.0, 1.1 ) ;
 	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
 
 	// ICAR (spatial) penalty term

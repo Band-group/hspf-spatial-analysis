@@ -283,11 +283,11 @@ fitbym_to_posterior_samples <- function(
 		#plot(nball,coords, add = T,lwd=1, col="red")
 		#plot(nball, coords, add = T, col="blue",lwd=0.5)
 		#dev.off()
-		######################################################
+		#######################################################
 		
 		td = tempdir()
 		tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
-		spdep::nb2INLA( tempfile, nball )
+		spdep::nb2INLA( tempfile, nb ) #all )
 		g <- INLA::inla.read.graph(filename = tempfile )
 		adj_matrix <- INLA::inla.graph2matrix(g)
 	}
@@ -299,6 +299,12 @@ fitbym_to_posterior_samples <- function(
 		diag(Q) = -rowSums(Q)
 		n = dim(Q)[1]
 		Q.scaled <- inla.scale.model( Q, constr = list(A = matrix(1, 1, n), e=0 ) )
+
+		connected.component.matrix = matrix( 0, nrow = g$cc$n, ncol = g$n )
+		for( i in 1:length( g$cc$nodes )) {
+			nodes = g$cc$nodes[[i]]
+			connected.component.matrix[i,nodes] = 1
+		}
 	}
 
 	random_effects = list(
@@ -326,8 +332,11 @@ fitbym_to_posterior_samples <- function(
 			x = hbs[[sample]]^2 + 2*hbs[[sample]]*(1-hbs[[sample]]),
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
-			Q = Q,
+			#Q = Q,
+			Q = Q.scaled,
+			connected_components = connected.component.matrix,
 			prior_halfnormal_sd_tau = 10.0,
+			prior_halfnormal_mean_tau = 100.0,
 			prior_beta_sd = 100.0,
 			prior_intercept_sd = 100.0
 		)
@@ -343,6 +352,9 @@ fitbym_to_posterior_samples <- function(
 		)
 
 		# Build and optimize model
+		dyn.unload(dynlib( modelfile ))
+		compile( sprintf( "%s.cpp", modelfile ) )
+		dyn.load( dynlib( modelfile ))
 		obj <- TMB::MakeADFun(
 			data = data,
 			parameters = TMBpara,
