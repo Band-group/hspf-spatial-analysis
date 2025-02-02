@@ -96,7 +96,7 @@ Type objective_function<Type>::operator() () {
 			0.0,
 			0.00001
 		)
-	 ) ;
+	) ;
 
 	// Priors
 	nll -= log_dN( intercept,  0.0, prior_intercept_sd ) ;		 // Weak 0-centred prior on intercept
@@ -112,9 +112,9 @@ Type objective_function<Type>::operator() () {
 	Type penalty = -Type(0.5) * (v * Qv).sum() ;
 	nll -= penalty ;
 
-	std::cerr << "v[1:4] = " << v[0] << ", " << v[1] << ", " << v[2] << ", " << v[3] << ".\n" ;
-	std::cerr << "Qv[1:4,156,158] = " << Qv[0] << ", " << Qv[1] << ", " << Qv[2] << ", " << Qv[3] << ", " << Qv[155] << ", " << Qv[157] << ".\n" ;
-	std::cerr << "penalty: " << penalty << "\n" ;
+//	std::cerr << "v[1:4] = " << v[0] << ", " << v[1] << ", " << v[2] << ", " << v[3] << ".\n" ;
+//	std::cerr << "Qv[1:4,] = " << Qv[0] << ", " << Qv[1] << ", " << Qv[2] << ", " << Qv[3] << ".\n" ;
+//	std::cerr << "penalty: " << penalty << "\n" ;
 
 	// Linear predictor and binomial likelihood
 	Type sd_of_random_effects = 1/sqrt(tau) ;

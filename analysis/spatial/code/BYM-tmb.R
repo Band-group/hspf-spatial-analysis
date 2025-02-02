@@ -230,6 +230,8 @@ fitbym_to_posterior_samples <- function(
 	echo( "++ data for fitting is:\n" )
 	print( table( countrydfi$sources ) )
 
+	echo( "++ ...with size %d x %d.\n", nrow(countrydfi), ncol(countrydfi))
+
 	#check if redundant polygon_id?
 	stopifnot(
 		length(
@@ -247,7 +249,7 @@ fitbym_to_posterior_samples <- function(
 	#Define spatial matrix and all the necessary for running TMB BYM
 	#update this if necessary
 	if( model %in% c('besag','bym2') ) {
-		nb <- spdep::poly2nb(countrydfi,queen = TRUE) #,snap=mysnap)
+		nb <- spdep::poly2nb( countrydfi, queen = TRUE ) #,snap=mysnap)
 #		make_graph_connected <- function(polys, nb, distance="centroid") {
 #			if(distance == "centroid"){
 #				coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
@@ -289,12 +291,12 @@ fitbym_to_posterior_samples <- function(
 		tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
 		spdep::nb2INLA( tempfile, nb ) #all )
 		g <- INLA::inla.read.graph(filename = tempfile )
-		adj_matrix <- INLA::inla.graph2matrix(g)
 	}
 
 	{
 		#scale Q matrix
 		Q = -inla.graph2matrix(g)
+		echo( "++ Scaling Q matrix of size %d...\n", nrow(Q) )
 		diag(Q) = 0
 		diag(Q) = -rowSums(Q)
 		n = dim(Q)[1]
@@ -305,6 +307,7 @@ fitbym_to_posterior_samples <- function(
 			nodes = g$cc$nodes[[i]]
 			connected.component.matrix[i,nodes] = 1
 		}
+		echo( "++ Ok, there are %d connected components.\n", nrow( connected.component.matrix ))
 	}
 
 	random_effects = list(
@@ -319,8 +322,9 @@ fitbym_to_posterior_samples <- function(
 	summary = tibble()
 
 	# Load needed TMB model
+	echo( "++ Loading TMB model...\n" )
 	modelfile = sprintf( "code/tmb/%s", model )
-	dyn.unload(dynlib( modelfile ))
+#	dyn.unload(dynlib( modelfile ))
 	compile( sprintf( "%s.cpp", modelfile ) )
 	dyn.load( dynlib( modelfile ))
 
@@ -351,10 +355,6 @@ fitbym_to_posterior_samples <- function(
 			logodds_phi = 0        # specify phi on log odds scale
 		)
 
-		# Build and optimize model
-		dyn.unload(dynlib( modelfile ))
-		compile( sprintf( "%s.cpp", modelfile ) )
-		dyn.load( dynlib( modelfile ))
 		obj <- TMB::MakeADFun(
 			data = data,
 			parameters = parameters,
@@ -372,6 +372,10 @@ fitbym_to_posterior_samples <- function(
 		)
 		fit = fitit( obj ) ;
 		print( fit$estimates )
+
+		# Look in fit$report to find parameter estimates and parameter covariances
+		# fit$report$par.fixed
+		# fit$report$cov.fixed
 
 		#various options to fit the model (optimization procedures)
 		#Option 1: using nlminb
@@ -404,31 +408,23 @@ fitbym_to_posterior_samples <- function(
 				marginal_ll_gaussian = NA
 			)
 		)
-		#replace with TMB distribution sampling#####################################
-		############################################################################
-		#posterior.parameters = inla.posterior.sample( number_of_posterior_samples, fit )
-		#a very rough sampling (before implementing TMBstan or other)
-		hbs.sample <- rnorm(
-			n = number_of_posterior_samples, 
-			mean = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$mean,
-			sd = fitted.parameters[fitted.parameters$parameter=='HbAS_or_SS',]$sd
+
+		# Approximate posterior as a multivariate gaussian with the
+		# mean and covariance as given in the fit object.
+		posterior.parameters = mvtnorm::rmvnorm(
+			n = args$posterior_samples_per_hbs_sample,
+			mean = fit$report$par.fixed,
+			sigma = fit$report$cov.fixed
 		)
-		intercept.sample <- rnorm(
-			n = number_of_posterior_samples, 
-			mean = fitted.parameters[fitted.parameters$parameter=='intercept',]$mean,
-			sd = fitted.parameters[fitted.parameters$parameter=='intercept',]$sd
+		sampled.parameters = bind_rows(
+			sampled.parameters,
+			bind_cols(
+				hbs.sample = sample,
+				model = model,
+				intercept = posterior.parameters[,'intercept'],
+				beta = posterior.parameters[,'beta']
+			)
 		)
-		
-		sampled.parameters <- data.frame(
-			hbs.sample = rep(sample,number_of_posterior_samples),
-			model = rep(model,number_of_posterior_samples),
-			intercept = intercept.sample,
-			beta = hbs.sample)
-		
-		sampled.parameters <- as_tibble(sampled.parameters)
-		
-		############################################################################
-		
 		echo( "... ++ Ok, successfully fit model for %s..\n", sample )
 	}
 	# fix parameter name for the transform
@@ -466,7 +462,7 @@ if( is.null( args )) {
 	args$world = "geodata/naturalearthdata.Rdata"
 	args$min_km_to_survey_pt = 200
 	args$HbS_survey = "input/cleanHbSdata.csv"
-	args$posterior_samples_per_hbs_sample = 1
+	args$posterior_samples_per_hbs_sample = 10
 	args$model = "bym2"
 	args$size = "1"
 	args$type = "hexagon"
@@ -550,7 +546,6 @@ if( is.null( args )) {
 	grid$in_range = 0
 	grid$in_range[ grid$polygon_id %in% in_range_grid$polygon_id ] = 1
 	echo( "++ ...%d (of %d) grid cells are in range and will be used in the analysis.\n", length( which( grid$in_range == 1 )), nrow( grid ))
-
 }
 
 # For testing purposes
@@ -581,7 +576,7 @@ result = fitbym_to_posterior_samples(
 	hbs, pf,
 	y_name = sprintf( "%s_+", args$locus ),
 	n_name = sprintf( "%s_N", args$locus ),
-	hbs_columns = "posterior_sample_1", #grep( "posterior_sample", colnames(hbs), value = T ),
+	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
 	model = args$model,
 	transform = "identity",
 #	transform = "logit",
