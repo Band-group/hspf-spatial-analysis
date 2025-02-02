@@ -88,8 +88,8 @@ Type objective_function<Type>::operator() () {
 	Type nll = 0.0; // negative log-likelihood
 
 	// Spatial coefficient v is supposed to sum to 0
-	// (Actually on each connected component - multiple ccs not implemented yet)
-	// Implement this here by having a strict prior on mean(v)
+	// Solve here by requiring a very narrow normal prior on the sum
+	// of values in each connected component.
 	nll -= sum(
 		log_dN(
 			connected_components * v,
