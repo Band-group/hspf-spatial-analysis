@@ -67,7 +67,8 @@ rule aggregate_HbS:
 		modeldir = rules.fit_hbs_map.params.outdir,
 		script = srcdir( "code/aggregate_HbS_over_polygons.R" ),
 		number_of_posterior_samples = 50,
-		samples_per_polygon = 50
+		samples_per_polygon = 50,
+		sampling_mode = "andre-fast"
 	shell: """
 		Rscript --vanilla {params.script} \
 			--HbSfit {params.modeldir} \
@@ -75,6 +76,7 @@ rule aggregate_HbS:
 			--polygons {input.polygons} \
 			--number_of_posterior_samples {params.number_of_posterior_samples} \
 			--samples_per_polygon {params.samples_per_polygon} \
+			--sampling_mode {params.sampling_mode} \
 			--output {output.tsv}
 	"""
 
@@ -173,6 +175,20 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
+rule compile_TMB_code:
+	output:
+		cpp = "output/hspf/tmb/{regression_model}.cpp",
+		so = "output/hspf/tmb/{regression_model}.so"
+	input:
+		cpp = srcdir( "code/tmb/{regression_model}.cpp" )
+	params:
+		libpath = "/well/band/projects/pfsa-spatial/miniconda/lib/R/lib/",
+		script = srcdir( "code/tmb/compile.R" )
+	shell: """
+		cp {input.cpp} {output.cpp}
+		Rscript --vanilla {params.script} --model {output.cpp}
+	"""
+
 rule fit_hspf_in_areas:
 	output:
 		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
@@ -181,9 +197,11 @@ rule fit_hspf_in_areas:
 		pf = rules.aggregate_pf.output.tsv,
 		hbs = rules.aggregate_HbS.output.tsv,
 		survey = "input/cleanHbSdata.csv",
-		world = "geodata/naturalearthdata.Rdata"
+		world = "geodata/naturalearthdata.Rdata",
+		tmb_model = rules.compile_TMB_code.output.so
 	params:
-		script = srcdir( "code/BYM.R" ),
+		#script = srcdir( "code/BYM-inla.R" ),
+		script = srcdir( "code/BYM-tmb.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
 	threads: 10
 	shell: """
@@ -191,6 +209,7 @@ rule fit_hspf_in_areas:
 		--world {input.world} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
+		--tmb_model {input.tmb_model} \
 		--size {wildcards.size} \
 		--type {wildcards.type} \
 		--r0 {wildcards.r0} \
@@ -215,7 +234,7 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		survey = "input/cleanHbSdata.csv",
 		world = "geodata/naturalearthdata.Rdata"
 	params:
-		script = srcdir( "code/BYM.R" ),
+		script = srcdir( "code/BYM-tmb.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] ),
 		source = lambda w: (
 			{

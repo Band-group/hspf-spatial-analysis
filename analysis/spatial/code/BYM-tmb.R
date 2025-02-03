@@ -348,7 +348,7 @@ fitbym_to_posterior_samples <- function(
 			),
 			silent = TRUE
 		)
-		echo( "++ Fitting...\n" )
+		echo( "++ Fitting %s...\n", sample )
 		fit = fitit( obj ) ;
 		print( fit$estimates )
 
