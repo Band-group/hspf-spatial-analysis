@@ -317,7 +317,7 @@ fitbym_to_posterior_samples <- function(
 	summary = tibble()
 
 	# Load needed TMB model
-	echo( "++ Loading TMB model...\n" )
+	echo( "++ Loading TMB model %s...\n", args$tmb_model )
 	# Compilation is now handled in another snakemake rule.
 	# Uncomment this if you need to compile here.
 	# dyn.unload(dynlib( modelfile ))
@@ -336,6 +336,7 @@ fitbym_to_posterior_samples <- function(
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
 			model_choice = "bym2", # or "norandom"
+			link_choice = "logit",
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd = 100.0,
@@ -348,12 +349,13 @@ fitbym_to_posterior_samples <- function(
 
 		n = length(data$y)
 		parameters <- list(
-			intercept = 0.1, 
-			beta = 0, 
-			u = rep(0, n),
-			v = rep(0, n),  # v has dimension n; it is constrained in the TMB model to have mean 0
-			log_tau = 0.1,    # Specify tau in log space: easier to keep it +ve
-			logodds_phi = 0        # specify phi on log odds scale
+			intercept	= 0.1, 
+			beta		= 0,
+			log_nu		= 0.0,
+			u 			= rep(0, n),
+			v 			= rep(0, n), # v has dimension n; it is constrained in the TMB model to have mean 0
+			log_tau		= 0.1, # Specify tau in log space: easier to keep it +ve
+			logodds_phi = 0 # specify phi on log odds scale
 		)
 
 		print( args$tmb_model )
@@ -371,7 +373,7 @@ fitbym_to_posterior_samples <- function(
 				sir = TRUE,             # Use saddle point approximation if needed
 				newton = TRUE           # Avoid Newton method if causing issues
 			),
-			silent = TRUE
+			silent = FALSE
 		)
 		echo( "++ Fitting %s...\n", sample )
 		fit = fitit( obj ) ;
@@ -468,6 +470,7 @@ if( 0 ) {#is.null( args )) {
 	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$posterior_samples_per_hbs_sample = 10
 	args$model = "bym2"
+	args$tmb_model = "output/hspf/tmb/bym2.so"
 	args$size = "1"
 	args$type = "hexagon"
 	args$r0 = "25.0"

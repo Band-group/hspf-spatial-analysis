@@ -176,7 +176,14 @@ plot.fit <- function(
 	fit$data$hbas_or_ss_median = fit$data$hbs_median^2 + 2*fit$data$hbs_median*(1-fit$data$hbs_median)
 
 	w = which( fit$data$n >= 0 )
-	logistic = function(x) { exp(x)/(1+exp(x))}
+
+	# These definitions should match the link functions in bym.cpp
+	print( "LINK!" )
+	print( fit$link )
+	link_fn = list(
+		logit = function(x) { exp(x)/(1+exp(x))},
+		linear = function(x) { pmax( pmin( x, 0.999 ), 0.001 ) }
+	)[[fit$link]]
 	xs = seq( from = 0, to = 0.3, by = 0.01 )
 	curves = tibble(
 		x = xs,
@@ -187,7 +194,7 @@ plot.fit <- function(
 	)
 	for( i in 1:length(xs)) {
 		x = xs[i]
-		yvalues = logistic( fit$sampled.parameters[['intercept']] + fit$sampled.parameters[['beta']]*x )
+		yvalues = link_fn( fit$sampled.parameters[['intercept']] + fit$sampled.parameters[['beta']]*x )
 		q = quantile( yvalues, c( 0.025, 0.5, 0.975 ))
 		curves[['lower_2.5']][i] = q[1]
 		curves[['median']][i] = q[2]
@@ -196,8 +203,10 @@ plot.fit <- function(
 	}
 
 	palette = aesthetic$colour$country
+	echo( "++ Setting colour.\n")
 	fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 	fit$data$colour[ is.na(fit$data$colour)] = palette['other']
+	echo( "++ Set colour.\n")
 	blank.plot( xlim = c( 0, 0.3 ), ylim = c( 0, 1 ))
 	abline( h = seq( from = 0, to = 1, by = 0.1 ), col = aesthetic$colour$grid, lwd = 0.5 )
 	abline( v = seq( from = 0, to = 0.3, by = 0.05 ), col = aesthetic$colour$grid, lwd = 0.5 )

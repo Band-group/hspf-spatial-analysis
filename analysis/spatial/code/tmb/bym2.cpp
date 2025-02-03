@@ -39,6 +39,15 @@ namespace {
 			-10000
 		) ;
 	}
+
+	template< typename T1, typename T2, typename T3 >
+	tmbutils::vector<T1> clamp( tmbutils::vector<T1> v, T2 min, T3 max ) {
+		tmbutils::vector<T1> result = v ;
+		for( int i = 0; i < v.size(); ++i ) {
+			result(i) = std::max( std::min( result(i), T1(max) ), T1(min) ) ;
+		}
+		return result ;
+	}
 }
 
 template< typename Type >
@@ -55,12 +64,20 @@ Type objective_function<Type>::operator() () {
 	DATA_SCALAR( prior_logodds_phi_mean );
 	DATA_SCALAR( prior_logodds_phi_sd );
 	DATA_STRING( model_choice ); // "norandom" or "bym2"
+	DATA_STRING( link_choice ); // "logit" or "linear"
+	Type NaN = 0.0/0.0 ;
 
 	if(
 		model_choice != "bym2"
 		&& model_choice != "norandom"
 	) {
-		Type NaN = 0.0/0.0 ;
+		return NaN ;
+	}
+
+	if(
+		link_choice != "logit"
+		&& link_choice != "linear"
+	) {
 		return NaN ;
 	}
 
@@ -71,6 +88,8 @@ Type objective_function<Type>::operator() () {
 	PARAMETER_VECTOR(          v ) ; // Structured spatial effects (CAR)
 	PARAMETER(           log_tau ) ; // Log-precision for random effects. Passed as log(tau) so that tau is enforced positive.
 	PARAMETER(       logodds_phi ) ; // Log-odds of mixture proportion of spatial vs independent components.
+	PARAMETER(            log_nu ) ; // nu parameter of generalised logit, encoded as log to keep positive
+
 	// Q matrix
 	// This should be derived from the adjacency matrix A as
 	// Q_ii = number of neighbours of cell i (not including i)
@@ -84,6 +103,7 @@ Type objective_function<Type>::operator() () {
 	Type tau = exp(log_tau) ;
 	Type sd_of_random_effects = 1/sqrt(tau) ;
 	Type phi = exp(logodds_phi) / ( 1 + exp(logodds_phi)) ;
+	Type nu = exp( log_nu ) ;
 
 #if DEBUG
 	std::cerr << "params:\n"
@@ -134,6 +154,9 @@ Type objective_function<Type>::operator() () {
 	//dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
 	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
 
+	// Prior on nu.  nu = 1 is plain logistic so put prior centred on this.
+	nll -= log_dN( log_nu, 0.0, 10.0 ) ;
+
 	// ICAR (spatial) penalty term
 	vector<Type> Qv = Q * v;
 	Type penalty = -Type(0.5) * (v * Qv).sum() ;
@@ -147,7 +170,17 @@ Type objective_function<Type>::operator() () {
 			+ sd_of_random_effects * sqrt(phi)*v
 		) ;
 	}
-	vector<Type> p = invlogit( predictor ) ; // Logit link for binomial
+	vector<Type> p ;
+	if( link_choice == "logit" ) {
+		// plain logistic function
+		// p = invlogit( predictor ) ; // Logit link for binomial
+		// generalised logit with nu parameter
+		p = (
+			Type(1.0) / pow( (Type(1.0) + exp( -predictor )), (Type(1.0)/nu) )
+		) ; // Logit link for binomial
+	} else if( link_choice == "linear" ) {
+		p = clamp( predictor, 0.001, 0.999 ) ;
+	}
 	nll -= sum( dbinom(y, N, p, true) ); 
 
 	return nll;
