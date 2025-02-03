@@ -339,10 +339,17 @@ fitbym_to_posterior_samples <- function(
 			#Q = Q,
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
-			prior_halfnormal_sd_tau = 10.0,
-			prior_halfnormal_mean_tau = 100.0,
+			# Prior on intercept and beta
+			# We use vague normal priors
 			prior_beta_sd = 100.0,
-			prior_intercept_sd = 100.0
+			prior_intercept_sd = 100.0,
+			# Prior on sd of random effects:
+			# Refer to Riebler et al 2016 page 9
+			# PC prior makes this exponential with rate
+			# theta = -log(alpha)/U
+			# if the PC prior choice is P(sd > U) = alpha
+			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
+			prior_sd_rate = -log(0.01)/1
 		)
 
 		n = length(data$y)
@@ -449,7 +456,7 @@ fitbym_to_posterior_samples <- function(
 	args = parse_arguments()
 }
 
-if( is.null( args )) {
+if( 0 ) {#is.null( args )) {
 	args = list()
 	args$threads = 1
 	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
