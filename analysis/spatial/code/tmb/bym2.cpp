@@ -1,6 +1,8 @@
 #include <TMB.hpp>
 #include <cassert>
 
+// #define DEBUG 1
+
 namespace {
 	// Helper functions
 	// These go in an un-named namespace, because in C++ this ensures they don't conflict with
@@ -47,17 +49,16 @@ Type objective_function<Type>::operator() () {
 	DATA_VECTOR(x);       // Covariate
 
 	// -- Prior parameters ---
-	DATA_SCALAR( prior_halfnormal_sd_tau );
-	DATA_SCALAR( prior_halfnormal_mean_tau );
 	DATA_SCALAR( prior_intercept_sd );
 	DATA_SCALAR( prior_beta_sd );
+	DATA_SCALAR( prior_sd_rate );
 
 	// --- Parameters ---
 	PARAMETER(         intercept ) ; // Fixed intercept
 	PARAMETER(              beta ) ; // Covariate coefficient
 	PARAMETER_VECTOR(          u ) ; // Unstructured random effects
 	PARAMETER_VECTOR(          v ) ; // Structured spatial effects (CAR)
-	PARAMETER(           log_tau ) ; // Log-precision for random effects
+	PARAMETER(           log_tau ) ; // Log-precision for random effects. Passed as log(tau) so that tau is enforced positive.
 	PARAMETER(       logodds_phi ) ; // Log-odds of mixture proportion of spatial vs independent components.
 	// Q matrix
 	// This should be derived from the adjacency matrix A as
@@ -70,8 +71,10 @@ Type objective_function<Type>::operator() () {
 
 	// Transformed precision parameters
 	Type tau = exp(log_tau) ;
+	Type sd_of_random_effects = 1/sqrt(tau) ;
 	Type phi = exp(logodds_phi) / ( 1 + exp(logodds_phi)) ;
 
+#if DEBUG
 	std::cerr << "params:\n"
 		<< " -     log(tau): " << log_tau << "\n"
 		<< " -          tau: " << tau << "\n"
@@ -81,6 +84,7 @@ Type objective_function<Type>::operator() () {
 		<< " -    intercept: " << intercept << ".\n" ;
 	std::cerr
 		<< " -     Q[1,1:4]: " << Q.coeff(0,0) << " " << Q.coeff(0,1) << " " << Q.coeff(0,2) << " " << Q.coeff(0,3) << ".\n";
+#endif
 
 	// --- Transforms ---
 
@@ -102,9 +106,10 @@ Type objective_function<Type>::operator() () {
 	nll -= log_dN( intercept,  0.0, prior_intercept_sd ) ;		 // Weak 0-centred prior on intercept
 	nll -= log_dN( beta,       0.0, prior_beta_sd      ) ;		 // Weak 0-centred prior on beta
 
-	// FIX ME!  Prior on tau, or log tau, or on sd?  What prior?  Help!
-	// nll -= log_dN( tau, prior_halfnormal_mean_tau, prior_halfnormal_sd_tau ) ;
-	nll -= log_dN( log_tau, 0.0, 1.1 ) ;
+	// Prior on random effect sd
+	// Riebler et al (2016) says this is a "Type 2 Gumbel" distribution on tau,
+	// or a an exponential prior on the sd:
+	nll -= dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
 	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
 
 	// ICAR (spatial) penalty term
@@ -112,12 +117,7 @@ Type objective_function<Type>::operator() () {
 	Type penalty = -Type(0.5) * (v * Qv).sum() ;
 	nll -= penalty ;
 
-//	std::cerr << "v[1:4] = " << v[0] << ", " << v[1] << ", " << v[2] << ", " << v[3] << ".\n" ;
-//	std::cerr << "Qv[1:4,] = " << Qv[0] << ", " << Qv[1] << ", " << Qv[2] << ", " << Qv[3] << ".\n" ;
-//	std::cerr << "penalty: " << penalty << "\n" ;
-
 	// Linear predictor and binomial likelihood
-	Type sd_of_random_effects = 1/sqrt(tau) ;
 	vector<Type> predictor = (
 		intercept
 		+ (beta * x)
