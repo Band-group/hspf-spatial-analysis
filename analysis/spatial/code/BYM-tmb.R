@@ -142,6 +142,12 @@ parse_arguments <- function() {
 		required = T
 	)
 	parser$add_argument(
+		"--tmb_model",
+		type = "character",
+		help = "path to tmb model (.so file)",
+		required = T
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "name of output .rds file to store results in",
@@ -217,11 +223,9 @@ fitbym_to_posterior_samples <- function(
 	countrydfi = (
 		our_grid
 		%>% dplyr::inner_join( pf, by = "polygon_id" )
-		%>% dplyr::select(
-			polygon_id,
-			sources,
-			Y = all_of( y_name ),
-			n = all_of( n_name)
+		%>% dplyr::mutate(
+			Y = !!rlang::sym(y_name),
+			n = !!rlang::sym(n_name)
 		)
 		%>% dplyr::filter(!is.na(Y) & !is.na(n))
 	)
@@ -249,48 +253,13 @@ fitbym_to_posterior_samples <- function(
 	#Define spatial matrix and all the necessary for running TMB BYM
 	#update this if necessary
 	if( model %in% c('besag','bym2') ) {
+		echo( "++ Computing graph...\n" )
 		nb <- spdep::poly2nb( countrydfi, queen = TRUE ) #,snap=mysnap)
-#		make_graph_connected <- function(polys, nb, distance="centroid") {
-#			if(distance == "centroid"){
-#				coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(polys)))
-#				dmat = as.matrix(dist(coords))
-#			} else if( distance == "polygon" ) {
-#				dmat = sf::st_distance(polys) + units::set_units(1000, "m") # offset for adjacencies
-#				diag(dmat) = 0 # no self-intersections
-#			} else {
-#				stop("Unknown distance method")
-#			}
-			
-#			gfull = igraph::graph_from_adjacency_matrix(dmat, weighted=TRUE, mode="undirected")
-#			gmst = igraph::mst(gfull)
-			#gmst = gfull
-#			edgemat = as.matrix(igraph::as_adj(gmst))
-#			edgelistw = spdep::mat2listw(edgemat,style="M")
-#			edgenb = edgelistw$neighbour
-#			attr(edgenb,"region.id") = attr(nb, "region.id")
-#			allnb = spdep::union.nb(nb, edgenb)
-#			return( allnb )
-#		}
-		#slow if polygon distance is used#####################
-#		nball <- make_graph_connected( countrydfi, nb, distance="centroid" )
-		######################################################
-		# plot the graph before and after
-		#pdf( "tmp/nbhd.pdf" )
-		#layout( matrix( 1:2, ncol = 1 ))
-		#coords = sf::st_coordinates(sf::st_centroid(sf::st_geometry(countrydfi)))
-		#plot(st_geometry(countrydfi), border = "grey");
-		#plot(nb,coords, add = T,lwd=1, col="red")
-		#plot(nb, coords, add = T, col="blue",lwd=0.5)
-		#plot(st_geometry(countrydfi), border = "grey");
-		#plot(nball,coords, add = T,lwd=1, col="red")
-		#plot(nball, coords, add = T, col="blue",lwd=0.5)
-		#dev.off()
-		#######################################################
-		
 		td = tempdir()
 		tempfile = sprintf( "%s/%s", td, "countrydfi.adj" )
 		spdep::nb2INLA( tempfile, nb ) #all )
-		g <- INLA::inla.read.graph(filename = tempfile )
+		echo( "++ Loading inla graph from %s...\n", tempfile )
+		g = INLA::inla.read.graph( filename = tempfile )
 	}
 
 	{
@@ -323,10 +292,11 @@ fitbym_to_posterior_samples <- function(
 
 	# Load needed TMB model
 	echo( "++ Loading TMB model...\n" )
-	modelfile = sprintf( "code/tmb/%s", model )
-#	dyn.unload(dynlib( modelfile ))
-	compile( sprintf( "%s.cpp", modelfile ) )
-	dyn.load( dynlib( modelfile ))
+	# Compilation is now handled in another snakemake rule.
+	# Uncomment this if you need to compile here.
+	# dyn.unload(dynlib( modelfile ))
+	# compile( sprintf( "%s.cpp", modelfile ) )
+	dyn.load( args$tmb_model )
 
 	#loop to run regression for each posterior sample of HbS
 	for( sample in hbs_columns ) {
@@ -368,8 +338,10 @@ fitbym_to_posterior_samples <- function(
 				mgcmax = 1e+20,         # Maximum gradient component
 				sir = TRUE,             # Use saddle point approximation if needed
 				newton = TRUE           # Avoid Newton method if causing issues
-			)
+			),
+			silent = TRUE
 		)
+		echo( "++ Fitting...\n" )
 		fit = fitit( obj ) ;
 		print( fit$estimates )
 
