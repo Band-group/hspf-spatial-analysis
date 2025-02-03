@@ -13,3 +13,7 @@ analysis/spatial/.Rproj.user
 analysis/spatial/code/africa
 analysis/spatial/code/HbS
 logs
+*.o
+*.so
+*.dll
+tmp

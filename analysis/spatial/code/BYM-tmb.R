@@ -12,7 +12,7 @@
 
 # I've moved bits into {} brackets as they are easier to run in one go.
 # (This file is taking a lot of re-running!)
-{
+suppressPackageStartupMessages({
 	library(spdep)
 	library(INLA)
 	library(dplyr)
@@ -21,7 +21,7 @@
 	library(igraph)
 	library(Matrix)
 	library(units)
-}
+})
 
 {
 	options( width = 200 )
@@ -252,7 +252,8 @@ fitbym_to_posterior_samples <- function(
 	#if spatial term in the model
 	#Define spatial matrix and all the necessary for running TMB BYM
 	#update this if necessary
-	if( model %in% c('besag','bym2') ) {
+
+	{
 		echo( "++ Computing graph...\n" )
 		nb <- spdep::poly2nb( countrydfi, queen = TRUE ) #,snap=mysnap)
 		td = tempdir()
@@ -260,9 +261,7 @@ fitbym_to_posterior_samples <- function(
 		spdep::nb2INLA( tempfile, nb ) #all )
 		echo( "++ Loading inla graph from %s...\n", tempfile )
 		g = INLA::inla.read.graph( filename = tempfile )
-	}
 
-	{
 		#scale Q matrix
 		Q = -inla.graph2matrix(g)
 		echo( "++ Scaling Q matrix of size %d...\n", nrow(Q) )
@@ -279,11 +278,38 @@ fitbym_to_posterior_samples <- function(
 		echo( "++ Ok, there are %d connected components.\n", nrow( connected.component.matrix ))
 	}
 
-	random_effects = list(
-		'bym2' = c( 'u', 'v' ),
-		'besag' = c( 'u', 'v' ),
-		'iid' = c( 'u' ),
-		'norandom' = NULL
+	tmb_config = list(
+		'bym2' = list(
+			tmb_model 				= "bym2",
+			prior_logodds_phi_mean 	= 0.0,
+			prior_logodds_phi_sd 	= 10.0,
+			# Prior on sd of random effects:
+			# Refer to Riebler et al 2016 page 9
+			# PC prior makes this exponential with rate
+			# theta = -log(alpha)/U
+			# if the PC prior choice is P(sd > U) = alpha
+			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
+			prior_sd_rate 			= -log(0.01)/1
+		),
+		'besag' = list(
+			tmb_model 				= "bym2",
+			prior_logodds_phi_mean	= 100.0,
+			prior_logodds_phi_sd 	= 10.0,
+			prior_sd_rate 			= -log(0.01)/1
+		),
+		'iid' = list(
+			tmb_model 				= "bym2",
+			prior_logodds_phi_mean 	= -100.0,
+			prior_logodds_phi_sd 	= 10.0,
+			prior_sd_rate 			= -log(0.01)/1
+		),
+		'norandom' = list(
+			tmb_model 				= "bym2",
+			prior_logodds_phi_mean 	= 0.0,
+			prior_logodds_phi_sd 	= 10.0,
+			# Exponential on sd with enormous rate forces sd close to 0.
+			prior_sd_rate 			= 10000
+		)
 	)[[ model ]]
 
 	fitted.parameters = tibble()
@@ -309,17 +335,15 @@ fitbym_to_posterior_samples <- function(
 			#Q = Q,
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
+			model_choice = "bym2", # or "norandom"
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd = 100.0,
 			prior_intercept_sd = 100.0,
 			# Prior on sd of random effects:
-			# Refer to Riebler et al 2016 page 9
-			# PC prior makes this exponential with rate
-			# theta = -log(alpha)/U
-			# if the PC prior choice is P(sd > U) = alpha
-			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
-			prior_sd_rate = -log(0.01)/1
+			prior_sd_rate = tmb_config$prior_sd_rate, #-log(0.01)/1,
+			prior_logodds_phi_mean = tmb_config$prior_logodds_phi_mean,
+			prior_logodds_phi_sd = tmb_config$prior_logodds_phi_sd
 		)
 
 		n = length(data$y)
@@ -332,11 +356,12 @@ fitbym_to_posterior_samples <- function(
 			logodds_phi = 0        # specify phi on log odds scale
 		)
 
+		print( args$tmb_model )
 		obj <- TMB::MakeADFun(
 			data = data,
 			parameters = parameters,
-			random = random_effects, # u: iid term, v: spatial term, considered 'random effects'
-			DLL = model,
+			random = c( 'u', 'v' ),
+			DLL = 'bym2',
 			inner.control = list(
 				maxit = 10000,          # Increase maximum iterations
 				tol = 1e-8,             # Tolerance for convergence

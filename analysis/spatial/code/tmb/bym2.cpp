@@ -52,6 +52,17 @@ Type objective_function<Type>::operator() () {
 	DATA_SCALAR( prior_intercept_sd );
 	DATA_SCALAR( prior_beta_sd );
 	DATA_SCALAR( prior_sd_rate );
+	DATA_SCALAR( prior_logodds_phi_mean );
+	DATA_SCALAR( prior_logodds_phi_sd );
+	DATA_STRING( model_choice ); // "norandom" or "bym2"
+
+	if(
+		model_choice != "bym2"
+		&& model_choice != "norandom"
+	) {
+		Type NaN = 0.0/0.0 ;
+		return NaN ;
+	}
 
 	// --- Parameters ---
 	PARAMETER(         intercept ) ; // Fixed intercept
@@ -108,8 +119,19 @@ Type objective_function<Type>::operator() () {
 
 	// Prior on random effect sd
 	// Riebler et al (2016) says this is a "Type 2 Gumbel" distribution on tau,
-	// or a an exponential prior on the sd:
-	nll -= dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
+	// or a an exponential prior on the sd.
+	// We found dexp() on the sd led to numerical errors so this is a
+	// direct implementation of the Type 2 Gumbel distribution:
+	//nll -= log_dN( log_tau, 0.0, prior_sd_rate ) ;
+	nll -= (
+		log(prior_sd_rate) - log(2.0) - (3.0/2.0)*log_tau - (prior_sd_rate / sqrt(tau))
+	) ;
+	//nll -= dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
+
+	// Normal prior on logodds phi
+	nll -= log_dN( logodds_phi, prior_logodds_phi_mean, prior_logodds_phi_sd ) ;
+
+	//dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
 	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
 
 	// ICAR (spatial) penalty term
@@ -118,11 +140,13 @@ Type objective_function<Type>::operator() () {
 	nll -= penalty ;
 
 	// Linear predictor and binomial likelihood
-	vector<Type> predictor = (
-		intercept
-		+ (beta * x)
-		+ sd_of_random_effects * sqrt(1-phi)*u + sd_of_random_effects * sqrt(phi)*v
-	) ;
+	vector<Type> predictor = intercept + (beta * x) ;
+	if( model_choice == "bym2" ) {
+		predictor += (
+			sd_of_random_effects * sqrt(1-phi)*u
+			+ sd_of_random_effects * sqrt(phi)*v
+		) ;
+	}
 	vector<Type> p = invlogit( predictor ) ; // Logit link for binomial
 	nll -= sum( dbinom(y, N, p, true) ); 
 

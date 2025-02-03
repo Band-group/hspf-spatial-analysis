@@ -198,12 +198,12 @@ rule fit_hspf_in_areas:
 		hbs = rules.aggregate_HbS.output.tsv,
 		survey = "input/cleanHbSdata.csv",
 		world = "geodata/naturalearthdata.Rdata",
-		tmb_model = rules.compile_TMB_code.output.so
+		tmb_model = "output/hspf/tmb/bym2.so"
 	params:
 		#script = srcdir( "code/BYM-inla.R" ),
 		script = srcdir( "code/BYM-tmb.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
-	threads: 10
+	threads: 1
 	shell: """
 		Rscript --vanilla {params.script} \
 		--world {input.world} \
