@@ -2187,7 +2187,7 @@ country.colours <- function() {
     "Democratic Republic of the Congo" = "#f94449",
     "Congo" = "#FF2800",
     "Republic of the Congo" = "#dc241f",
-    "Sudan" = "#E4CD05",
+    "Sudan" = "#c59d0f",
     "Uganda" = "#FEDC56",
     "Malawi" = "yellow",
     "United Republic of Tanzania" = "#EE5C42",
