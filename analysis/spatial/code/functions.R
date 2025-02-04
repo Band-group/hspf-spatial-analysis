@@ -2176,7 +2176,8 @@ country.colours <- function() {
     "Ivory Coast" = "#2ecdab",
     "Cote_dIvoire" = "#2ecdab",
     "Cote d'Ivoire" = "#2ecdab",
-    "Ghana" = "#98FB98",
+    "Togo" = "#98FB98",
+    "Ghana" = "#03B4CC",
     "Benin" = "#03cc53",
     "Nigeria" = "#708238",
     "Niger" = "#4B5320",
@@ -2188,16 +2189,16 @@ country.colours <- function() {
     "Congo" = "#FF2800",
     "Republic of the Congo" = "#dc241f",
     "Sudan" = "#c59d0f",
-    "Uganda" = "#FEDC56",
-    "Malawi" = "yellow",
-    "United Republic of Tanzania" = "#EE5C42",
-    "Tanzania" = "#EE5C42",
-    "Mozambique" = "#C21807",
+    "Uganda" = "yellow",
+    "Malawi" = "#FEDC56",
+    "United Republic of Tanzania" = "#F08080",
+    "Tanzania" = "#F08080",
+    "Mozambique" = "#780606",
     "Kenya" = "#FF7F00",
-    "Rwanda" = "#e5be01", #"#E82A1C",
+    "Rwanda" = "#BA8E23", #"#E82A1C",
     "Ethiopia" = "#f1ed0c",
     "Zambia" = "#A4081C",
-    "Madagascar" = "#780606",
+    "Madagascar" = "#C21807",
     "Bangladesh" = "chocolate4",
     "Myanmar" = "#48260D",
     "Laos" = "#997950",       # Darker golden brown
@@ -2209,6 +2210,6 @@ country.colours <- function() {
     'South Africa' = "#74C365",
     'eSwatini' = "green",
     "other" = "#AAAAAA"
-      )
+  )
     )
 }
