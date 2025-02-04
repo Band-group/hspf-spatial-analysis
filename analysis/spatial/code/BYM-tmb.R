@@ -212,7 +212,7 @@ fitbym_to_posterior_samples <- function(
 	hbs_columns = "posterior_mean",
 	model = "bym2", # or "iid" or "norandom" or "besag"
 	transform = "identity",
-	link = "logit",
+	link = "generalised-logit",
 	prior = list(
 		prec = list(
 		prior = "pc.prec",
@@ -378,26 +378,12 @@ fitbym_to_posterior_samples <- function(
 				sir = TRUE,             # Use saddle point approximation if needed
 				newton = TRUE           # Avoid Newton method if causing issues
 			),
-			silent = FALSE
+			silent = TRUE
 		)
 		echo( "++ Fitting %s...\n", sample )
 		fit = fitit( obj ) ;
 		print( fit$estimates )
 
-		# Look in fit$report to find parameter estimates and parameter covariances
-		# fit$report$par.fixed
-		# fit$report$cov.fixed
-
-		#various options to fit the model (optimization procedures)
-		#Option 1: using nlminb
-		#Option 2: using optim (different variation: BFGS performs better when dimension of parameter is high.
-		#opt <- optim(obj$par, obj$fn, obj$gr, method = "BFGS",control=list(maxit = 25000,ndeps=0.001))     # 
-		
-		# Get estimates and uncertainties
-		# This will need to be updated (using MCMC, other? to get uncertainty)
-		#summary(report, "fixed") 
-		#summary(report, "random") 
-		
 		############################################################################
 		#create approx. 95 CI and mode
 		fitted.parameters = bind_rows(
@@ -468,7 +454,7 @@ if( 0 ) {#is.null( args )) {
 	args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
 	args$sources = NULL
-	args$min_N = 5
+	args$min_N = 0
 	args$locus = "Pfsa1"
 	args$areas = NULL
 	args$world = "geodata/naturalearthdata.Rdata"
@@ -511,6 +497,8 @@ if( 0 ) {#is.null( args )) {
 	)
 	)
 	echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
+
+	pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= 1, ]
 
 	if( !is.null( args$min_N ) & args$min_N > 0 ) {
 		echo( "++ Restricting to points with > %d observations...\n", args$min_N )
@@ -570,7 +558,7 @@ if( 0 ) {#is.null( args )) {
 	model = args$model
 	transform = "identity"
 #	transform = "logit",
-	link = "logit"
+	link = "generalised-logit"
 	prior = list(
 		prec = list(
 			prior = "pc.prec",
@@ -593,7 +581,7 @@ result = fitbym_to_posterior_samples(
 	model = args$model,
 	transform = "identity",
 #	transform = "logit",
-	link = "logit",
+	link = "generalised-logit",
 	# TODO: Priors currently only work with bym2 model, fix this.
 	prior = list(
 		prec = list(

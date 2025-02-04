@@ -191,7 +191,9 @@ rule compile_TMB_code:
 
 rule fit_hspf_in_areas:
 	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
+
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -221,6 +223,7 @@ rule fit_hspf_in_areas:
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
 		--min_N {wildcards.min_N} \
 		--output {output.rds} \
+		--output_pdf {output.pdf} \
 		--threads {threads}
 	"""
 
