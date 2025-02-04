@@ -7,7 +7,9 @@ export default class SimulationControls {
 	playbackControl: HTMLDivElement ;
 	fitnessControl: HTMLDivElement ;
 	featuresControl: HTMLDivElement ;
+	resetControl: HTMLDivElement ;
 	spreadControl: HTMLDivElement ;
+	startingCondition: string ;
 	m_callbacks: { [key: string]: Function[] } ;
 
 	constructor( elt: any ) {
@@ -18,6 +20,8 @@ export default class SimulationControls {
 	</div>
 	<div class="control fitness">
 	</div>
+	<div class="control reset">
+	</div>
 	<div class="control features">
 	</div>
 	<div class="control fitness">
@@ -25,6 +29,8 @@ export default class SimulationControls {
 	<div class="control spread">
 	</div>
 </div>` ;
+
+		this.startingCondition = 'flat_10pc_pp' ;
 
 		let buildTable = function(
 			idtag: string,
@@ -51,80 +57,118 @@ export default class SimulationControls {
 			return table ;
 		}
 
-		this.playbackControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[0] ;
-		this.playbackControl.innerHTML = (
-			'<table class="playback-control">'
-			+ '<tr>'
-			+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
-			+ '<td><button class="transport-control" id="snapshot" state="inactive"></button></td>'
-			+ '</tr>'
-			+ '</table>'
-		) ;
+		{
+			let elt = this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div' ) ;
+			this.playbackControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.playbackControl.innerHTML = (
+				'<table class="playback-control">'
+				+ '<tr>'
+				+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
+				+ '<td><button class="transport-control" id="snapshot" state="inactive"></button></td>'
+				+ '<td><label class="generation-counter">g=0</label></td>'
+				+ '</tr>'
+				+ '</table>'
+			) ;
+		}
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.fitness' ) ;
+			this.fitnessControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.fitnessControl.innerHTML = '<h2>Fitness</h2>' + buildTable(
+				'fitness',
+				['A', 'S'],
+				['--', '-+', '+-', '++'],
+				{
+					"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
+					"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
+					"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
+					"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
+					"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
+					"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
+					"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
+					"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
+				}
+			) ;
+		}
 
-		this.fitnessControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[1] ;
-		this.fitnessControl.innerHTML = '<h2>Fitness</h2>' + buildTable(
-			'fitness',
-			['A', 'S'],
-			['--', '-+', '+-', '++'],
-			{
-				"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
-				"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
-				"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
-				"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
-				"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
-				"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
-				"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
-				"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
-			}
-		) ;
-
-		this.featuresControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[2] ;
-		this.featuresControl.innerHTML = (
-			'<h2>Features</h2>'
-			+ '<fieldset>'
-			+ '<legend>Barrier mode:</legend>'
-			+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
-			+ '<label for="barrier_checkbox">Use barriers?</label>'
-			+ '</fieldset>'
-			+ '<fieldset id="fitness_mode_radio">'
-			+ '<legend>Fitness mode:</legend>'
-			+ '<input type="radio" id="unconstrained" name="fitness_mode" value="unconstrained" checked />'
-			+ '<label for="unconstrained">Unconstrained</label>'
-			+ '<br/>'
-			+ '<input type="radio" id="additive" name="fitness_mode" value="additive"/>'
-			+ '<label for="additive">Additive</label>'
-			+ '<br/>'
-			+ '<input type="radio" id="multiplicative" name="fitness_mode" value="multiplicative"/>'
-			+ '<label for="multiplicative">Multiplicative</label>'
-			+ '<br/>'
-			+ '<input type="radio" id="dominant" name="fitness_mode" value="dominant"/>'
-			+ '<label for="dominant">Dominant</label>'
-			+ '<br/>'
-			+ '<input type="radio" id="overdominant" name="fitness_mode" value="overdominant"/>'
-			+ '<label for="overdominant">Over-dominant</label>'
-			+ '<br/>'
-			+ '</fieldset>'
-		) ;
-		this.spreadControl = this.elt.getElementsByTagName( 'div' )[0].getElementsByTagName( 'div' )[3] ;
-		this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
-			'spread',
-			[ 'value' ],
-			[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
-			{
-				'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
-				'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
-				'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
-				'value:concentration':  { value: 10, min: 0.5, max: 30, step: 0.5 },
-				'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
-			}
-		) ;
-		d3.select( this.spreadControl ).append( 'svg' ) ;
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.reset' ) ;
+			this.resetControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' );
+			this.resetControl.innerHTML = (
+				'<h2>Reset</h2>'
+				+ '<fieldset id="reset_map">'
+				+ '<legend>Reset:</legend>'
+				+ '<button id="flat_10pc_pp">10% ++</button>'
+				+ '<button id="flat_20pc_pp">20% ++</button>'
+				+ '<button id="flat_10pc_ind">10%, unlinked</button>'
+				+ '<button id="flat_20pc_ind">20%, unlinked</button>'
+				+ '<button id="flat_50pc_ind">50%, unlinked</button>'
+				+ '</fieldset>'
+			) ;
+		}
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.features' ) ;
+			this.featuresControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.featuresControl.innerHTML = (
+				'<h2>Features</h2>'
+				+ '<fieldset id="iteration_control">'
+				+ '<legend>Iterations:</legend>'
+				+ '<input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px">'
+				+ '<label for="stop_every">Stop every nth generation?</label>'
+				+ '</fieldset>'
+				+ '<fieldset>'
+				+ '<legend>Weights</legend>'
+				+ '<input type="checkbox" id="weights_checkbox" name="weights" />'
+				+ '<label for="weights_checkbox">Weight by prevalence?</label>'
+				+ '</fieldset>'
+				+ '<fieldset>'
+				+ '<legend>Barrier mode:</legend>'
+				+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
+				+ '<label for="barrier_checkbox">Use barriers?</label>'
+				+ '</fieldset>'
+				+ '<fieldset id="fitness_mode_radio">'
+				+ '<legend>Fitness mode:</legend>'
+				+ '<input type="radio" id="unconstrained" name="fitness_mode" value="unconstrained" checked />'
+				+ '<label for="unconstrained">Unconstrained</label>'
+				+ '<br/>'
+				+ '<input type="radio" id="additive" name="fitness_mode" value="additive"/>'
+				+ '<label for="additive">Additive</label>'
+				+ '<br/>'
+				+ '<input type="radio" id="multiplicative" name="fitness_mode" value="multiplicative"/>'
+				+ '<label for="multiplicative">Multiplicative</label>'
+				+ '<br/>'
+				+ '<input type="radio" id="dominant" name="fitness_mode" value="dominant"/>'
+				+ '<label for="dominant">Dominant</label>'
+				+ '<br/>'
+				+ '<input type="radio" id="overdominant" name="fitness_mode" value="overdominant"/>'
+				+ '<label for="overdominant">Over-dominant</label>'
+				+ '<br/>'
+				+ '</fieldset>'
+			) ;
+		}
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.spread' ) ;
+			this.spreadControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
+				'spread',
+				[ 'value' ],
+				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
+				{
+					'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
+					'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
+					'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
+					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
+					'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
+				}
+			) ;
+			d3.select( this.spreadControl ).append( 'svg' ) ;
+		}
 		this.m_callbacks = {
 			playback: [],
 			snapshot: [],
 			fitness: [],
 			features: [],
-			spread: []
+			spread: [],
+			reset: []
 		} ;
 		let self = this ;
 		let playpause = document.getElementById( "playpause" ) ;
@@ -138,6 +182,7 @@ export default class SimulationControls {
 		playpause.addEventListener(
 			'click',
 			function( _elt ) {
+				console.log( "CLICK" ) ;
 				let oldstate = playpause.getAttribute( 'state' ) ;
 				oldstate = oldstate ? oldstate : 'paused' ;
 				let newstate = ( oldstate == 'paused' ? 'playing' : 'paused' ) ;
@@ -172,6 +217,14 @@ export default class SimulationControls {
 		) ;
 		this.spreadControl.addEventListener( 'input', _elt => self.trigger( 'spread' )) ;
 		this.on( 'spread', function( values: GridData ) { self.drawSpreadDisplay( values ) ; }) ;
+
+		this.resetControl.addEventListener(
+			'click', function( _elt ) {
+				// @ts-ignore
+				self.startingCondition = _elt.target.getAttribute( "id" ) ;
+				self.trigger( 'reset' ) ;
+			} 
+		) ;
 	}
 
 	trigger( what: string ) {
@@ -199,6 +252,8 @@ export default class SimulationControls {
 			return new GridData([1,1], [
 				(document.getElementById( "snapshot" )!.getAttribute( "state" ) == 'active') ? 1 : 0
 			]) ;
+		} else if( what == 'reset' ) {
+			return this.getResetValues( this.startingCondition ) ;
 		} else {
 			throw new Error( "Expected what='fitness' or what='spread'" ) ;
 		}
@@ -264,7 +319,9 @@ export default class SimulationControls {
 	getFeatures(): GridData {
 		let checkbox = <HTMLInputElement> document.querySelector("#barrier_checkbox") ;
 		let fitness_mode = <HTMLInputElement> document.querySelector( 'input[name="fitness_mode"]:checked' ) ;
-		let values = [ 0.0, 0.0 ] ;
+		let stop_every = <HTMLInputElement> document.querySelector( 'input[name="stop_every"]' ) ;
+		let use_weights = <HTMLInputElement> document.querySelector( 'input[name="weights"]' ) ;
+		let values = [ 0.0, 0.0, 0.0, 0.0 ] ;
 		if( checkbox ) {
 			values[0] = checkbox.checked ? 1.0 : 0.0 ;
 		}
@@ -275,10 +332,27 @@ export default class SimulationControls {
 				'multiplicative': 2,
 				'dominant': 3,
 				'overdominant': 3
-			}[fitness_mode.value] ;
+			}[fitness_mode.value] || -1 ;
 		}
+		if( stop_every ) {
+			values[2] = parseInt( stop_every.value ) ;
+		}
+		if( use_weights ) {
+			values[3] = use_weights.checked ? 1.0 : 0.0 ;
+		}
+		return new GridData( [1,4], values ) ;
+	}
 
-		return new GridData( [1,2], values ) ;
+	getResetValues( value_choice: string ): GridData {
+		let starting_values = {
+			'flat_10pc_pp': new GridData( [ 1, 4 ], [ 0.9, 0.0, 0.0, 0.1 ] ),
+			'flat_20pc_pp': new GridData( [ 1, 4 ], [ 0.8, 0.0, 0.0, 0.2 ] ),
+			'flat_10pc_ind': new GridData( [ 1, 4 ], [ 0.9*0.9, 0.9*0.1, 0.1*0.9, 0.1*0.1 ] ),
+			'flat_20pc_ind': new GridData( [ 1, 4 ], [ 0.8*0.8, 0.8*0.2, 0.2*0.8, 0.2*0.2 ] ),
+			'flat_50pc_ind': new GridData( [ 1, 4 ], [ 0.5*0.5, 0.5*0.5, 0.5*0.5, 0.5*0.5 ] )
+		} ;
+		//@ts-ignore
+		return starting_values[ value_choice ] ;
 	}
 
 	constrain_fitness() {
@@ -286,57 +360,68 @@ export default class SimulationControls {
 		this.set_fitness_constraint( fitness_mode.value ) ;
 	}
 
-	set_fitness_constraint( mode ) {
-		let a1 = parseFloat( document.querySelector('input[id="fitness-A:--"]').value ) ;
-		let a2 = parseFloat( document.querySelector('input[id="fitness-A:++"]').value ) ;
-		let s1 = parseFloat( document.querySelector('input[id="fitness-S:--"]').value ) ;
-		let s2 = parseFloat( document.querySelector('input[id="fitness-S:++"]').value ) ;
+	set_fitness_constraint( mode: string ) {
+		let a1 = parseFloat( ( <HTMLInputElement> document.querySelector('input[id="fitness-A:--"]') )?.value ) ;
+		let a2 = parseFloat( ( <HTMLInputElement> document.querySelector('input[id="fitness-A:++"]') )?.value ) ;
+		let s1 = parseFloat( ( <HTMLInputElement> document.querySelector('input[id="fitness-S:--"]') )?.value ) ;
+		let s2 = parseFloat( ( <HTMLInputElement> document.querySelector('input[id="fitness-S:++"]') )?.value ) ;
+
+		let set_enabled = function( selector: string, value: boolean ) {
+			let elt = ( <HTMLInputElement> document.querySelector( selector )) ;
+			if( elt ) {
+				elt.disabled = !value ;
+			}
+		} ;
+
+		let set_value = function( selector: string, value: number ) {
+			let elt = ( <HTMLInputElement> document.querySelector( selector )) ;
+			if( elt ) {
+				elt.value = "" + value ;
+			}
+		} ;
 
 		if( mode == "additive" ) {
-			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
-
-			document.querySelector('input[id="fitness-A:-+"]').value = a1 + (a2-a1)/2 ;
-			document.querySelector('input[id="fitness-A:+-"]').value = a1 + (a2-a1)/2 ;
-			document.querySelector('input[id="fitness-S:-+"]').value = s1 + (s2-s1)/2 ;
-			document.querySelector('input[id="fitness-S:+-"]').value = s1 + (s2-s1)/2 ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_value(   'input[id="fitness-A:-+"]', a1 + (a2-a1)/2 ) ;
+			set_value(   'input[id="fitness-A:+-"]', a1 + (a2-a1)/2 ) ;
+			set_value(   'input[id="fitness-S:-+"]', s1 + (s2-s1)/2 ) ;
+			set_value(   'input[id="fitness-S:+-"]', s1 + (s2-s1)/2 ) ;
 		} else if( mode == "multiplicative" ) {
-			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
-
-			document.querySelector('input[id="fitness-A:-+"]').value = a1 * Math.sqrt( a2/a1 ) ;
-			document.querySelector('input[id="fitness-A:+-"]').value = a1 * Math.sqrt( a2/a1 ) ;
-			document.querySelector('input[id="fitness-S:-+"]').value = s1 * Math.sqrt( s2/s1 ) ;
-			document.querySelector('input[id="fitness-S:+-"]').value = s1 * Math.sqrt( s2/s1 ) ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_value(   'input[id="fitness-A:-+"]', a1 * Math.sqrt( a2/a1 ) ) ;
+			set_value(   'input[id="fitness-A:+-"]', a1 * Math.sqrt( a2/a1 ) ) ;
+			set_value(   'input[id="fitness-S:-+"]', s1 * Math.sqrt( s2/s1 ) ) ;
+			set_value(   'input[id="fitness-S:+-"]', s1 * Math.sqrt( s2/s1 ) ) ;
 		} else if( mode == "dominant" ) {
-			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
 
-			document.querySelector('input[id="fitness-A:-+"]').value = a2 ;
-			document.querySelector('input[id="fitness-A:+-"]').value = a2 ;
-			document.querySelector('input[id="fitness-S:-+"]').value = s1 ;
-			document.querySelector('input[id="fitness-S:+-"]').value = s1 ;
+			set_value(   'input[id="fitness-A:-+"]', a2 ) ;
+			set_value(   'input[id="fitness-A:+-"]', a2 ) ;
+			set_value(   'input[id="fitness-S:-+"]', s1 ) ;
+			set_value(   'input[id="fitness-S:+-"]', s1 ) ;
 		} else if( mode == "overdominant" ) {
-			document.querySelector('input[id="fitness-A:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-A:+-"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:-+"]').disabled = true ;
-			document.querySelector('input[id="fitness-S:+-"]').disabled = true ;
-
-			document.querySelector('input[id="fitness-A:-+"]').value = a2 / 2.0 ;
-			document.querySelector('input[id="fitness-A:+-"]').value = a2 / 2.0 ;
-			document.querySelector('input[id="fitness-S:-+"]').value = s1 / 2.0 ;
-			document.querySelector('input[id="fitness-S:+-"]').value = s1 / 2.0 ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_value(   'input[id="fitness-A:-+"]', a2 / 2.0 ) ;
+			set_value(   'input[id="fitness-A:+-"]', a2 / 2.0 ) ;
+			set_value(   'input[id="fitness-S:-+"]', s1 / 2.0 ) ;
+			set_value(   'input[id="fitness-S:+-"]', s1 / 2.0 ) ;
 		} else {
-			document.querySelector('input[id="fitness-A:-+"]').disabled = false ;
-			document.querySelector('input[id="fitness-A:+-"]').disabled = false ;
-			document.querySelector('input[id="fitness-S:-+"]').disabled = false ;
-			document.querySelector('input[id="fitness-S:+-"]').disabled = false ;
+			set_enabled( 'input[id="fitness-A:-+"]', true ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', true ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', true ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', true ) ;
 		}
 	}
 

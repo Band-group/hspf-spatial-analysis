@@ -1,5 +1,4 @@
 import GridData from "./GridData.js"
-import ArrayInterpolator from 'd3';
 
 function rgbStringToRGB( hex: string ) {
 	let h = hex.substring( 4, hex.length - 1 ).split( "," ) ;
@@ -11,7 +10,7 @@ function rgbStringToRGB( hex: string ) {
 } ;
 
 export default class D3ColourScheme extends GridData {
-	constructor( n: number, interpolator: ArrayInterpolator, alpha: number = 1.0 ) {
+	constructor( n: number, interpolator: (a: number) => string, alpha: number = 1.0 ) {
 		super( [ n, 4 ] ) ;
 		for( let i = 0; i < n; ++i ) {
 			let v = rgbStringToRGB( interpolator( i / (0.0+(n-1)) )) ;

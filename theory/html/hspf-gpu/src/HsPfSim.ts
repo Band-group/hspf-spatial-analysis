@@ -5,7 +5,8 @@ import betaPDF from "./beta.js" ;
 interface LocalData {
 	nbhd: GridData,
 	barriers: GridData,
-	fitness: GridData
+	fitness: GridData,
+	weights: GridData
 } ;
 
 interface SimulationBuffers {
@@ -13,6 +14,7 @@ interface SimulationBuffers {
 	fitness: GPUBuffer ;
 	nbhd: GPUBuffer ;
 	HbS: GPUBuffer ;
+	weights: GPUBuffer ;
 	pfsaA: GPUBuffer ;
 	pfsaB: GPUBuffer ;
 	pfsaResult: GPUBuffer ;
@@ -45,6 +47,7 @@ let sqrt = Math.sqrt ;
 export default class HsPfSim {
 	// simulation variables
 	hs: GridData ;
+	weights: GridData ;
 	outerPadding: number ;
 	pfsa: GridData ;
 	fitness: GridData = new GridData(
@@ -84,6 +87,8 @@ export default class HsPfSim {
 	constructor( device: GPUDevice, hs: GridData, outerPadding: number ) {
 		this.device = device ;
 		this.hs = hs ;
+		this.weights = new GridData( hs.dimensions ) ;
+		this.weights.fill(1) ;
 		this.outerPadding = outerPadding ;
 		this.pfsa = new GridData(
 			[
@@ -92,23 +97,7 @@ export default class HsPfSim {
 				this.hs.width
 			]
 		) ;
-		let innerSize = (hs.height * hs.width) ;
-		let self = this ;
-		let starting_values = [
-			0.9,
-			0,
-			0,
-			0.1,
-			0
-		] ;
-		this.pfsa.data.forEach(
-			function( _value, i ) {
-				let genotype = Math.floor(i / innerSize ) ;
-				self.pfsa.data[i] = (hs.data[i % innerSize] < -0) ? hs.data[i % innerSize] : starting_values[genotype] ;
-			}
-		) ;
 		this.nbhd = this.computeNbhd( this.mapWidthInKm, this.maxDistanceInKm, this.nbhdConcentration, 5000 ) ;
-		console.log( "NBHD", this.nbhd ) ;
 
 		// table of offspring probabilities
 		// imagine two parents (specified by rows) mate and produce 4 haploid offspring
@@ -208,8 +197,9 @@ export default class HsPfSim {
 			@group(0) @binding(1) var<uniform> fitness: array< vec4f, 2 > ;
 			@group(0) @binding(2) var<storage> nbhd: array<NbhdPoint> ;
 			@group(0) @binding(3) var<storage> HbS: array<f32> ;
-			@group(0) @binding(4) var<uniform> barriers: array<vec4f, 10> ;
-			@group(0) @binding(5) var<uniform> offspringTable: array<vec4f, 16> ;
+			@group(0) @binding(4) var<storage> weights: array<f32> ;
+			@group(0) @binding(5) var<uniform> barriers: array<vec4f, 10> ;
+			@group(0) @binding(6) var<uniform> offspringTable: array<vec4f, 16> ;
   
 			// simulation data, will be updated
 			@group(1) @binding(0) var<storage, read_write> pfsa: array<f32> ;
@@ -244,6 +234,7 @@ export default class HsPfSim {
 					let y = u32(nbhd[i].dy + f32(celly)) ;
 					let bite_idx = y*width + x ;
 					let bite_fs = HbS[bite_idx] ; 
+					let bite_weight = weights[bite_idx] ;
 					let pf = vec4(
 						pfsa[0*size + bite_idx],
 						pfsa[1*size + bite_idx],
@@ -251,37 +242,27 @@ export default class HsPfSim {
 						pfsa[3*size + bite_idx]
 					) ;
 
-					// test for overlap with barrier
-					var weight = nbhd[i].weight ;
-//					if(true) {
-						// Any mozzie that crosses a barrier gets downweighted.
-						for( var j: u32 = 0; j < parameters.number_of_barriers; j++ ) {
-							if(
-								segments_overlap(
-									barriers[j].xy, barriers[j].zw,
-									vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
-								)
-							) {
-								weight *= 0.1 ;
-//								pfsanew[ cellidx ] = 0 ;
-//								return ;
-							}
+					var weight = nbhd[i].weight * bite_weight ;
+
+					// Implement geographical barriers.
+					// We test for overlap of the mosquito flight with each barrier.
+					// If the flight crosses the barrier, it gets down-weighted.
+					// Any mozzie that crosses a barrier gets downweighted.
+					for( var j: u32 = 0; j < parameters.number_of_barriers; j++ ) {
+						if(
+							segments_overlap(
+								barriers[j].xy, barriers[j].zw,
+								vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
+							)
+						) {
+							weight *= 0.1 ;
 						}
-//					}
+					}
+
 					// test both bite location and target location
 					// if either is missing, skip it
 					if( bite_fs >= 0 && fs >= 0 ) {
 						totalWeight += weight ;
-						// single bite.
-						//for( var g = 0; g < 4; g++ ) {
-						//	let v = (
-						//		(pf[g] * a * fitness[0][g])
-						//		+ (pf[g] * s * fitness[1][g])
-						//	) ;
-						//	denominator += (1. - twoBiteRate) * weight * v ;
-						//	value[g] += (1. - twoBiteRate) * weight * v ;
-						//}
-
 						// one bite
 						{
 							let v = (
@@ -296,8 +277,8 @@ export default class HsPfSim {
 						}
 						// two bites
 						for( var r = 0; r < 16; r++ ) {
-							let g2 = r % 4 ;
 							let g1 = r / 4 ;
+							let g2 = r % 4 ;
 							let v = (
 								(pf[g1]*pf[g2])
 								* offspringTable[r]
@@ -311,7 +292,6 @@ export default class HsPfSim {
 						}
 					}
 				}
-				//denominator /= totalWeight ;
 				value /= denominator ;
 
 				if( fs < 0 ) {
@@ -346,8 +326,9 @@ export default class HsPfSim {
 					{ binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
 					{ binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
 					{ binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
-					{ binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
-					{ binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}
+					{ binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }},
+					{ binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
+					{ binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }},
 				],
 			}),
 			pfsa: device.createBindGroupLayout(
@@ -381,6 +362,7 @@ export default class HsPfSim {
 			nbhd: device.createBuffer( {label: "nbhd", size: 25000*3*4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
 			//nbhd: this.nbhd.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ),
 			HbS: this.hs.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST),
+			weights: this.weights.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST),
 			pfsaA: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
 			pfsaB: this.pfsa.toDeviceBuffer( device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST ),
 			pfsaResult: device.createBuffer( { label: "pfsaRead", size: this.pfsa.data.byteLength, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }),
@@ -399,8 +381,9 @@ export default class HsPfSim {
 					{ binding: 1, resource: { buffer: this.buffers.fitness }},
 					{ binding: 2, resource: { buffer: this.buffers.nbhd }},
 					{ binding: 3, resource: { buffer: this.buffers.HbS }},
-					{ binding: 4, resource: { buffer: this.buffers.barriers }},
-					{ binding: 5, resource: { buffer: this.buffers.offspring }}
+					{ binding: 4, resource: { buffer: this.buffers.weights }},
+					{ binding: 5, resource: { buffer: this.buffers.barriers }},
+					{ binding: 6, resource: { buffer: this.buffers.offspring }},
 				]
 			}),
 			// pfsa has a flip/flop pattern to avoid
@@ -422,7 +405,30 @@ export default class HsPfSim {
 				}),
 			]
 		} ;
+
+		this.resetPfsa(
+			new GridData(
+				[1,4],
+				[ 0.9, 0, 0, 0.1 ]
+			)
+		) ;
 		this.m_iteration = 0 ;
+	}
+
+	setWeights( weights: GridData ) { 
+		let dim = weights.dimensions ;
+		let mydim = this.hs.dimensions ;
+		if(
+			(dim.length != 2)
+			|| (dim[0] != mydim[0])
+			|| (dim[1] != mydim[1])
+		) {
+			throw new Error(
+				"Unexpected size of weights, found " + dim[0] + 'x' + dim[1] + ', should be ' + mydim[0] + 'x' + mydim[1] + '.'
+			) ;
+		}
+		this.weights = weights ;
+		this.bufferToGPU( 'weights' ) ;
 	}
 
 	bufferToGPU( what: keyof LocalData ) {
@@ -472,6 +478,36 @@ export default class HsPfSim {
 		// reflect to the GPU.
 		this.bufferToGPU( 'nbhd' ) ;
 		this.paramsToGPU() ;
+	}
+
+	resetPfsa( values: GridData ) {
+		let self = this ;
+		console.log( "RESET", values, this.pfsa.dimensions ) ;
+		// --, -+, +-, ++ order.
+		let starting_values = values.data ;
+		let fpp = starting_values[3] ;
+		let f1 = starting_values[2] + starting_values[3] ;
+		let f2 = starting_values[1] + starting_values[3] ;
+		for( let i = 0; i < this.pfsa.dimensions[1]; ++i ) {
+			for( let j = 0; j < this.pfsa.dimensions[2]; ++j ) {
+				for( let g = 0; g < 4; ++g ) {
+					self.pfsa.set([g,i,j], (self.hs.at([i,j]) < 0) ? self.hs.at([i,j]) : starting_values[g] ) ;
+				}
+				// LD (r) values:
+				self.pfsa.set(
+					[4,i,j],
+					(self.hs.at([i,j]) < 0)
+					?
+					self.hs.at([i,j])
+					: (
+						fpp - f1 * f2
+					) / Math.sqrt( f1 * ( 1 - f1 ) * f2 * ( 1 - f2 ))
+				) ;
+			}
+		}
+
+		this.device.queue.writeBuffer( this.buffers['pfsaA'], 0, this.pfsa.data ) ;
+		this.device.queue.writeBuffer( this.buffers['pfsaB'], 0, this.pfsa.data ) ;
 	}
 
 	addBarriers( barriers: Array<Barrier> ) {
