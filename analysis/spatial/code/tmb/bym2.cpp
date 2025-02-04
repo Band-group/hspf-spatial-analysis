@@ -1,7 +1,7 @@
 #include <TMB.hpp>
 #include <cassert>
 
-// #define DEBUG 1
+#define DEBUG 1
 
 namespace {
 	// Helper functions
@@ -63,8 +63,10 @@ Type objective_function<Type>::operator() () {
 	DATA_SCALAR( prior_sd_rate );
 	DATA_SCALAR( prior_logodds_phi_mean );
 	DATA_SCALAR( prior_logodds_phi_sd );
+	DATA_SCALAR( prior_log_nu_sd ) ;
+
 	DATA_STRING( model_choice ); // "norandom" or "bym2"
-	DATA_STRING( link_choice ); // "logit" or "linear"
+	DATA_STRING( link_choice ); // "logit" or "generalised-logit" or "linear"
 	Type NaN = 0.0/0.0 ;
 
 	if(
@@ -76,6 +78,7 @@ Type objective_function<Type>::operator() () {
 
 	if(
 		link_choice != "logit"
+		&& link_choice != "generalised-logit"
 		&& link_choice != "linear"
 	) {
 		return NaN ;
@@ -152,10 +155,10 @@ Type objective_function<Type>::operator() () {
 	nll -= log_dN( logodds_phi, prior_logodds_phi_mean, prior_logodds_phi_sd ) ;
 
 	//dexp( sd_of_random_effects, prior_sd_rate, /* give_log */ 1 ) ;
-	nll -= sum( log_dN( u, 0.0, 1.0 )) ; // independent random effects are standard gaussian
+	nll -= ( log_dN( u, 0.0, 1.0 ).array() * N.array() ).sum() ; // independent random effects are standard gaussian
 
 	// Prior on nu.  nu = 1 is plain logistic so put prior centred on this.
-	nll -= log_dN( log_nu, 0.0, 10.0 ) ;
+	nll -= log_dN( log_nu, 0.0, prior_log_nu_sd ) ;
 
 	// ICAR (spatial) penalty term
 	vector<Type> Qv = Q * v;
@@ -172,12 +175,13 @@ Type objective_function<Type>::operator() () {
 	}
 	vector<Type> p ;
 	if( link_choice == "logit" ) {
-		// plain logistic function
-		// p = invlogit( predictor ) ; // Logit link for binomial
-		// generalised logit with nu parameter
+		p = invlogit( predictor ) ;
+	} else if( link_choice == "generalised-logit" ) {
+		// logit with additional nu parameter
+		// https://en.wikipedia.org/wiki/Generalised_logistic_function
 		p = (
 			Type(1.0) / pow( (Type(1.0) + exp( -predictor )), (Type(1.0)/nu) )
-		) ; // Logit link for binomial
+		) ;
 	} else if( link_choice == "linear" ) {
 		p = clamp( predictor, 0.001, 0.999 ) ;
 	}

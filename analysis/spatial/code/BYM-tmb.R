@@ -153,6 +153,11 @@ parse_arguments <- function() {
 		help = "name of output .rds file to store results in",
 		required = TRUE
 	)
+	parser$add_argument(
+		"--output_pdf",
+		type = "character",
+		help = "name of output .pdf file to store results in (optionally)"
+	)
 	return( parser$parse_args() )
 }
 
@@ -224,13 +229,12 @@ fitbym_to_posterior_samples <- function(
 		our_grid
 		%>% dplyr::inner_join( pf, by = "polygon_id" )
 		%>% dplyr::mutate(
-			Y = !!rlang::sym(y_name),
-			n = !!rlang::sym(n_name)
+			y = !!rlang::sym(y_name),
+			N = !!rlang::sym(n_name)
 		)
-		%>% dplyr::filter(!is.na(Y) & !is.na(n))
+		%>% dplyr::filter(!is.na(y) & !is.na(N))
+		%>% dplyr::inner_join( hbs, by = "polygon_id" )
 	)
-	hbs = hbs[ match( countrydfi$polygon_id, hbs$polygon_id ), ]
-
 	echo( "++ data for fitting is:\n" )
 	print( table( countrydfi$sources ) )
 
@@ -324,38 +328,39 @@ fitbym_to_posterior_samples <- function(
 	# compile( sprintf( "%s.cpp", modelfile ) )
 	dyn.load( args$tmb_model )
 
-	#loop to run regression for each posterior sample of HbS
+	# Run regression for each posterior sample of HbS...
 	for( sample in hbs_columns ) {
 		data = list(
-			y = countrydfi$Y,
-			N = countrydfi$n,
-			x = hbs[[sample]]^2 + 2*hbs[[sample]]*(1-hbs[[sample]]),
+			y = countrydfi$y,
+			N = countrydfi$N,
+			x = countrydfi[[sample]]^2 + 2*countrydfi[[sample]]*(1-countrydfi[[sample]]),
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			#Q = Q,
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
 			model_choice = "bym2", # or "norandom"
-			link_choice = "logit",
+			link_choice = "generalised-logit",
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd = 100.0,
 			prior_intercept_sd = 100.0,
 			# Prior on sd of random effects:
-			prior_sd_rate = tmb_config$prior_sd_rate, #-log(0.01)/1,
-			prior_logodds_phi_mean = tmb_config$prior_logodds_phi_mean,
-			prior_logodds_phi_sd = tmb_config$prior_logodds_phi_sd
+			prior_sd_rate 				= tmb_config$prior_sd_rate, #-log(0.01)/1,
+			prior_logodds_phi_mean	= tmb_config$prior_logodds_phi_mean,
+			prior_logodds_phi_sd		= tmb_config$prior_logodds_phi_sd,
+			prior_log_nu_sd			= 1 #tmb_config$prior_log_nu_sd
 		)
 
 		n = length(data$y)
 		parameters <- list(
 			intercept	= 0.1, 
-			beta		= 0,
+			beta			= 0,
 			log_nu		= 0.0,
-			u 			= rep(0, n),
-			v 			= rep(0, n), # v has dimension n; it is constrained in the TMB model to have mean 0
-			log_tau		= 0.1, # Specify tau in log space: easier to keep it +ve
-			logodds_phi = 0 # specify phi on log odds scale
+			u 				= rep(0, n),
+			v 				= rep(0, n), # v is constrained in the TMB model to have mean 0 on each connected component
+			log_tau		= 0.1,       # Specify tau in log space: keeps it +ve
+			logodds_phi = 0          # Specify phi on log odds scale
 		)
 
 		print( args$tmb_model )
@@ -428,7 +433,8 @@ fitbym_to_posterior_samples <- function(
 				hbs.sample = sample,
 				model = model,
 				intercept = posterior.parameters[,'intercept'],
-				beta = posterior.parameters[,'beta']
+				beta = posterior.parameters[,'beta'],
+				log_nu = posterior.parameters[,'log_nu']
 			)
 		)
 		echo( "... ++ Ok, successfully fit model for %s..\n", sample )
@@ -617,6 +623,77 @@ result$sigma0 <- args$sigma0
 
 echo( "++ Writing results to %s...\n", args$output )
 saveRDS( result, args$output )
+
+if( !is.null( args$output_pdf )) {
+	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
+	pdf( args$output_pdf )
+	source( "code/functions.R" )
+	colours = country.colours()
+	xs = seq( from = 0, to = 0.35, by = 0.001 )
+	xhbs = result$data$posterior_sample_1
+	plot(
+		xhbs^2 + 2*xhbs*(1-xhbs), result$data$y / result$data$N, cex = sqrt(result$data$N)/6,
+		xlab = "HbAS or SS",
+		ylab = "Pfsa1+",
+		col = colours[ result$data$SOVEREIGNT],
+		pch = 19
+	)
+	grid()
+	gl = function( x, nu = 1 ) {
+		1/((1 + exp(-x))^(1/nu))
+	}
+	params = result$fitted.parameters %>% filter( hbs.sample == 'posterior_sample_1' )
+	params = c(
+		mu = (params %>% filter( parameter == 'intercept' ))$mean[1],
+		beta = (params %>% filter( parameter == 'beta' ))$mean[1],
+		nu = exp((params %>% filter( parameter == 'log_nu' ))$mean[1])
+	)
+
+	curves = tibble(
+		x = xs,
+		median = NA,
+		mean = NA,
+		lower_2.5 = NA,
+		upper_97.5 = NA
+	)
+	for( i in 1:length(xs)) {
+		x = xs[i]
+		yvalues = gl(
+			result$sampled.parameters[['intercept']] + result$sampled.parameters[['beta']]*x,
+			exp(result$sampled.parameters[['log_nu']])
+		)
+		q = quantile( yvalues, c( 0.025, 0.5, 0.975 ))
+		curves[['lower_2.5']][i] = q[1]
+		curves[['median']][i] = q[2]
+		curves[['upper_97.5']][i] = q[3]
+		curves[['mean']][i] = mean( yvalues )
+	}
+	polygon(
+		c( curves$x, rev(curves$x)),
+		c( curves$lower_2.5, rev( curves$upper_97.5 )),
+		col = rgb( 0, 0, 0, 0.1 ),
+		border = NA
+	)
+	points(
+		curves$x,
+		curves$mean,
+		type = 'l',
+		lwd = 3,
+		col = "black"
+	)
+
+	points(
+		xs,
+		gl(
+			params['mu'] + params['beta'] * xs,
+			params['nu']
+		),
+		type = 'l',
+		lty = 2,
+		lwd = 2
+	)
+	dev.off()
+}
 
 echo( "++ Success.\n" )
 echo( "++ Thank you for using BYM.R\n" )
