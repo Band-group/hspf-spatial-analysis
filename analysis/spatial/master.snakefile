@@ -30,13 +30,24 @@ areas = {
 	'africa': [
 		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
 		'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo',
-		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'
+		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania', 'Zambia'
 	],
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
-	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania'],
-	'wwaf': [ 'Gambia', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Mauritania', 'Senegal' ],
-	'ewaf': [ 'Benin', 'Ivory Coast', 'Ghana', 'Nigeria', 'Togo', 'Angola', 'Cameroon', 'Gabon' ],
+	#
+	'wwaf': [ 'Gambia', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Mauritania' ],
+	'ewaf': [ 'Benin', 'Ivory Coast', 'Ghana', 'Nigeria', 'Togo', 'Gabon' ],
+	#
+	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Togo', 'Cameroon' ],
+	'caf': [ 'Gabon', 'Angola', 'Cameroon', 'Democratic Republic of the Congo' ],
+	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania', 'Zambia' ],
+	#
+	'gambia+senegal': [ 'Gambia', 'Senegal' ],
+	'mali': [ 'Mali' ],
+	'ghana': [ 'Ghana' ],
+	'ghana+burkina+togo': [ 'Ghana', 'Burkina Faso', 'Togo' ],
+	'ghana+burkina+togo+benin+ivorycoast': [ 'Ghana', 'Burkina Faso', 'Togo', 'Ivory Coast', 'Benin' ],
+	'uganda': [ 'Uganda' ],
 	'tanzania': [ 'United Republic of Tanzania' ],
+	'tanzania+kenya+uganda+rwanda': [ 'United Republic of Tanzania', 'Kenya', 'Uganda', 'Rwanda' ],
 	'DRC': [ 'Democratic Republic of the Congo' ],
 	'global': None
 }

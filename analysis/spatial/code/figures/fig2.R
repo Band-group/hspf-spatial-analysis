@@ -175,14 +175,25 @@ plot.fit <- function(
 	fit$data$hbas_or_ss_mean = fit$data$hbs_mean^2 + 2*fit$data$hbs_mean*(1-fit$data$hbs_mean)
 	fit$data$hbas_or_ss_median = fit$data$hbs_median^2 + 2*fit$data$hbs_median*(1-fit$data$hbs_median)
 
-	w = which( fit$data$n >= 0 )
+	w = which( fit$data$N >= 0 )
 
 	# These definitions should match the link functions in bym.cpp
 	print( "LINK!" )
 	print( fit$link )
 	link_fn = list(
-		logit = function(x) { exp(x)/(1+exp(x))},
-		linear = function(x) { pmax( pmin( x, 0.999 ), 0.001 ) }
+		logit = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( exp(x)/(1+exp(x)) )
+		},
+		`generalised-logit` = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			nu = exp( parameters[['log_nu']] )
+			return( 1/(1 + exp(-x))^(1/nu))
+		},
+		linear = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( pmax( pmin( x, 0.999 ), 0.001 ))
+		}
 	)[[fit$link]]
 	xs = seq( from = 0, to = 0.3, by = 0.01 )
 	curves = tibble(
@@ -194,7 +205,7 @@ plot.fit <- function(
 	)
 	for( i in 1:length(xs)) {
 		x = xs[i]
-		yvalues = link_fn( fit$sampled.parameters[['intercept']] + fit$sampled.parameters[['beta']]*x )
+		yvalues = link_fn( x, fit$sampled.parameters )
 		q = quantile( yvalues, c( 0.025, 0.5, 0.975 ))
 		curves[['lower_2.5']][i] = q[1]
 		curves[['median']][i] = q[2]
@@ -212,8 +223,8 @@ plot.fit <- function(
 	abline( v = seq( from = 0, to = 0.3, by = 0.05 ), col = aesthetic$colour$grid, lwd = 0.5 )
 	points(
 		fit$data$hbas_or_ss_mean[w],
-		fit$data$Y[w] / fit$data$n[w],
-		cex = sqrt(fit$data$n)/10,
+		fit$data$y[w] / fit$data$N[w],
+		cex = sqrt(fit$data$N)/10,
 		col = fit$data$colour,
 		pch = 19
 	)
