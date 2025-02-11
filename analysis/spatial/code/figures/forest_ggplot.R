@@ -1,90 +1,80 @@
 
-#Forest plot
-#setwd("D:/OneDrive/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial/code/figures")
+# Forest plot
+# setwd("D:/OneDrive/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial/code/figures")
 library(readr)
 library(tidyverse)
 library(ggtext)
 library(ggdist)
-library(glue)
+#library(glue)
 library(patchwork)
 library(MetBrewer)
 library(scales)
 
-#define font family and colour for background
-bg_color <- "white" #"grey97"
-font_family <- "sans"
+library( argparse )
 
-# Read the gzipped TSV file
-res <- read_tsv("forest_plot_data.tsv.zip")
-
-#generalised link function
-gl = function( v, parameters ) {
-  x = parameters[['intercept']] + parameters[['beta']]*v
-  nu = exp( parameters[['log_nu']] )
-  return( 1/(1 + exp(-x))^(1/nu))
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
 }
-#compute the slope
-res <- res %>% mutate(
-  slope =  gl( 0.2, pick( intercept, beta, log_nu)) - gl( 0.1, pick( intercept, beta, log_nu ))
-)
 
-#list relevant regions
-areas <- c("global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana", 
-           "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf", 
-           "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania")
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Plot forest plot'
+	)
+	parser$add_argument(
+		'--output_main',
+		type = "character",
+		help = "Name of output pdf file for main figure",
+		required = TRUE
+	)
+	parser$add_argument(
+		'--output_si',
+		type = "character",
+		help = "Name of output pdf file for SI figure",
+		required = TRUE
+	)
+	return( parser$parse_args() )
+}
 
-# Create a mapping of original names to proper names and order levels
-area_mapping <- data.frame(
-  area = areas,
-  Region = c("Global","Africa", "West Africa", "Western region", "Eastern region", 
-                  "Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo", 
-                  "Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa", 
-                  "Democratic Republic of Congo", "East Africa", 
-                  "Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"),
-  order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4), # Assigning hierarchical levels
-  parent = c("Global","Global", "Africa", "West Africa", "West Africa", 
-             "Eastern West Africa", "West Africa", "West Africa", "West Africa", 
-             "West Africa", "Africa", "Central Africa", "Africa", 
-             "East Africa", "East Africa", "East Africa") # Parent (region above) names
- )
+load.data <- function(
+	areas,
+	loci = sprintf( "Pfsa%d", 1:4 ),
+	template = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/%s-model=%s+fc=none-200km-area=%s-min_N=5.rds"
+) {
+	result = tibble::tibble()
+	for( area in areas ) {
+		for( locus in loci ) {
+			filename = sprintf(
+				template,
+				locus, 'bym2', area
+			)
+			if( file.exists( filename )) {
+				X = readRDS( filename )
+				sampled.parameters = (
+					X$sampled.parameters
+					%>% mutate(
+						Pfsa1_N = sum( X$data$Pfsa1_N ),
+						Pfsa2_N = sum( X$data$Pfsa2_N ),
+						Pfsa3_N = sum( X$data$Pfsa3_N ),
+						Pfsa4_N = sum( X$data$Pfsa4_N ),
+						number_of_hexagons = nrow(X$data)
+					)
+				)
+				X$area = factor( X$area, levels = rev(areas))
+				result = bind_rows(
+					result,
+					bind_cols(
+						locus = locus,
+						area = area,
+						sampled.parameters
+					)
+				)
+			}
+		}
+	}
+	return( result )
+}
 
-res <- res %>%
- left_join(area_mapping, by = c("area"))
-
-#Generate style for the rows (bold, italic and indent to highlight hierarchy in regions)
-res <- res %>%
-  mutate(RegionStyled = case_when(
-    order == 1 ~ paste0("<b>", Region, "</b>"),  # Bold for order 1
-    order == 2 ~ paste0("<span style='color:white;'>h</span><b><i><span style='margin-left: 1em;'>", Region, "</span></i></b>"),
-    order == 3 ~ paste0("<span style='color:white;'>hi</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
-    order > 3  ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
-    TRUE ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
-  ))
-
-res$RegionStyled <- factor(res$RegionStyled,levels=rev(unique(res$RegionStyled)))
-
-#rename labels with + sign
-new_labels <- c(
-  "Pfsa1" = "Pfsa1+",  
-  "Pfsa2" = "Pfsa2+",
-  "Pfsa3" = "Pfsa3+",
-  "Pfsa4" = "Pfsa4+"
-)
-res <- res %>%
-  mutate(N = case_when(
-    locus == "Pfsa1" ~ Pfsa1_N, 
-    locus == "Pfsa2" ~ Pfsa2_N,  
-    locus == "Pfsa3" ~ Pfsa3_N,  
-    locus == "Pfsa4" ~ Pfsa4_N  
-  ))
-#to remove strange boxes around text in pdf output
-# library(grid)
-# grid.newpage();grid.draw(roundrectGrob(gp = gpar(lwd = NA)))
-
-#RegionStyled, y = slope
-
-make.forestplot <- function(tibble,xname,yname,brewerstyle="VanGogh3")
-{
+make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3" ) {
   p <- tibble %>%
   ggplot(aes(x = (!!sym(xname)), y = (!!sym(yname)))) +
   geom_hline(yintercept = 0, col = "grey30", lwd=0.4,linetype='dashed') +
@@ -145,156 +135,107 @@ make.forestplot <- function(tibble,xname,yname,brewerstyle="VanGogh3")
     plot.margin = margin(6, 5, 5, 5)# top, right, bottom, and left margins.
   ) 
 }
-#save plots (comprehensive for supplementary materials)
-SIforest <- make.forestplot(res,xname='RegionStyled',yname= 'slope',brewerstyle="VanGogh3")
 
-ggsave('forestSI.pdf',SIforest,width = 15,height=7.5)
-#ggsave('forestSI.png',SIforest,width = 15,height=7.5)
+# Generalised link function
+gl = function( v, parameters ) {
+  x = parameters[['intercept']] + parameters[['beta']]*v
+  nu = exp( parameters[['log_nu']] )
+  return( 1/(1 + exp(-x))^(1/nu))
+}
 
-#save plots 
-resslim <- res %>% filter(order < 3)
-forestmain <- make.forestplot(resslim,xname='RegionStyled',yname= 'slope',brewerstyle="VanGogh3")
-ggsave('forestmain.pdf',forestmain,width = 15,height=6)
-#ggsave('forestmain.png',forestmain,width = 15,height=6)
 
-###################################################
-# #African regions
-# # Load required packages
-# library(ggplot2)
-# library(sf)
-# library(rnaturalearth)
-# library(dplyr)
-# library(ggpattern)
-# 
-# # Get simplified Africa map
-# africa <- rnaturalearth::ne_countries(continent = "africa",scale='small',returnclass = 'sf')
-# plot(africa)
-# 
-# # Define the country groups
-# countries = list(
-# 
-# eaf = c('Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 
-#                    'Uganda', 'United Republic of Tanzania', 'Zambia'),
-# waf = c('Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Côte D’Ivoire', 
-#                    'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Togo', 'Cameroon'),
-# wwaf = c('Gambia', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Mauritania'),
-# ewaf = c('Benin', 'Ivory Coast', 'Ghana', 'Nigeria', 'Togo', 'Gabon'),
-# caf = c('Gabon', 'Angola', 'Cameroon', 'Democratic Republic of the Congo')
-# )
-# 
-# # Create the Region variable based on NAME_ENGL
-# africa <- africa %>%
-#   mutate(Region = case_when(
-#     sovereignt %in% countries$eaf ~ "East Africa",  # East Africa
-#     sovereignt %in% countries$waf ~ "West Africa",  # West Africa
-#     sovereignt %in% countries$caf ~ "Central Africa"#,  # Central Africa
-#     #TRUE ~ NA  # For countries not listed
-#   ))
-# 
-# africa <- africa %>%
-#   mutate(Subregion = case_when(
-#     sovereignt %in% countries$wwaf ~ "Western region",  # Western West Africa
-#     sovereignt %in% countries$ewaf ~ "Eastern region"#,  # Eastern West Africa
-#  #   TRUE ~ NA  # For countries not listed
-#   ))
-# #africa$Region <- as.factor(africa$Region)
-# #africa$Subregion <- as.factor(africa$Subregion)
-# 
-# #plot Africa
-# library(ggpattern)
-# library(sf)
-# library(ggplot2)
-# library(ggpattern)
-# library(dplyr)
-# 
-# # Assume 'africa_sf' is your sf dataset with Region and Subregion columns
-# # africalegend <- ggplot(regions) +
-# #   geom_sf_pattern(aes(fill = Region, pattern = Subregion),
-# #                   size = 0.3,
-# #                   pattern_density = 0.1,
-# #                   ) +
-# #   scale_fill_manual(values = c(
-# #     "East Africa" = "#F1C40F",    # East Africa (border color)
-# #     "West Africa" = "#E67E22",    # West Africa (border color)
-# #     "Central Africa" = "#E74C3C"),    # Central Africa (border color)
-# #      na.value= 'White'      # For countries not in the regions
-# #   ) +
-# #   scale_pattern_manual(values = c(
-# #     "Western region" = "circle",  # Dotted pattern for Eastern West Africa
-# #     "Eastern region" = "stripe"),  # Striped pattern for Western West Africa
-# #     na.value= "wave"  ) +
-# #   theme_void() +
-# #   theme(legend.position = c(0.3,0.25),
-# #         legend.direction = 'vertical'
-# #         )
-# #   #scale_pattern_density_manual(values = c("Western region" = 0.01, "Eastern region"=0.01))
-# # ggsave('africalegend.pdf',africalegend,width = 9,height=8)
-# # ggsave('africalegend.png',africalegend,width = 9,height=9)
-# 
-# # Assume 'regions' is your sf object
-# # Filter out NA values in Region or Subregion
-# # Define fill colors for Region
-# fill_colors <- c(
-#   "East Africa" = "#F1C40F",
-#   "West Africa" = "#E67E22",
-#   "Central Africa" = "#E74C3C"
-# )
-# 
-# # Define patterns (density shading)
-# pattern_density <- c(
-#   "Western region" = 20,  # Dotted effect
-#   "Eastern region" = 45   # Striped effect
-# )
-# regions_filtered <- africa %>%
-#   filter(!is.na(Region) | !is.na(Subregion))
-# regions_filtered$subregion <- NULL
-# # Plot base map with white background
-# 
-# plot.new()
-# pdf('niceafrica.pdf')
-# plot(st_geometry(africa), col = "white", border = "gray85", main = "")
-# 
-# # Loop through regions and apply colors/patterns
-# for (i in seq_len(nrow(regions_filtered))) {
-#   region_name <- regions_filtered$Region[i]
-#   subregion_name <- regions_filtered$Subregion[i]
-#   
-#   # Choose fill color
-#   fill_col <- ifelse(region_name %in% names(fill_colors), fill_colors[region_name], "white")
-#   
-#   # Choose pattern density
-#   density_val <- ifelse(subregion_name %in% names(pattern_density), pattern_density[subregion_name], 0)
-#   
-#   # Plot individual polygons with color and pattern
-#   plot(st_geometry(regions_filtered[i, ]), col = fill_col, border = "black", density = density_val, angle=45,add = TRUE)
-#  }
-# 
-# for (i in seq_len(nrow(regions_filtered))) {
-#   region_name <- regions_filtered$Region[i]
-#   subregion_name <- regions_filtered$Subregion[i]
-#   
-#   # Choose fill color
-#   fill_col <- ifelse(region_name %in% names(fill_colors), fill_colors[region_name], "white")
-#   
-#   # Choose pattern density
-#   density_val <- ifelse(subregion_name %in% names(pattern_density), pattern_density[subregion_name], 0)
-#   
-#   # Plot individual polygons with color and pattern
-#   plot(st_geometry(regions_filtered[i, ]), density = density_val, angle=45,add = TRUE)
-#   
-# }
-# 
-# 
-# # Add legend
-# legend("bottomleft",
-#        legend = names(fill_colors),
-#        fill = fill_colors,
-#        title = "Region",
-#        bty = "n")
-# 
-# legend("bottom",
-#        legend = names(pattern_density),
-#        density = pattern_density,
-#        title = "Subregion",
-#        bty = "n")
-# dev.off()
+args = parse_arguments() ;
+
+# Read the gzipped TSV file
+
+# List relevant regions
+areas <- c("global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana", 
+           "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf", 
+           "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania")
+
+# Load data and compute the slope
+res = (
+  load.data( areas )
+  %>% mutate(
+    slope =  gl( 0.2, pick( intercept, beta, log_nu)) - gl( 0.1, pick( intercept, beta, log_nu ))
+  )
+)
+
+# Define font family and colour for background
+bg_color <- "white" #"grey97"
+font_family <- "sans"
+
+# Create a mapping of original names to proper names and order levels
+area_mapping <- data.frame(
+  area = areas,
+  Region = c("Global","Africa", "West Africa", "Western region", "Eastern region", 
+                  "Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo", 
+                  "Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa", 
+                  "Democratic Republic of Congo", "East Africa", 
+                  "Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"),
+  order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4), # Assigning hierarchical levels
+  parent = c("Global","Global", "Africa", "West Africa", "West Africa", 
+             "Eastern West Africa", "West Africa", "West Africa", "West Africa", 
+             "West Africa", "Africa", "Central Africa", "Africa", 
+             "East Africa", "East Africa", "East Africa") # Parent (region above) names
+ )
+
+res <- res %>%
+ left_join(area_mapping, by = c("area"))
+
+#Generate style for the rows (bold, italic and indent to highlight hierarchy in regions)
+res <- res %>%
+  mutate(RegionStyled = case_when(
+    order == 1 ~ paste0("<b>", Region, "</b>"),  # Bold for order 1
+    order == 2 ~ paste0("<span style='color:white;'>h</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
+    order == 3 ~ paste0("<span style='color:white;'>hi</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
+    order > 3  ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
+    TRUE ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
+  ))
+
+res$RegionStyled <- factor(res$RegionStyled,levels=rev(unique(res$RegionStyled)))
+
+#rename labels with + sign
+new_labels <- c(
+  "Pfsa1" = "Pfsa1+",  
+  "Pfsa2" = "Pfsa2+",
+  "Pfsa3" = "Pfsa3+",
+  "Pfsa4" = "Pfsa4+"
+)
+res <- res %>%
+  mutate(N = case_when(
+    locus == "Pfsa1" ~ Pfsa1_N, 
+    locus == "Pfsa2" ~ Pfsa2_N,  
+    locus == "Pfsa3" ~ Pfsa3_N,  
+    locus == "Pfsa4" ~ Pfsa4_N  
+  ))
+#to remove strange boxes around text in pdf output
+# library(grid)
+# grid.newpage();grid.draw(roundrectGrob(gp = gpar(lwd = NA)))
+
+#RegionStyled, y = slope
+
+
+ggsave(
+  args$output_main,
+  make.forestplot(
+    res %>% filter(order < 3),
+    xname = 'RegionStyled',
+    yname = 'slope',
+    brewerstyle = "VanGogh3"
+  ),
+  width = 15,
+  height = 3
+)
+
+ggsave(
+  args$output_si,
+  make.forestplot(
+    res,
+    xname = 'RegionStyled',
+    yname = 'slope',
+    brewerstyle = "VanGogh3"
+  ),
+  width = 15,
+  height = 7.5
+)
