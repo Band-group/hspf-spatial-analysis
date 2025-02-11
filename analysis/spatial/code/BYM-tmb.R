@@ -343,8 +343,8 @@ fitbym_to_posterior_samples <- function(
 			link_choice = "generalised-logit",
 			# Prior on intercept and beta
 			# We use vague normal priors
-			prior_beta_sd = 100.0,
-			prior_intercept_sd = 100.0,
+			prior_beta_sd 		= 10.0,
+			prior_intercept_sd	= 100.0,
 			# Prior on sd of random effects:
 			prior_sd_rate 				= tmb_config$prior_sd_rate, #-log(0.01)/1,
 			prior_logodds_phi_mean	= tmb_config$prior_logodds_phi_mean,
