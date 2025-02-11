@@ -12,6 +12,7 @@ analysis/haplotypes/logs
 analysis/spatial/.Rproj.user
 analysis/spatial/code/africa
 analysis/spatial/code/HbS
+analysis/spatial/code/archive
 logs
 *.o
 *.so
