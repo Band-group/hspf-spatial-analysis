@@ -162,7 +162,9 @@ rule aggregate_pf:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	input:
-		pf = "input/hbs-pf-v2.sqlite",
+		# 8th Feb 2025: we are testing flipping the Verity et al data alleles which seem wron
+		#pf = "input/hbs-pf-v2.sqlite",
+		pf = "input/hbs-pf-v2-flippedDRC.sqlite",
 		polygons = rules.create_grid.output.rds,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
@@ -191,7 +193,9 @@ rule compile_TMB_code:
 
 rule fit_hspf_in_areas:
 	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
+		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
+
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -221,6 +225,7 @@ rule fit_hspf_in_areas:
 		--min_km_to_survey_pt {wildcards.min_km_to_survey_pt} \
 		--min_N {wildcards.min_N} \
 		--output {output.rds} \
+		--output_pdf {output.pdf} \
 		--threads {threads}
 	"""
 
@@ -264,26 +269,26 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		--threads {threads}
 	"""
 
-rule plot_hspf:
-	output:
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
-	input:
-		fit = rules.fit_hspf_in_areas.output.rds,
-		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
-		hbs = rules.aggregate_HbS.output.tsv,
-		world = "geodata/naturalearthdata.Rdata"
-	params:
-		script = srcdir( "code/plot_hspf_fit.R" ),
-		script2 = srcdir( "code/plot_hspf_fit_grid.R" )
-	shell: """
-		Rscript --vanilla {params.script} \
-		--grid {input.grid} \
-		--HbS_aggregated {input.hbs} \
-		--pf_aggregated {input.pf} \
-		--fit {input.fit} \
-		--output {output.pdf}
-	"""
+#rule plot_hspf:
+#	output:
+#		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
+#	input:
+#		fit = rules.fit_hspf_in_areas.output.rds,
+#		grid = rules.create_grid.output.rds,
+#		pf = rules.aggregate_pf.output.tsv,
+#		hbs = rules.aggregate_HbS.output.tsv,
+#		world = "geodata/naturalearthdata.Rdata"
+#	params:
+#		script = srcdir( "code/plot_hspf_fit.R" ),
+#		script2 = srcdir( "code/plot_hspf_fit_grid.R" )
+#	shell: """
+#		Rscript --vanilla {params.script} \
+#		--grid {input.grid} \
+#		--HbS_aggregated {input.hbs} \
+#		--pf_aggregated {input.pf} \
+#		--fit {input.fit} \
+#		--output {output.pdf}
+#	"""
 
 rule plot_hspf_areas:
 	output:
@@ -307,8 +312,8 @@ rule plot_hspf_areas:
 
 rule summarise_hspf:
 	output:
-		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv",
-		tex = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary_r0={r0}-sigma0={sigma0}.tex"
+		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary.tsv"
+		#tex = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/all_hspf_analyses_summary_r0={r0}-sigma0={sigma0}.tex"
 	input:
 		fits = lambda w: ([
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
@@ -328,3 +333,33 @@ rule summarise_hspf:
 				)
 			)
 
+rule create_forest_plot:
+	output:
+		main = "output/figures/forest_plot/forest_plot_main-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+		si = "output/figures/forest_plot/forest_plot_si-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
+	input:
+		fit = expand(
+			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}-division=none/{locus}-model={model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			size = '{size}',
+			model = '{model}',
+			min_km_to_survey_pt = '{min_km_to_survey_pt}',
+			min_N = '{min_N}',
+			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
+			area = areas.keys()
+		)
+	params:
+		script = srcdir( 'code/figures/forest_ggplot.R' ),
+		input_template = lambda w: "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}-division=none/{locus}-model={model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+			size = w.size,
+			model = w.model,
+			min_km_to_survey_pt = w.min_km_to_survey_pt,
+			min_N = w.min_N,
+			locus = '{locus}',
+			area = '{area}'
+		)
+	shell: """
+	Rscript --vanilla {params.script} \
+	--input_template {params.input_template} \
+	--output_main {output.main} \
+	--output_si {output.si}
+	"""

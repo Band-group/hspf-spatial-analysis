@@ -49,6 +49,11 @@ parse_arguments <- function() {
 		help = "path to output directory",
 		required = TRUE
 	)
+	parser$add_argument(
+		"--output_pdf",
+		type = "character",
+		help = "path to output pdf file"
+	)
 	
 	return( parser$parse_args() )
 }
@@ -277,7 +282,7 @@ linear_approximation = (
 )
 
 # Sanity check: everything is in the same order
-stopifnot( length( which( gradient$polygon_id != aggregated$polygon_id )) == 0 )
+stopifnot( length( which( linear_approximation$polygon_id != aggregated$polygon_id )) == 0 )
 # the above only reflects matching polygons.  Make this script always output all polygons, and in the right order.
 M = match( polygons$polygon_id, aggregated$polygon_id )
 result = tibble::tibble(
@@ -298,7 +303,7 @@ echo( "++ Saving myresult to %s", args$output )
 readr::write_tsv( result, file = args$output )
 echo( "++ Great success!  I like!" )
 
-if(0) {
+if( !is.null(args$output_pdf) ) {
 	library( viridis )
 	plot.data = dplyr::bind_cols(
 		polygons,
@@ -345,5 +350,5 @@ if(0) {
 		+ scale_fill_viridis()
 	)
 
-	ggsave( p, file = "tmp/gradients.pdf")
+	ggsave( p, file = args$output_pdf )
 }
