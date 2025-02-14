@@ -105,18 +105,22 @@ samples = (
 		)[Country],
 		site = NA,
 		N = 1,
-		`Pfsa1:ref` = 1 - `chr2_631190`,
-		`Pfsa1:nonref` = `chr2_631190`,
-		`Pfsa2:ref` = 1 - `chr2_814329`,
-		`Pfsa2:nonref` = `chr2_814329`,
-		`Pfsa3:ref` = 1 - `chr11_1058035`,
-		`Pfsa3:nonref` = `chr11_1058035`,
-		`Pfsa4:ref` = 1 - `chr4_1121472`,
-		`Pfsa4:nonref` = `chr4_1121472`,
+		# We have figured out the alleles are encoded the other way round.
+		# c.f. email trail with Bob Verity 12th Feb 2025
+		# Fixing this here.
+		`Pfsa1:ref` = `chr2_631190`,
+		`Pfsa1:nonref` = 1 - `chr2_631190`,
+		`Pfsa2:ref` = `chr2_814329`,
+		`Pfsa2:nonref` = 1 - `chr2_814329`,
+		`Pfsa3:ref` = `chr11_1058035`,
+		`Pfsa3:nonref` = 1 - `chr11_1058035`,
+		`Pfsa4:ref` = `chr4_1121472`,
+		`Pfsa4:nonref` = 1 - `chr4_1121472`,
 		exclude = "no"
 	)
 )
-samples$exclude[ samples$country != 'Democratic_Republic_of_the_Congo' ] = 'yes'
+# If fklipped alleles fixes this, don't need to exclude
+#samples$exclude[ samples$country != 'Democratic_Republic_of_the_Congo' ] = 'yes'
 
 by_sample = (
 	samples
