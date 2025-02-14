@@ -14,9 +14,16 @@ types = [
 ]
 
 covariates = [ 'none' ]
+
+
+# Africa is 3,736.69km across West-East at Equator
+# 6,604.55km from coast of Gambia to coast of Kenya
+# At equator, 1 degree ~ 111km so 1.35 degrees ~ 150 km at the equator
+
 cellsizes = [
 	'1',
-#	'2'
+	'2',
+	'1.35'
 ]
 surveykms = [
 	'200',
@@ -27,18 +34,20 @@ def srcdir(x):
 	return x
 	
 areas = {
+	'global': None,
 	'africa': [
 		'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Senegal', 'Togo',
 		'Central African Republic', 'Angola', 'Cameroon', 'Gabon', 'Republic of the Congo', 'Democratic Republic of the Congo',
 		'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania', 'Zambia'
 	],
-	#
-	'wwaf': [ 'Gambia', 'Senegal', 'Mali', 'Burkina Faso', 'Guinea', 'Mauritania' ],
-	'ewaf': [ 'Benin', 'Ivory Coast', 'Ghana', 'Nigeria', 'Togo', 'Gabon' ],
-	#
-	'waf': [ 'Gambia', 'Senegal', 'Mali', 'Benin', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Guinea', 'Mauritania', 'Nigeria', 'Togo', 'Cameroon' ],
-	'caf': [ 'Gabon', 'Angola', 'Cameroon', 'Democratic Republic of the Congo' ],
-	'eaf': [ 'Ethiopia', 'Kenya', 'Madagascar', 'Malawi', 'Mozambique', 'Rwanda', 'Uganda', 'United Republic of Tanzania', 'Zambia' ],
+	# Western africa region matching Pfsa2/4 distribution split
+	'waf': [ 'Mauritania', 'Senegal', 'Gambia', 'Guinea', 'Mali', 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Togo', 'Benin', 'Nigeria', 'Cameroon', 'Gabon'  ],
+	'wwaf': [ 'Mauritania', 'Senegal', 'Gambia', 'Guinea', 'Mali' ],
+	'ewaf': [ 'Burkina Faso', 'Ivory Coast', 'Ghana', 'Togo', 'Benin', 'Nigeria', 'Cameroon', 'Gabon'  ],
+	# Central africa region.  Not needed.
+	'caf': [ 'Democratic Republic of the Congo', 'Zambia', 'Gabon' ],
+	# Eestern africa region matching Pfsa2/4 distribution split
+	'eaf': [ 'Democratic Republic of the Congo', 'Ethiopia', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania',  'Madagascar' ],
 	#
 	'gambia+senegal': [ 'Gambia', 'Senegal' ],
 	'mali': [ 'Mali' ],
@@ -48,9 +57,9 @@ areas = {
 	'uganda': [ 'Uganda' ],
 	'tanzania': [ 'United Republic of Tanzania' ],
 	'tanzania+kenya+uganda+rwanda': [ 'United Republic of Tanzania', 'Kenya', 'Uganda', 'Rwanda' ],
-	'DRC': [ 'Democratic Republic of the Congo' ],
-	'global': None
+	'DRC': [ 'Democratic Republic of the Congo' ]
 }
+
 
 config = {
 	"r0": ranges,
@@ -141,6 +150,13 @@ rule all:
 			type = types,
 			size = cellsizes,
 			divide = ["none"],
+			regression_model = [ 'norandom', 'bym2' ],
+			min_N = [ '0', '5' ]
+		),
+		forest_plot = expand(
+			"output/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+			min_km_to_survey_pt = surveykms,
+			size = cellsizes,
 			regression_model = [ 'norandom', 'bym2' ],
 			min_N = [ '0', '5' ]
 		)

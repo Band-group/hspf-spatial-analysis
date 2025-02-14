@@ -39,18 +39,18 @@ rule create_figure2:
 	input:
 		hbs = expand(
 			"output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
-			area = [ 'africa', 'eaf', 'waf' ],
+			area = [ 'global', 'africa', 'eaf', 'waf' ],
 			allow_missing = True
 		),
 		fit = expand(
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-			area = [ 'africa', 'eaf', 'waf' ],
+			area = [ 'global', 'africa', 'eaf', 'waf' ],
 			allow_missing = True
 		),
 		pf = expand(
 			"output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
-			area = [ 'africa', 'eaf', 'waf' ],
+			area = [ 'global', 'africa', 'eaf', 'waf' ],
 			allow_missing = True
 		)
 	params:

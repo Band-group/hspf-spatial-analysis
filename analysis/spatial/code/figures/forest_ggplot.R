@@ -93,23 +93,22 @@ load.data <- function(
 	return( result )
 }
 
-make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3" ) {
+make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3", xlim = c( -0.25, 0.50 ) ) {
 	p <- tibble %>%
 	ggplot(aes(x = (!!sym(xname)), y = (!!sym(yname)))) +
 	geom_hline(yintercept = 0, col = "grey30", lwd=0.4,linetype='dashed') +
 #	stat_halfeye() + # to add density as shadow behind the CIs
 	stat_interval() +
 	stat_summary(geom = "point", fun = median) +
-	 theme(axis.text.x = element_markdown(size = 10)) +	# Apply markdown formatting to x labels
-	scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)) +
-	coord_flip(ylim = c(-0.25, 0.50), clip = "on") +
+	scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)]) +
+	coord_flip(ylim = xlim, clip = "on") +
 	guides(col = "none") +
 	labs(title = "", x = NULL,
 			 y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
-	)+
-			 scale_y_continuous(
+	) +
+	scale_y_continuous(
 		labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
-		limits = c(-25, 50),	# Make sure the limits are correct based on your data
+		limits = round( xlim * 100 ),	# Make sure the limits are correct based on your data
 		expand = c(0, 0))+	# Prevent extra space beyond the limits) +
 	#add sample size on top of median values
 	stat_summary(
@@ -146,11 +145,13 @@ make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3" ) {
 		panel.grid = element_blank(),
 		panel.grid.major.x = element_line(linewidth = 0.1, color = "grey75"),
 		plot.title = element_blank(),
+		axis.text.x = element_markdown(size = 10),	# Apply markdown formatting to x labels
 		axis.text.y = element_markdown(
 			hjust = 0, 
 			#margin = margin(l = 10),#text margin left
 			#margin = margin(r = -1),#text margin right
-		 size=13),
+			size=13
+		),
 		plot.margin = margin(6, 5, 5, 5)# top, right, bottom, and left margins.
 	) 
 }
@@ -242,10 +243,11 @@ ggsave(
 		res %>% filter(order < 3),
 		xname = 'RegionStyled',
 		yname = 'slope',
-		brewerstyle = "VanGogh3"
+		brewerstyle = "VanGogh3",
+		xlim = c( -0.2, 0.5 )
 	),
 	width = 15,
-	height = 3
+	height = 2.5
 )
 
 ggsave(
@@ -254,8 +256,9 @@ ggsave(
 		res,
 		xname = 'RegionStyled',
 		yname = 'slope',
-		brewerstyle = "VanGogh3"
+		brewerstyle = "VanGogh3",
+		xlim = c( -0.25, 0.6 )
 	),
 	width = 15,
-	height = 7.5
+	height = 5
 )
