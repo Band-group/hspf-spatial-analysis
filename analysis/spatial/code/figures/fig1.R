@@ -1,777 +1,528 @@
-#################################################################################################################################
-#################################################################################################################################
-library( argparse )
+################################################################################
+# Figure 1 for manuscript ######################################################
+################################################################################
 
-echo <- function( message, ... ) {
-	cat( sprintf( message, ... ))
+library(argparse)
+
+# Simple echo function to print messages
+echo <- function(message, ...) {
+  cat(sprintf(message, ...))
 }
 
+# Parse command-line arguments using argparse
 parse_arguments <- function() {
-	parser = ArgumentParser(
-		description = 'Create elements for Figure 1'
-	)
-	parser$add_argument(
-		"--grid",
-		type = "character",
-		help = "Path to grid to use.",
-		required = TRUE
-	)
- 	#parser$add_argument(
-	#	"--pf_survey",
-	#	type = "character",
-	#	help = "path to geographic Pf data, survey by location"#,
-	#	#default = "output/HbS/pf/survey/[grid].tsv"
-	#)
-	parser$add_argument(
-		"--HbS_survey",
-		type = "character",
-		help = "path to per-geographic HbS data, survey by location",
-		default = "input/cleanHbSdata.csv"
-	)
-	parser$add_argument(
-		"--pf_aggregated",
-		type = "character",
-		help = "path to Pf data, aggregated by grid",
-		default = "output/HbS/pf/aggregated/[grid].tsv"
-	)
-	parser$add_argument(
-		"--HbS_aggregated",
-		type = "character",
-		help = "path to per-polygon aggregated HbS data",
-		default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
-	)
-  parser$add_argument(
-		"--HbS_predictions",
-		type = "character",
-		help = "path to per-polygon aggregated HbS data",
-		default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
-	)
-  parser$add_argument(
-		"--outdir",
-		type = "character",
-		help = "path to output directory file",
-		required = TRUE
-	)
-	return( parser$parse_args() )
+  parser <- ArgumentParser(description = 'Create elements for Figure 1')
+  parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE)
+  parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-v3.sqlite")
+  parser$add_argument("--HbS_survey", type = "character", help = "Path to per-geographic HbS survey data", default = "input/cleanHbSdata.csv")
+  parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv")
+  parser$add_argument("--HbS_predictions", type = "character", help = "Path to per-polygon HbS predictions", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid].tsv")
+  parser$add_argument("--outdir", type = "character", help = "Output directory", required = TRUE)
+  return(parser$parse_args())
 }
 
-# Fig 1: all plots needed
-#packages required##############################################################
-library(dplyr)
-library(tidyr)
-library(ggplot2);
-library(gridExtra);
-library(ggspatial);
-library(scico);
-library(viridis)
-library(rnaturalearth);#get coarse polygon for better visualisation
-library(RColorBrewer);#for color scheme of hexagon borders (sources)
-library(sf);
-library(giscoR); # get coarse polygon for 3D visualisation (unprojected)
-library(hexbin); # to make hexagon simulation of samples plot
-library(raster);
-library( argparse )
-args = parse_arguments()
+# Packages required
+required_libs <- c("dplyr", "tidyr", "ggplot2", "gridExtra", "ggspatial", "viridis",
+                   "rnaturalearth", "sf", "raster", "ggpubr", "RSQLite",
+                   "argparse", "terra", "ggnewscale", "ggtext", "scales", "prismatic",
+                   "forcats", "tibble")
+invisible(sapply(required_libs, library, character.only = TRUE))
 
-#options to activate############################################################
-
-#needs to be true to work here
-sf::sf_use_s2(TRUE)
-
-#Use common Hbs plot break points for all graphs here########
-HbSbreaks <- c(0.0005,seq(0.025,0.15,length.out=11),0.2)
-#############################################################
-
-#a function used just after loading the data 
-#to make an sf spatial point from a dataframe with coordinates##################
-df2sf <- function(df,coords,crs=4326 ) {
-  HB <- sf::st_as_sf(x=df,coords=coords,crs=crs) 
-  return(HB)
-}
-
-keypfcountries = data.frame(
-	ISO3 = c(
-		'MLI', "BFA", "GMB", "TZA", "LAO", "MMR","VNM", "THA", "KHM", "PER",
-		"KEN", "GHA", "PNG", "MWI", "COL", "UGA", "GIN","BGD", "COD", "NGA", "CMR", "ETH",
-		"CIV", "MDG","GAB", "BEN", "SEN", "IDN", "SDN", "MRT","VEN", "IND", "MOZ", "ZMB"
-	),
-	fullname = c(
-		"Mali",                         	"Burkina_Faso",
-		"Gambia",                           "Tanzania",
-		"Laos",                             "Myanmar",
-		"Vietnam",                          "Thailand",
-		"Cambodia",                         "Peru",
-		"Kenya",                            "Ghana",
-		"Papua_New_Guinea",                 "Malawi",
-		"Colombia",                         "Uganda",
-		"Guinea",                           "Bangladesh",
-		"Democratic_Republic_of_the_Congo", "Nigeria",
-		"Cameroon",                         "Ethiopia",
-		"Cote_dIvoire",                     "Madagascar",
-		"Gabon",                            "Benin",
-		"Senegal",                          "Indonesia",
-		"Sudan",                            "Mauritania",
-		"Venezuela",                        "India",
-		"Mozambique",                       "Zambia"
-	)
-)
-
-#to load theme panelgrid
+# Load theme for panel grid (custom functions)
 source('code/functions.R')
 
+# Parse arguments
+args <- parse_arguments()
+
+# Enable s2 geometry for spatial operations (required here)
+sf::sf_use_s2(TRUE)
+
+# Define common breakpoints and labels for HbS plots
+HbSbreaks <- c(0.0005, seq(0.025, 0.125, 0.025))
+HbSlabels  <- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%")  # \u2030 = per mille
+
 ################################################################################
-##Loading data##################################################################
-################################################################################
-#load world map at relatively coarse level for better visualisation
-world_sf = rnaturalearth::ne_countries(returnclass = "sf",scale=110)
-#Pf relevant countries
-pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
-#pfrelevantctry <- world_sf %>% dplyr::filter( SOV_A3 %in% keypfcountries$ISO3 )
-#load world map at relatively coarse level for some maps
-giscoall <- giscoR::gisco_countries
-giscosub <- giscoR::gisco_countries[!(gisco_countries$ISO3_CODE=='ATA'),]
-#load Hbs raw data points
-HbSdata <- read.csv(args$HbS_survey)
-#load HbS predictions from INLA mHbSl###########################################
-predictions <- readRDS(args$HbS_predictions)
-#make sf object from HbS data
-wsf <- df2sf(HbSdata,coords=c('longitude','latitude'),crs=4326)
-# #load Pf data points and make sf point object
-# load(paste0("output/Pf/input/Pfdata.Rdata"))
-# #make sf object from Pf (allele 1-4) data
-# pf1  <-  df2sf(xytall[[1]],coords=c('lon','lat'),crs=4326)
-# pf2  <-  df2sf(xytall[[2]],coords=c('lon','lat'),crs=4326)
-# pf3  <-  df2sf(xytall[[3]],coords=c('lon','lat'),crs=4326)
-# pf4  <-  df2sf(xytall[[4]],coords=c('lon','lat'),crs=4326)
-#get polygon data 
-countrydfi <- readRDS(args$grid)
-#get hbs mean by polygon
-myhbs <- read.table(args$HbS_aggregated,sep = '\t', header = TRUE)
-#get Pf data by polygon
-mypf <- read.table(args$pf_aggregated,sep = '\t', header = TRUE)
-#clean the column names
-colnames(mypf) <- gsub("_\\.", "", colnames(mypf))
-#remove if polygon_id is missing
-mypf <- mypf[!is.na(mypf$polygon_id), ]
-#add lat/lon of polygons
-# Step 1: Get the centroids of the polygons
-centroids <- st_centroid(countrydfi)
-# Step 2: Extract the coordinates (longitude, latitude) from the centroids
-centroid_coords <- centroids %>%
-  mutate(lon = sf::st_coordinates(centroids)[, 1],  # Extract longitude
-         lat = sf::st_coordinates(centroids)[, 2])  # Extract latitude
-centroid_coords <- centroid_coords[c('polygon_id','lon','lat')]
-mypf <- mypf %>%
-  left_join(centroid_coords %>% st_drop_geometry(), by = "polygon_id")
+# Define helper functions
 
-# pivot table for plot
-# Load necessary libraries
-library(dplyr)
-library(tidyr)
-
-# Remove the 'polygon_id' column and transform the data
-mypf <- mypf %>%
-  dplyr::select(-polygon_id) %>%
-  
-  # First, gather alleles and their counts separately
-  dplyr::mutate(
-    Pfsa1_N = ifelse(is.na(Pfsa1_N), 0, Pfsa1_N),
-    Pfsa2_N = ifelse(is.na(Pfsa2_N), 0, Pfsa2_N),
-    Pfsa3_N = ifelse(is.na(Pfsa3_N), 0, Pfsa3_N),
-    Pfsa4_N = ifelse(is.na(Pfsa4_N), 0, Pfsa4_N)
-  ) %>%
-  
-  tidyr::pivot_longer(
-    cols = c(Pfsa1, Pfsa2, Pfsa3, Pfsa4),  # Select only the alleles
-    names_to = "allele",                   # Name for the allele column
-    values_to = "allele_value"             # Values for the alleles
-  ) %>%
-  
-  # Join with the counts
-  tidyr::pivot_longer(
-    cols = c(Pfsa1_N, Pfsa2_N, Pfsa3_N, Pfsa4_N),  # Select only the counts
-    names_to = "count_type",                      # Name for the count type
-    values_to = "N"                               # Values for counts
-  ) %>%
-  
-  # Filter to match alleles with their counts
-  dplyr::filter(substr(count_type, 1, 5) == allele) %>%
-  
-  # Remove rows where N equals 0
-  dplyr::filter(N > 0) %>%
-
-  # Select the final desired columns
-  dplyr::select(lon, lat, allele, N, source)
-
-# View the transformed dataframe
-#head(mypf);nrow(mypf)
-
-#make pf not great again but as an sf object
-pfsf <- df2sf(mypf,coords=c('lon','lat'),crs=4326)
-
-#load population map to mask HbS data (mainly for simulation purposes)##########
-popmask <- raster::raster("geodata/gpw4_2000_lowres.tif")
-# set a threshold (inhab/km2) for the mask
-popmask[popmask <= 0.1] <- NA #orignal threshold: 0.05
-popmask[popmask > 0.1] <- 1 #orignal threshold: 0.05
-################################################################################
-################################################################################
-
-#A few functions ###############################################################
-
-#subset and projection transformation function
-mysub <- function(mypts,mypoly,mycrs){
-  subpt <- mypts[mypoly,] %>% sf::st_make_valid() %>% # select visible area only
-    sf::st_transform(crs = mycrs)
-  return(subpt)
+# Convert a dataframe with coordinate columns to an sf spatial object
+df2sf <- function(df, coords, crs = 4326) {
+  sf::st_as_sf(df, coords = coords, crs = crs)
 }
 
-#Some useful colors for the plots###############################################
-# oceancolor <- "#8293A3" # nice blue color of the ocean
-oceancolor <- "transparent" #color of the ocean
-# landcolor <- "#DFD3C5" #beige color of the land
-# landcolor <- "#D3D3D3" #light grey color of the land
-landcolor <- "#979797" # solid (medium) grey color of the land
+# Compute the median value for each row of a matrix
+rowMedians <- function(m) {
+  sapply(1:nrow(m), function(i) median(m[i, ]))
+}
 
-#Projections and visualisation angle for unprojected plot#######################
-# to focus on Africa and Asia
-crs_string <- "+proj=ortho +lon_0=45 +lat_0=10"
-# to focus on America
-crs_string2 <- "+proj=ortho +lon_0=-80 +lat_0=20"
-# a list of projection for projected maps
-# Here we can make plot for various projections if we are not satisfied with robin projection
-myprojs <- list(rob= "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"#,
-               # moll= "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
-               # win3= "+proj=wintri +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-                )
+# Subset spatial points using a polygon and transform projection
+sub.and.transproj <- function(mypts, mypoly, mycrs) {
+  sf::st_transform(sf::st_make_valid(mypts[mypoly, ]), crs = mycrs)
+}
 
-#A rectangle to plot oceans#####################################################
-rectangle <- st_polygon(list(cbind(c(seq(-180, 179, len = 100), rep(180, 100), 
-                                     seq(179, -180, len = 100), rep(-180, 100)),
-                                   c(rep(-60, 100), seq(-59, 89, len = 100),
-                                     rep(90, 100), seq(89, -60, len = 100))))) 
-
-#A function to make plot of raw data (HbS and Pf) on globe and flat##############
-#Note that it saves the plot and the legend separately for better integration####
-library(ggnewscale)#necessary for two color palette in one plot
-graphabsplot <- function(bkg=NULL,world,ocean,wsf,pfsf,flat=TRUE,
-                         flatcrs = flatcrs,mysize=1.05,mylinewidth = 0.3){ 
-                            # Base layers (differ based on flat or not)
-  if (flat == TRUE) {
-    myocean <- rectangle %>% 
-      st_sfc(crs = "WGS84")  %>% 
-      st_as_sf()
-    base_plot <- ggplot() +
-      geom_sf(data = myocean, fill = oceancolor, col = NA) 
+# Custom rounding function for Pf sample sizes based on magnitude
+custom_round <- function(x) {
+  if (x < 100) {
+    round(x, 0)
+  } else if (x < 1000) {
+    round(x, -1)
+  } else if (x < 10000) {
+    round(x, -2)
   } else {
-    base_plot <- ggplot(data = bkg) +
-        geom_sf(data = ocean, fill = oceancolor, color = "gray15", linewidth = 1)  # spherical projection
+    round(x, -3)
   }
-  
-  # Common layers and plot structure
-  hbsp <- base_plot +
-    geom_sf(data = world, fill = landcolor, col = NA, lwd = .1) +  # land over ocean
-    geom_sf(data = wsf, aes(color = Dataset), shape = 22, fill = "orange", alpha = 0.9, 
-            size = mysize, linewidth = mylinewidth) +
+}
+
+################################################################################
+# Define color settings and projections
+oceancolor <- "transparent"   # Ocean fill color
+landcolor  <- "#979797"         # Land color (medium grey)
+myprojs    <- list(wgs84 = st_crs(4326))  # Common projection for plots
+pal_base <- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
+pal_dark <- clr_darken(pal_base, 0.25) # colors for summary table HbS Pf
+grey_base <- "grey50" # colors for summary table HbS Pf
+grey_dark <- "grey25" # colors for summary table HbS Pf
+
+################################################################################
+# Define list of countries with Pf presence
+keypfcountries <- data.frame(
+  ISO3 = c('MLI', "BFA", "GMB", "TZA", "LAO", "MMR", "VNM", "THA", "KHM", "PER",
+           "KEN", "GHA", "PNG", "MWI", "COL", "UGA", "GIN", "BGD", "COD", "NGA", "CMR", "ETH",
+           "CIV", "MDG", "GAB", "BEN", "SEN", "IDN", "SDN", "MRT", "VEN", "IND", "MOZ", "ZMB"),
+  fullname = c("Mali", "Burkina_Faso", "Gambia", "Tanzania", "Laos", "Myanmar",
+               "Vietnam", "Thailand", "Cambodia", "Peru", "Kenya", "Ghana",
+               "Papua_New_Guinea", "Malawi", "Colombia", "Uganda", "Guinea", "Bangladesh",
+               "Democratic_Republic_of_the_Congo", "Nigeria", "Cameroon", "Ethiopia",
+               "Cote_dIvoire", "Madagascar", "Gabon", "Benin", "Senegal", "Indonesia",
+               "Sudan", "Mauritania", "Venezuela", "India", "Mozambique", "Zambia")
+)
+
+################################################################################
+## Loading data
+################################################################################
+# Load world map at coarse resolution for visualization
+world_sf <- rnaturalearth::ne_countries(returnclass = "sf", scale = 110)
+world_sf <- world_sf[world_sf$sov_a3 != 'ATA', ]
+africa_sf <- world_sf[world_sf$continent == 'Africa', ]
+# Keep only Pf-relevant countries
+pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
+
+# Load HbS predictions from INLA (try TSV, fallback to RDS)
+predictions <- tryCatch({
+  read.table(args$HbS_predictions, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+}, error = function(e) {
+  readRDS(args$HbS_predictions)
+})
+
+# Load raw HbS survey data and convert to sf points
+HbSdata <- read.csv(args$HbS_survey)
+hbssf   <- df2sf(HbSdata, coords = c('longitude', 'latitude'), crs = 4326)
+
+# Load aggregated HbS samples by polygon
+hbs.grid.samples <- read.table(args$HbS_aggregated, sep = '\t', header = TRUE)
+
+################################################################################
+# Load Pf data and create spatial points
+db <- dbConnect(dbDriver("SQLite"), args$pf)
+pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+stopifnot(max(pfsource$N) == 1)
+pf = (
+  pfsource
+  %>% dplyr::mutate(
+    `Pfsa1_+` = `Pfsa1:nonref`,
+    `Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
+    `Pfsa2_+` = `Pfsa2:nonref`,
+    `Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
+    `Pfsa3_+` = `Pfsa3:nonref`,
+    `Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
+    `Pfsa4_+` = `Pfsa4:ref`,
+    `Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`  )
+  %>% dplyr::select(
+    source, datatype,latitude, longitude,country,
+    `Pfsa1_+`, `Pfsa1_N`,
+    `Pfsa2_+`, `Pfsa2_N`,
+    `Pfsa3_+`, `Pfsa3_N`,
+    `Pfsa4_+`, `Pfsa4_N`
+  )
+)
+# Load grid and extract polygon centroid coordinates
+discrete.grid <- readRDS(args$grid)
+centroid_coords <- st_centroid(discrete.grid) %>%
+  mutate(lon = st_coordinates(.)[,1],
+         lat = st_coordinates(.)[,2]) %>%
+  dplyr::select(polygon_id, lon, lat)
+
+# Create spatial Pf object and filter out locations with no samples
+pfsf <- df2sf(pf, coords = c('longitude', 'latitude'), crs = 4326) %>%
+  dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
+
+################################################################################
+# Create an ocean polygon for background plotting
+ocean <- st_polygon(list(cbind(
+  c(seq(-180, 179, length.out = 100), rep(180, 100),
+    seq(179, -180, length.out = 100), rep(-180, 100)),
+  c(rep(-60, 100), seq(-59, 89, length.out = 100),
+    rep(90, 100), seq(89, -60, length.out = 100))
+))) %>% st_sfc(crs = "WGS84") %>% st_as_sf()
+
+################################################################################
+# Function to plot raw HbS and Pf data worldwide
+graphabsplot <- function(world, ocean, hbssf, pfsf, bbox = NULL, flatcrs, 
+                         ptsize = 1.05, pt.thick = 0.3, oceancolor = oceancolor, landcolor = landcolor) {
+  hbsp <- ggplot() +
+    geom_sf(data = ocean, fill = oceancolor, col = NA) +
+    geom_sf(data = world, fill = landcolor, col = NA, lwd = 0.25) +  # land over ocean
+    geom_sf(data = hbssf, aes(color = Dataset), shape = 22, fill = "#EFAC00", alpha = 0.9,
+            size = ptsize, linewidth = pt.thick) +
     scale_color_manual(values = c("black", "white"), name = "HbS dataset",
                        guide = guide_legend(override.aes = list(alpha = 1), order = 1)) +
     ggnewscale::new_scale_colour() +
-    geom_sf(data = pfsf, aes(color = source, shape = allele), fill = 'chartreuse', alpha = 0.9, 
-            size = mysize, linewidth = mylinewidth) +
-    scale_color_manual(values = c("black", "grey35", "gray75"), name = "Pf dataset",
-                       guide = guide_legend(override.aes = list(fill = NA, shape = 21, alpha = 1), order = 2)) +
-    scale_shape_manual(values = c(21, 22, 23, 24), name = "Pf allele",
+    geom_sf(data = pfsf, aes(shape = datatype), colour = 'black', fill = "#28A87D", alpha = 0.9,
+            size = ptsize, linewidth = pt.thick) +
+    scale_shape_manual(values = c(21, 22), name = "Pfsa type",
                        guide = guide_legend(override.aes = list(alpha = 1), order = 3))
-      if(flat==TRUE) {
-        hbsp <- hbsp + coord_sf(crs = flatcrs, expand = F) 
-      } else {hbsp <- hbsp + coord_sf(expand = F) }
-    hbsp <- hbsp + theme_void() +
-    theme.panelgrid 
-
-  # Legend extraction
-  hbsplegend <- hbsp + 
-    theme(legend.position = 'bottom', legend.direction = "vertical",
-          legend.key = element_rect(colour = "transparent", fill = "transparent"))
   
-  legendfig <- ggpubr::get_legend(hbsplegend)  
-  legendfig <- ggpubr::as_ggplot(legendfig)
-
-  # Return the plot and the legend
+  hbsp <- hbsp + coord_sf(crs = flatcrs, expand = FALSE)
+  if (st_crs(world) == st_crs(4326)) {
+    hbsp <- hbsp + xlim(bbox[1], bbox[3]) + ylim(bbox[2], bbox[4])
+  }
+  hbsp <- hbsp + theme_void() + theme.panelgrid
+  
+  # Extract and return the legend separately
+  hbsplegend <- hbsp + theme(legend.position = 'bottom', legend.direction = "vertical",
+                             legend.key = element_rect(colour = "transparent", fill = "transparent"))
+  legendfig <- ggpubr::as_ggplot(ggpubr::get_legend(hbsplegend))
   return(list(hbsp, legendfig))
 }
 
-#A function to make and save raster grids of predicted HbS (mean, q25,...)######
-#from hbs predicted values######################################################
-
-generate_raster_maps <- function(
-    predictions,saveraster=FALSE,saverastername = saverastername,
-    savepath=args$outdir)
-{
-  coords <- sf::st_coordinates(predictions$prediction_locations)
+################################################################################
+# Function to generate and (optionally) save raster maps from HbS predictions
+generate_raster_maps <- function(predictions, saveraster = FALSE, saverastername, savepath = args$outdir) {
+  coords <- st_coordinates(predictions$prediction_locations)
   myraster <- list()
-  for (j in c( 'mean', 'q25', 'q50', 'q75', 'sd', 'iqr') ) {
-    values <- predictions[[j]]    # Extract  values
-    # Combine coordinates and values into a data frame
+  for (j in c('mean', 'q25', 'q50', 'q75', 'sd', 'iqr')) {
+    values <- predictions[[j]]  # Extract prediction values
     xyz <- data.frame(coords, value = values)
-    myraster[[j]] <- raster::rasterFromXYZ(xyz,crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
-    if(saveraster==TRUE){
-      writeRaster(myraster[[j]], paste0(savepath,"/",saverastername,"_",j,'.tif'), overwrite=TRUE)
+    myraster[[j]] <- rast(xyz, crs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+    if (saveraster) {
+      writeRaster(myraster[[j]], paste0(savepath, "/", saverastername, "_", j, '.tif'), overwrite = TRUE)
     }
   }
-  message( paste0("++ Raster maps saved as ",savepath,"/",saverastername,"..." ))
-  return(myraster)  
+  message(paste0("++ Raster maps saved as ", savepath, "/", saverastername, "..."))
+  return(myraster)
 }
 
-#legend with transparent background (bottom align and vertical direction)
-trans.leg.theme <- theme(legend.position='bottom',legend.direction = "vertical",
-      legend.key = element_rect(colour = "transparent", fill = "transparent"))
-
-#make HbS flat projected maps for various outcomes of hbs (mean, sd, etc.)######
-hbsrasplot <- function(rectangle,world,hbsstack,
-                       flatcrs = flatcrs,viridisoption="rocket",viridisoption_sd_iqr="cividis"){
-  myocean <- rectangle %>% st_sfc(crs = "WGS84")  %>% st_as_sf()
-  hbsmap <- raster::brick(hbsstack)
-  hbsmap <- raster::crop(hbsmap, world)
-  hbsmap <- raster::mask(hbsmap, world)
-  names(hbsmap) <- names(hbsstack)
-  figs <- list()
-  figlegends <- list()
-  j <- 0
-  for (mystat in names(hbsmap)) {
-    if (mystat %in% c("median","mean","q05","q25","q50","q75","q95",
-                           "Median", "Mean","Q05","Q25","Q50","Q75","Q95"))
-                           {
-    mybreaks <- HbSbreaks
-    #mylabels <- c(paste0("< 5\u2030"),"2.5%","5%","7.5%","10%","12.5%","15%","17.5%")#,"20%"
-    mycolortype <- viridisoption
-    } else {
-      #This color palette is for iqr and sd (not for the other statistics)
-      minbk <- min(values(hbsmap[[mystat]]),na.rm=T);
-      maxbk <- max(values(hbsmap[[mystat]]),na.rm=T)
-          mybreaks <- seq(minbk,maxbk,length.out=13)
-          #mylabels <- c("1%","2%","3%","4%","5%","6%","7%","8%","9%")#,"10%"
-          mycolortype <- viridisoption_sd_iqr
-    }  
-    #mylabels <- c(paste0("NA or < 5\u2030"),"2.5%","5%","7.5%","10%","12.5%","15%","17.5%","20%")
-    #myvalues <- c(0,seq(0.025,0.2,0.025))
-    #mycol <- pals::ocean.balance(length(mybreaks)-1)
-    #mycol <- greyredyellowpal(2,3,(length(mybreaks)-1-2-3))
-    j <- j+1
-    fig1a <- ggplot()+ 
-      geom_sf(data = myocean,fill = oceancolor, col = NA) +  # ocean
-      geom_sf(data = world,fill = landcolor, col = NA) +  # land (over oceans)
-      ggspatial::layer_spatial(hbsmap[[mystat]],aes(fill= after_stat(band1))) +
-      scale_fill_binned(breaks=mybreaks,type= "viridis", option= mycolortype,
-      na.value='transparent', labels = scales::label_percent())+
-      #scico::scale_fill_scico(palette = scicopal,na.value='transparent')+  
-      #scale_fill_viridis_c(option=viridisoption,direction = -1,na.value= "transparent",
-      #breaks=mybreaks,labels=mylabels )+
-      ggspatial:: annotation_spatial(world,fill="transparent",col="grey90",linewidth=0.25)+ 
-      theme_void()
-    
-    #save legend separately 
-    fig1awithlegend <- fig1a + 
-      trans.leg.theme + theme(text = element_text(family = "sans")) +
-      guides(fill=guide_legend(title=paste0("HbS ", mystat, " frequency"),title.position="top",
-                               override.aes = list(alpha = 1),order=1,ncol=2))
-    
-    legendfig1a <- ggpubr::get_legend(fig1awithlegend)  
-    figlegends[[j]] <- ggpubr::as_ggplot(legendfig1a)
-    
-    figs[[j]] <- fig1a +
-      coord_sf(crs = flatcrs, expand = F) +
-      theme_void() +
-      theme.panelgrid 
-  }
-  
-  return(list(figs,figlegends))
-}
-
-
-#make a projected map plot of raw HbS and Pf data###############################
 ################################################################################
-
-#build the ocean as background for the globe - center buffered by earth radius
-ocean <- st_point(x = c(0,0)) %>%
-  st_buffer(dist = 6371000) %>%
-  st_sfc(crs = crs_string) %>% st_make_valid()
-oceanrob <- ocean %>% sf::st_transform(crs=4326) 
-wsfrob <- mysub(wsf,giscosub, 4326)
-pfsf_rob <- mysub(pfsf,giscosub,4326)
-#make and save raw HbS and Pf flat plots and legends for multiple projections###
-for (i in 1:length(myprojs)) {
-flatplot <- graphabsplot(bkg=NULL,giscosub,oceanrob,wsfrob,pfsf_rob,flat=TRUE,
-                        flatcrs = myprojs[[i]],mysize = 1.05,mylinewidth=0.05)
-ggsave(paste0(args$outdir,"/worlddata",names(myprojs)[[i]],".pdf"),flatplot[[1]],width = 12,height = 6)
-ggsave(paste0(args$outdir,"/worlddata",names(myprojs)[[i]],".svg"),flatplot[[1]],width = 12,height = 6)
-ggsave(paste0(args$outdir,"/worlddatalegend",names(myprojs)[[i]],".pdf"),flatplot[[2]],width = 6,height = 6)
-ggsave(paste0(args$outdir,"/worlddatalegend",names(myprojs)[[i]],".svg"),flatplot[[2]],width = 6,height = 6)
+# Function to plot HbS at pixel level using a raster layer
+hbsrasplot <- function(ocean, spatial.domain, hbs.rast, HbSbreaks = HbSbreaks,
+                       HbSlabels = HbSlabels, flatcrs, viridisoption = "rocket") {
+  hbs.rast <- crop(hbs.rast, spatial.domain)  # Crop to the spatial domain
+  hbs.rast <- mask(hbs.rast, spatial.domain)    # Mask out areas outside the domain
+  myext <- extent(spatial.domain)
+  
+  fig1a <- ggplot() +
+    geom_sf(data = ocean, fill = oceancolor, col = NA) +  # Ocean background
+    geom_sf(data = spatial.domain, fill = landcolor, col = NA) +  # Land overlay
+    ggspatial::layer_spatial(hbs.rast, aes(fill = after_stat(band1))) +
+    scale_fill_viridis_c(option = viridisoption, direction = -1, na.value = "transparent",
+                         breaks = HbSbreaks, labels = HbSlabels) +
+    ggspatial::annotation_spatial(spatial.domain, fill = "transparent", col = "grey90", linewidth = 0.25) +
+    xlim(myext[1], myext[2]) + ylim(myext[3], myext[4]) +
+    theme_void()
+  
+  fig1awithlegend <- fig1a +
+    theme(legend.position = 'bottom', legend.direction = "vertical",
+          legend.key = element_rect(colour = "transparent", fill = "transparent"),
+          text = element_text(family = "sans")) +
+    guides(fill = guide_legend(title = "HbS pixel-level\nestimates",
+                               title.position = "top", override.aes = list(alpha = 1), order = 1, ncol = 2))
+  
+  legendfig1a <- ggpubr::as_ggplot(ggpubr::get_legend(fig1awithlegend))
+  
+  fig1a <- fig1a + coord_sf(crs = flatcrs, expand = FALSE) +
+    theme_void() + theme.panelgrid
+  
+  return(list(fig1a, legendfig1a))
 }
 
-#make and save raw HbS and Pf unprojected plots and legends#####################
-# plot focused on Asia and Africa
-worldortho <- giscosub %>% 
-st_transform(crs = crs_string)  %>% st_make_valid() # reproject to ortho
-
-allortho <- giscoall %>% 
-st_transform(crs = crs_string)  %>% st_make_valid() # reproject to ortho
-
-wsf_globe <- mysub(wsf,giscosub,crs_string)
-pfsf_globe <- mysub(pfsf,giscosub,crs_string)
-
-globeplot <- graphabsplot(bkg=allortho,worldortho,ocean,wsf_globe,pfsf_globe,flat=FALSE,
-                           flatcrs = crs_string,mysize = 1.25,mylinewidth=0.2)
-  ggsave(paste0(args$outdir,"/worlddataglobe.pdf"),globeplot[[1]],width = 8,height = 8)
-  ggsave(paste0(args$outdir,"/worlddataglobe.svg"),globeplot[[1]],width = 8,height = 8)
-  ggsave(paste0(args$outdir,"/worlddatalegendglobe.pdf"),globeplot[[2]],width = 6,height = 6)
-  ggsave(paste0(args$outdir,"/worlddatalegendglobe.svg"),globeplot[[2]],width = 6,height = 6)
-
-# plot focused on the Americas
-ocean_americas <- st_point(x = c(0,0)) %>%
-  st_buffer(dist = 6371000) %>%
-  st_sfc(crs = crs_string2) %>% st_make_valid()
-
-americas <- st_intersection(gisco_countries, world_sf[world_sf$continent %in% c("South America","North America"),])  %>%
- st_transform(crs = crs_string2) # reproject to ortho
-
-wsf_globe2 <- mysub(wsf,gisco_countries,crs_string2)
-wsf_americas <- mysub(wsf_globe2,americas,crs_string2)
-
-pfsf_globe2 <- mysub(pfsf,gisco_countries,crs_string2);
-pfsf_americas <- mysub(pfsf_globe2,americas,crs_string2);
-
-allamerica <- giscoall %>% 
-st_transform(crs = crs_string2)  %>% st_make_valid() # reproject to ortho
-
-americasplot <- graphabsplot(bkg=allamerica,americas,ocean_americas,wsf_americas,pfsf_americas,
-                              flat=FALSE, flatcrs = crs_string,mysize = 2,mylinewidth=0.2)
-ggsave(paste0(args$outdir,"/worlddataamericas.pdf"),americasplot[[1]],width = 8,height = 8)
-ggsave(paste0(args$outdir,"/worlddataamericas.svg"),americasplot[[1]],width = 8,height = 8)
-ggsave(paste0(args$outdir,"/worlddatalegendamericas.pdf"),americasplot[[2]],width = 6,height = 6)
-ggsave(paste0(args$outdir,"/worlddatalegendamericas.svg"),americasplot[[2]],width = 6,height = 6)
-echo('Fig1: HbS map generated\n')
-
-#create and save HbS predicted values (mean, q25, etc) as raster (tif file)#########
-hbsraster <- generate_raster_maps(predictions,
-                                  saveraster=TRUE,
-                                  saverastername = 'HbS',
-                                  savepath=args$outdir)
+################################################################################
+# Create and save HbS predicted rasters as TIFF files (mean, q25, etc.)
+hbsraster <- generate_raster_maps(predictions, saveraster = FALSE, saverastername = 'HbS', savepath = "maps not saved")
 echo('Fig1: raster map generated\n')
 
-#create HbS masked maps as input for simulation #####################################
-croppop <- raster::crop(popmask, extent(hbsraster[[1]]))
-hbsmask <- raster::projectRaster(raster::brick(hbsraster),croppop,method='bilinear')
-#mask predictions
-hbsmask <- hbsmask*croppop
-names(hbsmask) <- names(hbsraster)
-#save results as tif files
-for (i in 1:nlayers(hbsmask)){
-raster::writeRaster(hbsmask[[i]],
-                    file=paste0(args$outdir,"/hbsmask",names(hbsmask)[i],".tif"),
-                    overwrite=TRUE) 
-}
-echo('Fig1: raster map hbsmask generated\n')
-
-#mybreaks <- c(0.0005,seq(0.025,0.2,0.025))
-#mylabels <- c(paste0("NA or < 5\u2030"),"2.5%","5%","7.5%","10%","12.5%","15%","17.5%","20%")
-#myvalues <- c(0,seq(0.025,0.2,0.025))
-#mycol <- pals::ocean.balance(length(mybreaks)-1)
-#mycol <- greyredyellowpal(2,3,(length(mybreaks)-1-2-3))
-
-#make HbS flat projected maps for various outcomes of hbs (mean, sd, etc.)######
-#loop over list of projections
-for (i in 1:length(myprojs)) {
-  hbsflat <- hbsrasplot(rectangle,giscosub,hbsraster,
-                        flatcrs = myprojs[[i]],viridisoption="rocket",viridisoption_sd_iqr='cividis')
-  subplot <- hbsflat[[1]]#plots for mean, sd, etc for a given projection
-  sublegend <- hbsflat[[2]]#legend of plots for mean, sd, etc for a given projection
-  #loop over mean,sd, etc. 
-    for (j in 1:length(names(hbsraster))){
-       ggsave(paste0(args$outdir,"/hbs_",names(hbsraster)[j],"_",names(myprojs)[[i]],".pdf"),subplot[[j]],width = 12,height = 6)
-       ggsave(paste0(args$outdir,"/hbs_",names(hbsraster)[j],"_",names(myprojs)[[i]],".svg"),subplot[[j]],width = 12,height = 6)
-       ggsave(paste0(args$outdir,"/hbslegend_",names(hbsraster)[j],"_",names(myprojs)[[i]],".pdf"),sublegend[[j]],width = 3,height = 6)
-       ggsave(paste0(args$outdir,"/hbslegend_",names(hbsraster)[j],"_",names(myprojs)[[i]],".svg"),sublegend[[j]],width = 3,height = 6)
-    }
-}
-echo('Fig1: HbS map at pixel-level generated\n')
-
-
-rowMedians = function( m ) {
-  sapply( 1:nrow(m), function(i) { median(m[i,] )})
-}
-myhbs$HbS_mean = rowMeans(as.matrix( myhbs[, grep( "posterior_sample", colnames(myhbs))] ))
-myhbs$HbS_median = rowMedians(as.matrix( myhbs[, grep( "posterior_sample", colnames(myhbs))] ))
-
-countrydfi <- countrydfi %>% 
-  dplyr::left_join(myhbs[,c("polygon_id", "HbS_mean", "HbS_median")], by = c("polygon_id")) %>%
-  dplyr::mutate( HbS = HbS_median )
-
-
-#Plot: Figure 1b' which plots HbS and Pf data in a user-selected area
-#User can choose between mapping HbS points of not on top of hbs hexagons
-  #function to round the break for Pf size discs
-  custom_round <- function(x) {
-    if (x < 100) {
-      return(round(x, 0))  # Round to nearest 10 for values less than 100
-    } else if (x < 1000) {
-      return(round(x, -1))  # Round to nearest 100 for values in the hundreds
-    } else if (x < 10000) {
-      return(round(x, -2))  # Round to nearest 1000 for values in the thousands
-    } else {
-      return(round(x, -3))  # Round to nearest 10000 for larger values
-    }
-  }
-
-fig1bplot <- function(myarea,myhexa,wsf,pfsf=NULL,
-                         flatcrs = flatcrs,sizept = 1,
-                         maphbs=TRUE,mappf=TRUE,pfvarsize=FALSE, mylinewidth = NULL,
-                         viridisoption="rocket",countrybordercol= 'gray35',
-                         countrybuffer = FALSE){
-  #if the user provides a list of countries 
-  if(class(myarea)[1]== "list") {
-  myboundary <- world_sf[world_sf$sovereignt %in% myarea[[i]],]  
-  allboundary <- world_sf[world_sf$sovereignt %in% unlist(myarea),] 
-  } else { allboundary <- myboundary <- world_sf[world_sf$sovereignt %in% myarea,]  }
-  #myhexa$HbS <- myhexa$mean 
-  myhexa$HbS <- round(myhexa$HbS,3)
-  hbslabels <- hbsbreaks <- HbSbreaks
-  #make fixed scale for HbS
-  # areabox <- sf::st_as_sfc(sf::st_bbox(myboundary))#square around area/country of interest
-  
-  #in case we use all world as boundary the intersection would lead to some issues 
-  oceanaround <- sf::st_difference(myboundary,world_sf) 
-  oceanaround <- sf::st_make_valid(oceanaround)
-  if ((nrow(myboundary)+5) < nrow(world_sf)) {
-  allland <- sf::st_intersection(world_sf,myboundary)
-  } else {
-    mostworld <-  world_sf[!(world_sf$continent %in% c("Antarctica")),]
-    allland <- myboundary <- mostworld
-    }
-  myhexa <- sf::st_make_valid(myhexa)  
-  hexas <- sf::st_intersection(myhexa,myboundary) 
-# Simplified main plot function
-hbsp <- ggplot() +
- #geom_sf(data = areabox, fill = NA, col = NA) +              # area (square)
- geom_sf(data = oceanaround, fill = oceancolor, col = NA) +   # ocean
- geom_sf(data = allland, fill = landcolor, col = NA)
-  if(is.null(mylinewidth)){
-  boundarywidth <- 1
-  hbsp <- hbsp + geom_sf(data = hexas, aes(fill = HbS), col = 'transparent') 
-  }  else {
-  boundarywidth <- 2.5*mylinewidth
-  hbsp <- hbsp + geom_sf(data = hexas, aes(fill = HbS), col = 'gray85', linewidth  = mylinewidth)  }
-  hbsp <- hbsp + geom_sf(data = myboundary, fill = 'transparent', col = countrybordercol, linewidth  = boundarywidth)
-
-# geom_sf(data = areabox, fill = NA, col = 'gray35', lwd = 1)                    # area (square)
-# Add HbS data if maphbs is TRUE
-if (maphbs == TRUE) {
-  if (countrybuffer == TRUE) {
-    myboundary <- sf::st_buffer(myboundary, 1)
-  }
-  hbsp <- hbsp +
-    geom_sf(data = wsf[myboundary, ], aes(color = Dataset), shape = 22, fill = "orange", 
-            size = sizept, linewidth = boundarywidth) +
-    scale_color_manual(values = c("black", "white"), name = "HbS dataset", 
-                       guide = guide_legend(override.aes = list(alpha = 1), order = 1))
-}
-# Shared elements between pfvarsize == TRUE and FALSE
-hbsp <- hbsp +
-  scale_fill_binned(breaks = hbsbreaks, type = "viridis", option = viridisoption,
-                    na.value = 'transparent', labels = scales::label_percent(),
-                    name = "HbS frequency\nmean estimate", guide = guide_legend(override.aes = list(alpha = 1), order = 2,ncol=2)) 
-#Should we map Pf points?
-if (mappf == TRUE) {
-  #Should we show the sample size of Pf at Pf locations?
-  if (pfvarsize == FALSE) {
-  hbsp <- hbsp +
-    ggnewscale::new_scale_colour()  +
-    geom_sf(data = pfsf[myboundary, ], aes(shape = allele, color = source), fill = 'chartreuse', alpha = 0.9, 
-            size = sizept, linewidth = 0.3) +
-              scale_color_manual(values = c("black", "grey45", "gray90"), name = "Pf dataset",
-                     guide = guide_legend(override.aes = list(fill = NA, shape = 21, alpha = 1), order = 3)) +
-                scale_shape_manual(values = c(21, 22, 23, 24), name = "Pf allele",
-                     guide = guide_legend(override.aes = list(alpha = 1), order = 4))       
-} else {
-  pfsizebreaks <- unique(sapply(exp(seq(0, log(max(pfsf$N, na.rm = TRUE)), length.out = 6)), custom_round))
-  hbsp <- hbsp +
-    ggnewscale::new_scale_colour()  +
-    geom_sf(data = pfsf[myboundary, ], aes(size = N, shape = allele,color = source), fill = 'chartreuse', alpha = 0.9, 
-            linewidth = 0.3) +
-      scale_color_manual(values = c("black", "grey45", "gray90"), name = "Pf dataset",
-                     guide = guide_legend(override.aes = list(fill = NA, shape = 21, alpha = 1), order = 3)) +
-      scale_shape_manual(values = c(21, 22, 23, 24), name = "Pf allele",
-                     guide = guide_legend(override.aes = list(alpha = 1), order = 4))+                        
-    scale_size_continuous(range = c(1, 10), limits = c(0, max(pfsizebreaks) + 1), breaks = pfsizebreaks, 
-                          name = paste0("Pf+\nsample size"), guide = guide_legend(override.aes = list(alpha = 1), order = 5))
-}
-}
-# Legend
-hbsplegend <- hbsp + 
-theme(legend.position = 'bottom', legend.direction = "vertical",text = element_text(family = "sans"))
-legendfig <- ggpubr::get_legend(hbsplegend)  
-legendfig <- ggpubr::as_ggplot(legendfig)
-#complete the main plot
-hbsp <-  hbsp +
-  coord_sf(crs = flatcrs, expand = T) +
-  theme_void()  +
-  theme.panelgrid
-
-return(list(hbsp,legendfig))
-}
-
-#HbS hexagon and raw Pf and HbS data with a focus on Tanzania###################
-tza <- world_sf[world_sf$name=='Tanzania',]
-#needs to be false to work here
+# Create HbS masked maps for simulation and mapping
 sf::sf_use_s2(FALSE)
-#make plot for Tanzania
-echo('Fig1: so far it run until fig1bplot\n')
+world_border   <- st_union(world_sf)
+malariafilter  <- rast("geodata/2024_GBD2023_Global_PfPR_2000.tif")[[1]]  # Use first layer only
 
-#debug(fig1bplot)
-mywgs84 <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-fig1bhexa <- fig1bplot(myarea=tza,myhexa=countrydfi,wsf,pfsf,
-                      flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=TRUE,
-                      pfvarsize=FALSE,mylinewidth = 0.25,viridisoption="rocket",
-                      countrybordercol= 'gray90')
-ggsave(file=paste0(args$outdir,"/fig1bhex_tza.pdf"),fig1bhexa[[1]], width = 6, height = 7 )
-ggsave(file=paste0(args$outdir,"/fig1bhex_tza.svg"),fig1bhexa[[1]], width = 6, height = 7 )
-ggsave(file=paste0(args$outdir,"/fig1bhex_tzalegend.pdf"),fig1bhexa[[2]], width = 6, height = 3)
-ggsave(file=paste0(args$outdir,"/fig1bhex_tzalegend.svg"),fig1bhexa[[2]], width = 6, height = 3)
+# Function to crop and resample a raster (align one raster to another)
+cropnresample <- function(poly, spdomain, rgrid) {
+  mfilter <- terra::crop(poly, vect(spdomain))
+  mfilter <- terra::mask(mfilter, vect(spdomain))
+  mfilter <- resample(mfilter, rgrid, method = "bilinear")
+  project(mfilter, rgrid)
+}
+
+# Crop the malaria filter and apply it to mask HbS rasters to malaria-endemic regions
+malariafilter <- cropnresample(malariafilter, world_sf, hbsraster[[1]])
+hbsmask <- lapply(hbsraster, function(r) r * malariafilter)
+names(hbsmask) <- names(hbsraster)
+for (i in seq_along(hbsmask)) {
+  raster::writeRaster(hbsmask[[i]],
+                      file = paste0(args$outdir, "/hbsmask", names(hbsmask)[i], ".tif"),
+                      overwrite = TRUE)
+}
+echo('Fig1: raster map hbsmask generated and saved \n')
+
+# Plot HbS raster map for Africa
+hbs.map.africa <- hbsrasplot(ocean = ocean, spatial.domain = africa_sf,
+                             hbs.rast = hbsmask[['mean']], HbSbreaks = HbSbreaks, HbSlabels = HbSlabels,
+                             flatcrs = myprojs[[1]], viridisoption = "rocket")
+ggsave(paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[1]], width = 7, height = 6)
+ggsave(paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[1]], width = 7, height = 6)
+ggsave(paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[2]], width = 3, height = 6)
+ggsave(paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[2]], width = 3, height = 6)
+echo('Fig1: HbS map in Africa at pixel-level generated\n')
+
+################################################################################
+# Define spatial extents based on HbS and Pf data
+HbSbbox <- st_bbox(hbsmask[[1]])
+Pfbbox  <- st_bbox(pfsf) + c(-1, -11.5, 1, 11.5)  # Ensure Africa is covered
+
+# Plot worldwide locations of HbS and Pf data
+world.hbs.pf.map <- graphabsplot(world = world_sf, ocean = ocean, hbssf = hbssf, pfsf = pfsf,
+                                 bbox = Pfbbox, flatcrs = myprojs[[1]], ptsize = 1.05,
+                                 pt.thick = 0.05, oceancolor = oceancolor, landcolor = landcolor)
+ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[1]], width = 12, height = 4)
+ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[1]], width = 12, height = 4)
+ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[2]], width = 3, height = 2)
+ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[2]], width = 3, height = 2)
+
+################################################################################
+# Create HbS hexagon maps
+
+# Compute HbS mean from posterior samples (row medians)
+hbs.grid.samples$HbS <- rowMedians(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
+# Merge HbS estimates into the discrete grid
+discrete.grid <- discrete.grid %>% 
+  dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
+
+# Function to plot HbS hexagons with optional overlay of raw HbS and Pf data
+fig1bplot <- function(sp.domain, discrete.grid, hbssf, pfsf = NULL, flatcrs, sizept, maphbs = TRUE, mappf = TRUE,
+                      pfvarsize = FALSE, pt.thick, viridisoption = "rocket",
+                      countrybordercol = 'gray35', countrybuffer = FALSE, HbSbreaks = HbSbreaks, HbSlabels = HbSlabels) {
+  boundarywidth <- 2.5 * pt.thick
+  
+  # If sp.domain is provided as a list, extract boundaries accordingly
+  if (class(sp.domain)[1] == "list") {
+    myboundary  <- world_sf[world_sf$sovereignt %in% sp.domain[[1]], ]
+    allboundary <- world_sf[world_sf$sovereignt %in% unlist(sp.domain), ]
+  } else {
+    myboundary  <- world_sf[world_sf$sovereignt %in% sp.domain, ]
+    allboundary <- myboundary
+  }
+  # Define ocean surrounding the boundary
+  oceanaround <- st_make_valid(sf::st_difference(myboundary, world_sf))
+  if ((nrow(myboundary) + 5) < nrow(world_sf)) {
+    allland <- st_intersection(world_sf, myboundary)
+  } else {
+    myboundary <- world_sf[!(world_sf$continent %in% c("Antarctica")), ]
+    allland   <- myboundary
+  }
+  discrete.grid <- st_make_valid(discrete.grid)
+  hexas <- st_intersection(discrete.grid, myboundary)
+  
+  hbsp <- ggplot() +
+    geom_sf(data = oceanaround, fill = oceancolor, col = NA) +   # Ocean background
+    geom_sf(data = allland, fill = landcolor, col = NA) +
+    geom_sf(data = hexas, aes(fill = HbS), col = 'gray85', linewidth = pt.thick) + 
+    geom_sf(data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth) +
+    scale_fill_viridis_c(option = viridisoption, name = "HbS frequency\nmean estimate", direction = -1,
+                         na.value = "transparent", breaks = HbSbreaks, labels = HbSlabels,
+                         guide = guide_legend(override.aes = list(alpha = 1), order = 2, ncol = 2))
+  
+  # Optionally overlay raw HbS data points
+  if (maphbs) {
+    if (countrybuffer) {
+      myboundary <- st_buffer(myboundary, 1)
+    }
+    hbsp <- hbsp +
+      geom_sf(data = hbssf[myboundary, ], aes(color = Dataset), shape = 22, fill = "#EFAC00",
+              size = sizept, linewidth = boundarywidth) +
+      scale_color_manual(values = c("black", "white"), name = "HbS dataset",
+                         guide = guide_legend(override.aes = list(alpha = 1), order = 1))
+  }
+  
+  # Optionally overlay Pf data points (with variable point size if desired)
+  if (mappf) {
+    if (!pfvarsize) {
+      hbsp <- hbsp +
+        ggnewscale::new_scale_colour() +
+        geom_sf(data = pfsf[myboundary, ], aes(shape = datatype), color = 'black', fill = 'chartreuse',
+                alpha = 0.9, size = sizept, linewidth = 0.3) +
+        scale_shape_manual(values = c(21, 22), name = "Pfsa type",
+                           guide = guide_legend(override.aes = list(alpha = 1), order = 4))
+    } else {
+      pfsizebreaks <- unique(sapply(exp(seq(0, log(max(pfsf$N, na.rm = TRUE)), length.out = 6)), custom_round))
+      hbsp <- hbsp +
+        ggnewscale::new_scale_colour() +
+        geom_sf(data = pfsf[myboundary, ], aes(size = N, shape = datatype), fill = 'chartreuse', alpha = 0.9,
+                linewidth = 0.3) +
+        scale_shape_manual(values = c(21, 22), name = "Pfsa type",
+                           guide = guide_legend(override.aes = list(alpha = 1), order = 4)) +
+        scale_size_continuous(range = c(1, 10), limits = c(0, max(pfsizebreaks) + 1), breaks = pfsizebreaks,
+                              name = "Pf+\nsample size", guide = guide_legend(override.aes = list(alpha = 1), order = 5))
+    }
+  }
+  
+  hbsplegend <- hbsp + theme(legend.position = 'bottom', legend.direction = "vertical", text = element_text(family = "sans"))
+  legendfig <- ggpubr::as_ggplot(ggpubr::get_legend(hbsplegend))
+  
+  hbsp <- hbsp +
+    coord_sf(crs = flatcrs, expand = TRUE) +
+    theme_void() + theme.panelgrid
+  
+  return(list(hbsp, legendfig))
+}
+
+# Example: Create HbS hexagon map for Tanzania
+tza <- world_sf[world_sf$name == 'Tanzania', ]
+sf::sf_use_s2(FALSE)
+fig1bhexa <- fig1bplot(sp.domain = tza, discrete.grid = discrete.grid, hbssf = hbssf, pfsf = pfsf,
+                       flatcrs = myprojs[[1]], sizept = 3, maphbs = FALSE, mappf = TRUE,
+                       pfvarsize = FALSE, pt.thick = 0.25, viridisoption = "rocket",
+                       countrybordercol = 'gray90', countrybuffer = FALSE,
+                       HbSbreaks = HbSbreaks, HbSlabels = HbSlabels)
+ggsave(file = paste0(args$outdir, "/fig1bhex_tza.pdf"), fig1bhexa[[1]], width = 6, height = 7)
+ggsave(file = paste0(args$outdir, "/fig1bhex_tza.svg"), fig1bhexa[[1]], width = 6, height = 7)
+ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.pdf"), fig1bhexa[[2]], width = 6, height = 3)
+ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.svg"), fig1bhexa[[2]], width = 6, height = 3)
 echo('Fig1: Plot Tanzania example fig1bhex_tza completed\n')
 
-#plot for comparing piel vs us in madagascar
-mad <- world_sf[world_sf$name=='Madagascar',]
-fig1bhexa <- fig1bplot(myarea=mad,myhexa=countrydfi,wsf,pfsf,
-                      flatcrs = mywgs84,sizept = 4,maphbs=TRUE,mappf=FALSE,
-                      pfvarsize=FALSE,mylinewidth = 0.25,viridisoption="rocket",
-                      countrybordercol= 'gray90',countrybuffer = TRUE)
-ggsave(file=paste0(args$outdir,"/fig1bhex_mad.pdf"),fig1bhexa[[1]], width = 5, height = 7 )
-ggsave(file=paste0(args$outdir,"/fig1bhex_mad.svg"),fig1bhexa[[1]], width = 5, height = 7 )
-ggsave(file=paste0(args$outdir,"/fig1bhex_madlegend.pdf"),fig1bhexa[[2]], width = 6, height = 3)
-ggsave(file=paste0(args$outdir,"/fig1bhex_madlegend.svg"),fig1bhexa[[2]], width = 6, height = 3)
-echo('Fig1: Plot Madagascar example fig1bhex_mad completed\n')
+################################################################################
+# Create summary dumbbell plot map aggregating Pf values by location
 
+# Aggregate Pf values at latitude/longitude
+pfagg <- pfsf %>%
+  dplyr::mutate(longitude = st_coordinates(.)[,1],
+                latitude  = st_coordinates(.)[,2]) %>%
+  dplyr::group_by(country, longitude, latitude) %>%
+  dplyr::summarise(across(where(is.numeric), sum, na.rm = TRUE))
 
-#plot for Figure 3 with HbS values in hexagons and Pf variable size
-countrylist <- list("Democratic Republic of the Congo",'Mali',c('Ghana','Togo','Burkina Faso'), 
-'United Republic of Tanzania',c('Gambia','Senegal'))
-for (i in 1:length(countrylist)) {
-echo( "++ Doing Figure 3 %s...\n", countrylist[[i]] )
-fig3maps <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                       flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=FALSE,
-                       pfvarsize=TRUE,mylinewidth = NULL,viridisoption="rocket",
-                       countrybordercol= 'gray90')
+# Extract HbS estimates from the raster for aggregated Pf points
+HbS <- terra::extract(hbsmask[['mean']], vect(pfagg))
+pfagg$HbS <- HbS[,2]
 
-#save plot and legend separately  
-allcountries <- paste(countrylist[[i]],collapse = '-')
-file_name <- paste0(args$outdir,"/fig3","_",
-                    gsub("\\s", "", allcountries))
-ggsave(paste0(file_name,'.pdf'), plot = fig3maps[[1]], device = "pdf",width = 9,height=8)
-ggsave(paste0(file_name,'.svg'), plot = fig3maps[[1]], device = "svg",width = 9,height=8)
-ggsave(paste0(file_name,'legend.pdf'), plot = fig3maps[[2]], device = "pdf",width = 8,height=4)
-ggsave(paste0(file_name,'legend.svg'), plot = fig3maps[[2]], device = "svg",width = 8,height=4)
+pfagg <- sf::st_join(pfagg, world_sf %>% dplyr::select(continent))
+
+weighted_average <- function(N, value, na.rm = FALSE) {
+  w <- which(!is.na(value) & !is.na(N))
+  sum(N[w] * value[w]) / sum(N[w])
 }
 
-#make plot for the world
-mostworld <- world_sf[!(world_sf$continent %in% c("Antarctica")),]
-countrylist <- unique(mostworld$sovereignt)
-worldhex <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                        flatcrs = myprojs[[1]],sizept = 2,maphbs=FALSE,mappf=FALSE,
-                        pfvarsize=FALSE,mylinewidth = NULL,viridisoption="rocket")
-#save plot and legend separately  
-file_name <- paste0(args$outdir,"/fig3","_world")
-ggsave(paste0(file_name,'.pdf'), plot = worldhex[[1]], device = "pdf",width = 24,height=13.5)
-ggsave(paste0(file_name,'.svg'), plot = worldhex[[1]], device = "svg",width = 24,height=13.5)
-ggsave(paste0(file_name,'legend.pdf'), plot = worldhex[[2]], device = "pdf",width = 6,height=3)
-ggsave(paste0(file_name,'legend.svg'), plot = worldhex[[2]], device = "svg",width = 6,height=3)
+# To add continent and global aggregates (commented out)
+# pfagg <- bind_rows(
+#   pfagg, 
+#   pfagg %>% mutate(country = continent),
+#   pfagg %>% mutate(country = 'Global')
+# )
 
-#plot only hexagon with hbs values in it for the world
-worldjusthex <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf=NULL,
-                        flatcrs = myprojs[[1]],sizept = 2,maphbs=FALSE,mappf=FALSE,
-                        pfvarsize=FALSE,mylinewidth = NULL,viridisoption="rocket")
+# Summarize data by country
+figure_data <- pfagg %>%
+  group_by(country) %>%
+  dplyr::summarise(
+    sites   = n(),
+    `Pfsa1_+` = sum(`Pfsa1_+`),
+    samples = sum(`Pfsa1_N`),
+    HbS     = weighted_average(`Pfsa1_N`, HbS)
+  )
 
-#save plot and legend separately  
-file_name <- paste0(args$outdir,"/fig3","_world_hbs_hex")
-ggsave(paste0(file_name,'.pdf'), plot = worldjusthex[[1]], device = "pdf",width = 24,height=13.5)
-ggsave(paste0(file_name,'.svg'), plot = worldjusthex[[1]], device = "svg",width = 24,height=13.5)
-ggsave(paste0(file_name,'legend.pdf'), plot = worldjusthex[[2]], device = "pdf",width = 6,height=3)
-ggsave(paste0(file_name,'legend.svg'), plot = worldjusthex[[2]], device = "svg",width = 6,height=3)
+# Convert HbS values to per 1,000 (for plotting only)
+figure_data$HbS <- figure_data$HbS * 10
+figure_data$geometry <- NULL
+figure_data$Pfsa1 <- figure_data$`Pfsa1_+` / figure_data$samples
+figure_data$`Pfsa1_+` <- figure_data$continent <- figure_data$sov_a3 <- NULL
+figure_data <- as_tibble(figure_data)
+
+# Replace long country names with shorter versions
+replacements <- c(
+  "Burkina_Faso" = "Burkina Faso",
+  "Democratic_Republic_of_the_Congo" = "DRC",
+  "Cote_dIvoire" = "Ivory Coast",
+  "Papua_New_Guinea" = "Papua New Guinea"
+)
+figure_data <- figure_data %>%
+  mutate(country = if_else(country %in% names(replacements), replacements[country], country))
+
+# Warn if HbS values are missing
+missingHbS <- figure_data[is.na(figure_data$HbS), ]
+echo(paste0('Warning: Fig HbSPf summary: HbS values not available for: ', as.vector(missingHbS$country), '\n'))
+figure_data <- figure_data[!is.na(figure_data$HbS), ]
+
+figure_data <- figure_data %>%
+  mutate(country = forcats::fct_rev(fct_inorder(country))) %>%
+  pivot_longer(cols = -c(country, samples, sites), names_to = "type", values_to = "result") %>%
+  mutate(share = result) %>%
+  arrange(country, -share)
 
 
-#make plot for Africa
-africa <- world_sf[(world_sf$continent %in% c("Africa")),]
-countrylist <- unique(africa$sovereignt)
-africahex <- fig1bplot(myarea=countrylist,myhexa=countrydfi,wsf,pfsf,
-                      flatcrs = mywgs84,sizept = 3,maphbs=FALSE,mappf=FALSE,
-                      pfvarsize=FALSE,mylinewidth = NULL,viridisoption="rocket")
-#save plot and legend separately  
-file_name <- paste0(args$outdir,"/fig3","_Africa")
-ggsave(paste0(file_name,'.pdf'), plot = africahex[[1]], device = "pdf",width = 10,height=10)
-ggsave(paste0(file_name,'.svg'), plot = africahex[[1]], device = "svg",width = 10,height=10)
-ggsave(paste0(file_name,'legend.pdf'), plot = africahex[[2]], device = "pdf",width = 6,height=3)
-ggsave(paste0(file_name,'legend.svg'), plot = africahex[[2]], device = "svg",width = 6,height=3)
+theme_set(theme_minimal(base_family = "sans", base_size = 22))
+theme_update(
+  axis.title = element_blank(),
+  axis.text.y = element_text(hjust = 0, color = grey_dark),
+  panel.grid.minor = element_blank(),
+  panel.grid.major = element_blank(),
+  plot.caption = element_markdown(size = rel(0.5), color = grey_base, hjust = 0, margin = margin(t = 20, b = 0), family = 'sans'),
+  plot.caption.position = "plot",
+  plot.background = element_rect(fill = "white", color = "white"),
+  legend.position = "none"
+)
 
-echo( "++ End Fig1: plot HbS" )
+figure_data <- figure_data %>%
+  arrange(ifelse(type == "HbS", share, NA_real_), samples, sites) %>%
+  mutate(country = factor(country, levels = unique(country)))
 
-#make hexagon sample plots for graphic (simulation for illustration)############
-################################################################################
-# Load required libraries
-library(ggplot2)
-library(hexbin)
+p <- ggplot(figure_data, aes(x = ifelse(type == "Pfsa1", -share, share), y = country)) +
+  # Colored point as first column
+  geom_point(aes(y = country, x = -2.35, fill = country), shape = 21, size = 6, stroke = 0.5, color = grey_dark) +
+  scale_fill_manual(values = country.colours()) +
+  # Dumbbell segments
+  stat_summary(geom = "linerange", fun.min = min, fun.max = max, linewidth = 0.8, color = grey_base) +
+  # White point overplot for line endings
+  geom_point(aes(x = ifelse(type == "Pfsa1", -share, share), size = ifelse(abs(share) < 0.01, 0, 6)),
+             shape = 21, stroke = 1, color = "white", fill = "white") +
+  # Semi-transparent point fill
+  geom_point(aes(x = ifelse(type == "Pfsa1", -share, share), fill = grey_base, size = ifelse(abs(share) < 0.01, 0, 6)),
+             color = grey_base, shape = 21, stroke = 1, alpha = 0.7) +
+  # Point outline
+  geom_point(aes(x = ifelse(type == "Pfsa1", -share, share), size = ifelse(abs(share) < 0.01, 0, 6)),
+             shape = 21, stroke = 1, color = "white", fill = NA) +
+  # Sample size column (next to country names)
+  geom_text(aes(y = country, x = -1.35, label = scales::comma(samples)), hjust = 1, size = 5, color = "black") +
+  # Sites column (placed after samples)
+  geom_text(aes(y = country, x = -1.15, label = paste0("(", sites, ")")), hjust = 1, size = 5, color = "black") +
+  # Result labels for Pf and HbS
+  geom_text(aes(label = ifelse(type == "Pfsa1", percent(abs(share), accuracy = 1, suffix = "%"), 
+                               percent(abs(share), accuracy = 1, suffix = "‰")),
+                x = ifelse(type == "Pfsa1", -share - 0.14, share + 0.14), hjust = 0.5, color = type),
+            fontface = "plain", family = "sans", size = 5.5) +
+  # Legend labels
+  annotate("text", x = c(-0.22, 0.22), y = length(unique(figure_data$country)) + 1,
+           label = c("Pfsa1", "HbS"), family = "sans", fontface = "plain", color = grey_dark, size = 5.5, hjust = 0.5) +
+  # Vertical dashed line at x = 0
+  geom_vline(xintercept = 0, linetype = "dashed", color = grey_dark) +
+  # Adjust x-axis limits to allow space for both columns
+  coord_cartesian(xlim = c(-1.5, 1.4), clip = "off") +
+  scale_x_continuous(breaks = c(seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
+                     labels = c(seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
+                     expand = expansion(add = c(0.05, 0.05)),
+                     guide = "none") +
+  scale_y_discrete(expand = expansion(add = c(0.05, 0.05))) +
+  scale_color_manual(values = pal_dark) +
+  theme(axis.text.y = element_text(face = "plain", size = 20),
+        plot.margin = margin(10, 10, 10, 80))
 
-# Set seed for reproducibility
-set.seed(123)
+ggsave(file = paste0(args$outdir, "/hbspfsummary.pdf"), p, width = 11, height = 15)
+ggsave(file = paste0(args$outdir, "/hbspfsummary.svg"), p, width = 11, height = 15)
 
-# Generate synthetic data
-n <- 10000
-HbS_freq <- rnorm(n, 0.15, 0.05)  # HbS frequency ranging from 0 to 1
-Pf_freq <- rnorm(n, 0.35, 0.15)   # Pf allele frequency ranging from 0 to 1
-
-HbS_freq <- pmax(pmin(HbS_freq,0.95), 0)  # HbS frequency ranging from 0 to 1
-Pf_freq <- pmax(pmin(Pf_freq,0.95), 0)  # Pf frequency ranging from 0 to 1
-
-# Create a data frame
-df <- data.frame(HbS_freq, Pf_freq)
-# Calculate means
-meandf <- data.frame(mean_HbS = mean(HbS_freq),
-                    mean_Pf = mean(Pf_freq))
-# Plot using ggplot2 and hexbin
-hexp <- ggplot(df, aes(x = HbS_freq, y = Pf_freq)) +
-  geom_hex(bins = 30, aes(fill = after_stat(count)), color = "white") +
-  #scale_fill_viridis_c(option = "E") +
-  scale_fill_gradient(low = "black", high = "gray90") +
-  geom_density_2d(color="gray98")+
-  geom_point(data=meandf,aes(x = mean_HbS, y = mean_Pf, color = "white"), size = 5, shape = 21, fill = "white") +  # Highlight mean
-  geom_segment(data=meandf,aes(x = mean_HbS, y = 0, xend = mean_HbS, yend = mean_Pf), linetype = "solid", color = "white",linewidth = 1) +  # Dashed line to x-axis
-  geom_segment(data=meandf,aes(x = 0, y = mean_Pf, xend = mean_HbS, yend = mean_Pf), linetype = "solid", color = "white",linewidth = 1)  # Dashed line to y-axis
-
-#legend only
-hexplegend <- hexp + 
-  theme(legend.position='bottom',legend.direction = "horizontal")+
-  guides(color = "none",
-         fill = guide_legend(title="",title.position="top",#"Number of samples (out of 10,000)\nwithin a specific range of\ HbS and Pf sample values"
-                             override.aes = list(alpha = 1),order=2))
-legendfig <- ggpubr::get_legend(hexplegend)  
-legendfig <- ggpubr::as_ggplot(legendfig)
-
-#complete the main plot
-hexp <-  hexp +
-  labs(
-    title = "",
-    x = "HbS sample value",
-    y = "Pf+ sample value"
-  ) +
-  guides(color = "none",fill = "none") +
-  theme_minimal() +
-  theme(
-    text = element_text(size = 24),
-    axis.title = element_text(size = 20),
-    axis.text = element_text(size = 18),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10)
-  ) 
-
-# Save the plots
-ggsave(file=paste0(args$outdir,"/samplingprocedure.pdf"),hexp, width = 6, height = 7 )
-ggsave(file=paste0(args$outdir,"/samplingprocedure.svg"),hexp, width = 6, height = 7 )
-ggsave(file=paste0(args$outdir,"/legendsamplingprocedure.pdf"),legendfig, width = 8, height = 4)
-ggsave(file=paste0(args$outdir,"/legendsamplingprocedure.svg"),legendfig, width = 8, height = 4)
+echo("++ End Fig1: plot HbS\n")
+#END
