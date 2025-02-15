@@ -2184,6 +2184,7 @@ country.colours <- function() {
     "Chad" = "#1B3421",
     "Cameroon" = "#007a5e",
     "Gabon" = "#009E60",
+    "DRC" = "#f94449",
     "Democratic_Republic_of_the_Congo" = "#f94449",
     "Democratic Republic of the Congo" = "#f94449",
     "Congo" = "#FF2800",
