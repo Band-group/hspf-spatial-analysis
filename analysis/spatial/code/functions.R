@@ -670,9 +670,14 @@ load.piel_et_al_data <- function(
   result = result[,
                   c( "Dataset", "latitude", "longitude",
                      "hbaa", "hbas", "hbss",
-                     "HbFA", "HbFAS", "HbFS","identifiedproblem"
+                     "HbFA", "HbFAS", "HbFS","identifiedproblem","id"
                   )
+  
   ]
+  #add source
+  result$`ID_Piel_OR_PUBMED` <- result$id
+  result$DOI <- NA
+  result$id <- NULL
   
   return( result )
 }
@@ -691,12 +696,14 @@ load.extended_data <- function( filename, exclude_wide_areas = TRUE ) {
     #OPTIONAL: exclude if not accurately spatially located
     result <- result[result$'Area.finest.spatial.unit..sq.km.'< 2500,]
   }
-  return(
-    result[,c( "Dataset", "latitude", "longitude",
+  result <- result[,c( "Dataset", "latitude", "longitude",
                "hbaa", "hbas", "hbss",
-               "HbFA", "HbFAS", "HbFS","identifiedproblem"
+               "HbFA", "HbFAS", "HbFS","identifiedproblem","PMID",'DOI'
     )]
-  )
+  #add source
+  result$`ID_Piel_OR_PUBMED` <- result$PMID
+  result$PMID <- NULL
+  result$DOI <- result$DOI
   return( result )
 }
 #Compute S allele
