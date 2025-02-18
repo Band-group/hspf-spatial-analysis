@@ -41,12 +41,21 @@ interface SimulationData {
 	weights: GridData ;
 } ;
 
+interface ComparisonSpec {
+	title: string,
+	y: string,
+	N: string
+} ;
+
 export class Simulation {
 	device: GPUDevice ;
 	hspf: HsPfSim ;
 	tiffs: SimulationMaps ;
 	displays: { [key:string]: MapDisplay } ;
-	comparisons: Map< string, ComparisonDisplay > ;
+	comparisons: [ {
+		spec: ComparisonSpec,
+		display: ComparisonDisplay
+	 } ] ;
 	data: SimulationData ;
 	counts: Array<PfsaCounts> ;
 	barriers: Array< Barrier > ;
@@ -97,8 +106,10 @@ export class Simulation {
 							pfsa1p: parseInt(d['Pfsa1_+']),
 							pfsa1m: parseInt(d['Pfsa1_N']) - parseInt(d['Pfsa1_+']),
 							pfsa1N: parseInt(d['Pfsa1_N']),
-							pfsa13p: parseInt(d['Pfsa13_++']),
-							pfsa13m: parseInt(d['Pfsa13_--']),
+							pfsa13mm: parseInt(d['Pfsa13_--']),
+							pfsa13mp: parseInt(d['Pfsa13_-+']),
+							pfsa13pm: parseInt(d['Pfsa13_+-']),
+							pfsa13pp: parseInt(d['Pfsa13_++']),
 							pfsa13N: parseInt(d['Pfsa13_--']) + parseInt(d['Pfsa13_-+']) + parseInt(d['Pfsa13_+-']) + parseInt(d['Pfsa13_++']),
 							pfsa2p: parseInt(d['Pfsa2_+']),
 							pfsa2m: parseInt(d['Pfsa2_N']) - parseInt(d['Pfsa2_+']),
@@ -200,7 +211,7 @@ export class Simulation {
 				&&
 				(elt.xy.y >= 0 && elt.xy.y < this.data.HbS.height)
 				&&
-				elt.pfsa1N >= 25
+				elt.pfsa1N >= 10
 			) ;
 		}) ;
 
@@ -254,25 +265,38 @@ export class Simulation {
 					}
 				)
 				section.appendChild( container ) ;
-				this.comparisons = new Map() ;
+				this.comparisons = [] ;
 				let left = 20 ;
-				let country_sets = new Map< string, string[] > ;
-				country_sets.set('all', ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Uganda', 'Democratic Republic of the Congo', 'United Republic of Tanzania', 'Kenya' ] );
-				country_sets.forEach(
-					( countries:string[], key:string ) => {
+				let countries =  ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Uganda', 'Democratic Republic of the Congo', 'United Republic of Tanzania', 'Kenya' ] ;
+				let genotypes = [
+					{ "name": "-+", "count": "pfsa13mp", "N": "pfsa13N", "layer": 1, "limit": 0.3 },
+					{ "name": "+-", "count": "pfsa13pm", "N": "pfsa13N", "layer": 2, "limit": 0.3 },
+					{ "name": "++", "count": "pfsa13pp", "N": "pfsa13N", "layer": 3, "limit": 1 }
+				] ;
+				genotypes.forEach(
+					( a: { [key:string]: string } ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
 						container.appendChild( overlay ) ;
-						this.comparisons.set(
-							key,
-							new ComparisonDisplay(
+						this.comparisons.push({
+							spec: {
+								title: a.name,
+								y: a.count,
+								N: a.N,
+								layer: a.layer
+							},
+							display: new ComparisonDisplay(
 								this.counts.filter( d => countries.includes(d.country) ),
 								overlay,
+								a.name,
+								a.count,
+								a.N,
+								a.limit,
 								{
-									width: 540,
-									height: 480,
+									width: 320,
+									height: 240,
 									margins: {
-										'bottom': 30,
+										'bottom': 50,
 										'left': 40,
 										'top': 10,
 										'right': 20
@@ -280,8 +304,8 @@ export class Simulation {
 								},
 								left
 							)
-						) ;
-						left += 190 ;
+						} ) ;
+						left += 10 ;
 					}
 				) ;
 			}
@@ -370,9 +394,10 @@ export class Simulation {
 		this.displays.pfr.draw( this.hspf.pfsa, 4 ) ;
 		this.displays.hs.draw( this.data.HbS ) ;
 
-		for (let comparison of this.comparisons.values()) {
-			comparison.draw( this.hspf.pfsa, 3 ) ;
-		}
+		let self = this ;
+		this.comparisons.forEach( function( comparison ) {
+			comparison.display.draw( self.hspf.pfsa, comparison.spec.layer ) ;
+		}) ;
 		if( this.m_iteration % 25 == 0 ) {
 			console.log(
 				"ITERATION",
