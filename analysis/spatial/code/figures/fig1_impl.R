@@ -1,13 +1,13 @@
 # Convert a dataframe with coordinate columns to an sf spatial object
-df2sf <- function(df, coords, crs = 4326) {
-	sf::st_as_sf(df, coords = coords, crs = crs)
-}
 
 # Compute the median value for each row of a matrix
 rowMedians <- function(m) {
 	sapply(1:nrow(m), function(i) median(m[i, ]))
 }
-
+# Create spatial Pf object and filter out locations with no samples
+df2sf <- function(df, coords, crs = 4326) {
+	sf::st_as_sf(df, coords = coords, crs = crs)
+}
 # Subset spatial points using a polygon and transform projection
 sub.and.transproj <- function(mypts, mypoly, mycrs) {
 	sf::st_transform(sf::st_make_valid(mypts[mypoly, ]), crs = mycrs)
@@ -168,12 +168,12 @@ fig1bplot <- function(
 	pfvarsize = FALSE,
 	pt.thick = 1,
 	viridisoption = "rocket",
-	countrybordercol = 'gray35',
+	countrybordercol = 'gray97',
 	countrybuffer = FALSE,
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels
 ) {
-	boundarywidth <- 2.5 * pt.thick
+	boundarywidth <- 1 * pt.thick
 	
 	# If sp.domain is provided as a list, extract boundaries accordingly
 	if (class(sp.domain)[1] == "list") {
@@ -192,14 +192,20 @@ fig1bplot <- function(
 		allland	 <- myboundary
 	}
 	discrete.grid <- st_make_valid(discrete.grid)
-	hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union( myboundary ), sparse = FALSE )[,1] == 1 ), ]
+	box.around.country <- sf::st_bbox(sf::st_buffer(myboundary,2.5))
+	hexas <- sf::st_crop(discrete.grid,box.around.country) 
+	lakes.around.country <- sf::st_crop(lakaf_sf,box.around.country)
+	boundaries.around.country <- sf::st_crop(world_sf,box.around.country)
+	
+	#hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union( myboundary ), sparse = FALSE )[,1] == 1 ), ]
 	
 	hbsp <- (
 		ggplot()
 		+ geom_sf( data = oceanaround, fill = oceancolor, col = NA )	 # Ocean background
 		+ geom_sf( data = allland, fill = landcolor, col = NA )
-		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray85', linewidth = pt.thick )
-		+ geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
+		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
+		+ geom_sf( data = lakes.around.country,fill = lakecolor, col = 'transparent')
+	    + geom_sf( data = boundaries.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
 		+ scale_fill_viridis_c(
 			option = viridisoption$scale,
 			name = "HbS frequency\nmean estimate",
@@ -213,11 +219,11 @@ fig1bplot <- function(
 	# Optionally overlay raw HbS data points
 	if (maphbs) {
 		if (countrybuffer) {
-			myboundary <- st_buffer(myboundary, 1)
+			boundaries.around.country <- st_buffer(boundaries.around.country, 1)
 		}
 		hbsp <- hbsp +
-			geom_sf(data = hbssf[myboundary, ], aes(color = Dataset), shape = 22, fill = "#EFAC00",
-							size = sizept, linewidth = boundarywidth) +
+			geom_sf(data = hbssf[boundaries.around.country, ], aes(color = Dataset), shape = 22, fill = "#EFAC00",
+							size = sizept, linewidth = boundarywidth,alpha=0.8) +
 			scale_color_manual(values = c("black", "white"), name = "HbS dataset",
 												 guide = guide_legend(override.aes = list(alpha = 1), order = 1))
 	}
@@ -229,16 +235,16 @@ fig1bplot <- function(
 				hbsp
 				+ ggnewscale::new_scale_colour()
 				+ geom_sf(
-					data = pfsf[myboundary, ],
+					data = pfsf[boundaries.around.country, ],
 					aes(shape = datatype),
 					color = 'black',
 					fill = "#28A87D",
-					alpha = 0.9,
+					alpha = 0.8,
 					size = sizept,
 					linewidth = 0.3
 				)
 				+ scale_shape_manual(
-					values = c(21, 22),
+					values = c(21, 24),
 					name = "Pfsa type",
 					guide = guide_legend(override.aes = list(alpha = 1), order = 4)
 				)
@@ -249,7 +255,6 @@ fig1bplot <- function(
 				hbsp
 				+ ggnewscale::new_scale_colour()
 				+ geom_sf(
-					data = pfsf[myboundary, ],
 					aes(size = N, shape = datatype),
 					fill = 'chartreuse',
 					alpha = 0.9,

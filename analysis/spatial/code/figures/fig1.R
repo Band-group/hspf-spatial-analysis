@@ -35,6 +35,8 @@ invisible(sapply(required_libs, library, character.only = TRUE))
 # Load theme for panel grid (custom functions)
 source('code/functions.R')
 
+source( "code/figures/fig1_impl.R" )
+
 # Parse arguments
 args = NULL
 args <- parse_arguments()
@@ -74,7 +76,8 @@ myprojs		<- list(wgs84 = st_crs(4326))	# Common projection for plots
 pal_base <- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
 pal_dark <- clr_darken(pal_base, 0.25) # colors for summary table HbS Pf
 grey_base <- "grey50" # colors for summary table HbS Pf
-grey_dark <- "grey25" # colors for summary table HbS Pf
+grey_dark <- "grey15" # colors for summary table HbS Pf
+lakecolor <- "#2d56af"
 
 ################################################################################
 # Define list of countries with Pf presence
@@ -141,7 +144,6 @@ discrete.grid <- readRDS( args$grid )
 discrete.grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
 discrete.grid$latitude = sf::st_coordinates( discrete.grid$centroid )[,2]
 
-# Create spatial Pf object and filter out locations with no samples
 pfsf <- (
 	df2sf( pf, coords = c('longitude', 'latitude'), crs = 4326)
 	%>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
@@ -186,7 +188,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 # Figure panel B: raster map in Africa
 # Plot HbS raster map for Africa
 {
-	source( "code/figures/fig1_impl.R" )
+	
 	hbs.map.africa <- hbsrasplot(
 		ocean = ocean,
 		spatial.domain = africa_sf,
@@ -197,7 +199,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		features = list(
 			lakes = list(
 				data = lakaf_sf,
-				fill = "blue",
+				fill = lakecolor,
 				colour = NA
 			)
 		),
@@ -227,7 +229,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	#	bbox = st_bbox(pfsf),# + c( xmin = -10, ymin = -11.5, xmax = 1, ymax = 11.5),
 		bbox = bbox$bbox,
 		flatcrs = myprojs[[1]],
-		ptsize = 2,
+		ptsize = 1.3,
 		pt.thick = 0.1,
 		oceancolor = oceancolor,
 		landcolor = landcolor
@@ -260,19 +262,19 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		hbssf = hbssf,
 		pfsf = pfsf,
 		flatcrs = myprojs[[1]],
-		sizept = 3,
+		sizept = 1.25,
 		maphbs = FALSE,
 		mappf = TRUE,
 		pfvarsize = FALSE,
 		pt.thick = 0.5,
 		viridisoption = list( scale = "rocket", direction = 1 ),
-		countrybordercol = 'gray80',
+		countrybordercol = 'gray95',
 		countrybuffer = FALSE,
 		HbSbreaks = HbSbreaks,
 		HbSlabels = HbSlabels
 	)
 	# Add distinguished hexagon
-	fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
+	#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.pdf"), fig1bhexa[[1]], width = 6, height = 7)
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.svg"), fig1bhexa[[1]], width = 6, height = 7)
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.pdf"), fig1bhexa[[2]], width = 6, height = 3)
@@ -365,20 +367,20 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 
 	{
 		sizes = list(
-			endpoints    = 2,
+			endpoints    = 1,
 			legendpoints = 2,
 		# Font sizes in ggplot are in mm
 		# divide by ggplot2::.pt to convert from pt sizes
 			numbertext   = 6/.pt,
-			countrytext  = 9/.pt,
+			countrytext  = 8/.pt,
 			headertext   = 8/.pt,
-			linewidth    = 0.25
+			linewidth    = 0.1
 		)
-		xs = list(
-			legend = -3.2,
-			names = -3,
+		xvs = list(
+			legend = -3.3,
+			names = -3.1,
 			annotation = c( -1.45, -1.1 ),
-			header = c( -0.5, 0.1 )
+			header = c( -0.4, 0.3 )
 		)
 		summary_plot = (
 			ggplot(
@@ -388,7 +390,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# Vertical dashed line at x = 0
 			+ geom_segment(
 				x = 0, xend = 0,
-				y = 0, yend = length(unique( figure_data$country )) + 0.5,
+				y = 0.75, yend = length(unique( figure_data$country )) + 0.25,
 				linetype = "dashed", color = grey_dark, linewidth = sizes$linewidth
 			)
 			# Colored point as first column
@@ -397,7 +399,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 					y = country,
 					fill = country
 				),
-				x = xs$legend,
+				x = xvs$legend,
 				shape = 21,
 				size = sizes$legendpoints,
 				stroke = 0.5,
@@ -409,53 +411,53 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 					y = country,
 					label = country
 				),
-				x = xs$names,
+				x = xvs$names,
 				size = sizes$countrytext,
 				color = grey_dark,
 				hjust = 0
 			)
 			+ scale_fill_manual( values = country.colours() )
 			# Dumbbell segments
-			+ stat_summary( geom = "linerange", fun.min = min, fun.max = max, linewidth = sizes$linewidth, color = grey_base )
+			+ stat_summary( geom = "linerange", fun.min = min, fun.max = max, linewidth = sizes$linewidth, color = grey_dark )
 			# White point overplot for line endings
+			# + geom_point(
+			# 	data = figure_data %>% filter( abs(share) >= 0.01 ),
+			# 	aes(
+			# 		x = ifelse( type == "Pfsa1", -share, share),
+			# 		size = "large"
+			# 	),
+			# 	shape = 21,
+			# 	stroke = 0.53,
+			# 	color = "white",
+			# 	fill = "white"
+			# )
+			#Semi-transparent point fill (here I kept it opaque more more clarity)
 			+ geom_point(
 				data = figure_data %>% filter( abs(share) >= 0.01 ),
 				aes(
 					x = ifelse( type == "Pfsa1", -share, share),
-					size = "large"
-				),
-				shape = 21,
-				stroke = 1,
-				color = "white",
-				fill = "white"
-			)
-			# Semi-transparent point fill
-			+ geom_point(
-				data = figure_data %>% filter( abs(share) >= 0.01 ),
-				aes(
-					x = ifelse( type == "Pfsa1", -share, share),
-					fill = grey_base,
+					fill = grey_dark,
 					size = "large"
 				),
 				color = grey_base,
 				shape = 21,
-				stroke = 1,
-				alpha = 0.7
+				stroke = 0.4,
+				alpha = 0.99
 			)
 			# Point outline
-			+ geom_point(
-				data = figure_data %>% filter( abs(share) >= 0.01 ),
-				aes(
-					x = ifelse(type == "Pfsa1", -share, share),
-					size = "large"
-				),
-				shape = 21, stroke = 1, color = "white", fill = NA
-			)
+			# + geom_point(
+			# 	data = figure_data %>% filter( abs(share) >= 0.01 ),
+			# 	aes(
+			# 		x = ifelse(type == "Pfsa1", -share, share),
+			# 		size = "large"
+			# 	),
+			# 	shape = 21, stroke = 0.51, color = "white", fill = NA
+			# )
 			+ scale_size_manual( values = c( sizes$endpoints, 0 ))
 			# Sample size column (next to country names)
-			+ geom_text( aes( y = country, x = xs$annotation[1], label = scales::comma(samples)), hjust = 1, size = sizes$numbertext, color = "black")
+			+ geom_text( aes( y = country, x = xvs$annotation[1], label = scales::comma(samples)), hjust = 1, size = sizes$numbertext, color = "black")
 			# Sites column ( placed after samples)
-			+ geom_text( aes( y = country, x = xs$annotation[2], label = paste0("(", sites, ")")), hjust = 1, size = sizes$numbertext, color = "black")
+			+ geom_text( aes( y = country, x = xvs$annotation[2], label = paste0("(", sites, ")")), hjust = 1, size = sizes$numbertext, color = "black")
 			# Result labels for Pf and HbS
 			+ geom_text(
 				aes(
@@ -479,30 +481,30 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				size = sizes$numbertext
 			)
 			# Legend labels
-			+ annotate(
-				"text",
-				x = xs$header,
-				y = length( unique(figure_data$country)) + 1.5,
-				label = c("Pfsa1", "HbS" ),
-				family = "sans",
-				fontface = "plain",
-				color = grey_dark,
-				size = sizes$headertext,
-				hjust = 0.5
-			)
-			+ annotate(
-				"text",
-				x = xs$header,
-				y = length( unique(figure_data$country)) + 1,
-				label = c( "(%)", "(per 1,000)" ),
-				family = "sans",
-				fontface = "plain",
-				color = grey_dark,
-				size = sizes$headertext * 0.6,
-				hjust = 0.5
-			)
+			# + annotate(
+			# 	"text",
+			# 	x = xvs$header,
+			# 	y = length( unique(figure_data$country)) + 1.05,
+			# 	label = c("Pfsa1", "HbS" ),
+			#     family = "sans",
+			# 	fontface = "plain",
+			# 	color = grey_dark,
+			# 	size = sizes$headertext,
+			# 	hjust = 0.5
+			# )
+			# + annotate(
+			# 	"text",
+			# 	x = xvs$header,
+			# 	y = length( unique(figure_data$country)) + 1,
+			# 	label = c( "(%)", "(per 1,000)" ),
+			# 	family = "sans",
+			# 	fontface = "plain",
+			# 	color = grey_dark,
+			# 	size = sizes$headertext * 0.6,
+			# 	hjust = 0.5
+			# )
 			# Adjust x-axis limits to allow space for both columns
-			+ coord_cartesian( xlim = c(xs$legend - 0.1, 0.2), clip = "off")
+			+ coord_cartesian( xlim = c(xvs$legend - 0.1, 0.2), clip = "off")
 			+ scale_x_continuous(
 	#			breaks = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
 	#			labels = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
@@ -558,7 +560,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 	}
 	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 250 )
-	hspf$sampled.parameters$posterior.sample = 1:nrow( hspf$sampled.parameters )
+	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
 	curves = (
 		sampled.parameters
 		%>% group_by( posterior.sample )
@@ -664,13 +666,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		ggplotGrob( world.hbs.pf.map[[1]] + border ) ,
 		ggplotGrob(hbs.map.africa[[1]] + border ),
 		ggplotGrob( fig1bhexa[[1]] + border + theme( plot.margin = margin(b = 5, l = 5, t = 5, r = 5) )),
-		ggplotGrob( summary_plot  + border + theme( plot.margin = margin(b = 0, l = 1, t = 10, r = 15) )),
+		ggplotGrob( summary_plot  + border), #+ theme( plot.margin = margin(b = 0, l = 1, t = 10, r = 15) )),
 		ggplotGrob( hspf_plot ),
 		layout_matrix = layout.m,
-		widths = c(0.1, 1, 0.02, 1, 0.02, 1, 0.1 ),
+		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1, 0.05, 1, 0.05, 1, 0.1 )
 	)
 	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8, height = 9, device = cairo_pdf )
+	ggsave( z, file = "tmp/figure_1/joined.svg", width = 8, height = 9 )
 }
 
 echo("++ End Fig1: plot HbS\n")
