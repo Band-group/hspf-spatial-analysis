@@ -18,6 +18,7 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
 	parser$add_argument("--HbS_predictions", type = "character", help = "Path to per-polygon HbS predictions", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid].tsv" )
 	parser$add_argument("--HbS_fit", type = "character", help = "path to HbS model fit file", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid]_modelfit.rds" )
+	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--outdir", type = "character", help = "Output directory", required = TRUE)
 
@@ -40,11 +41,12 @@ args <- parse_arguments()
 if( is.null( args )) {
 	args = list()
 	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
-	args$pf	 = "input/hbs-pf-v3.sqlite"
+	args$pf = "input/hbs-pf-v3.sqlite"
 	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
 	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
+	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
@@ -64,38 +66,10 @@ HbSlabels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%")	# \u2030 = per
 ################################################################################
 # Define helper functions
 
-# Convert a dataframe with coordinate columns to an sf spatial object
-df2sf <- function(df, coords, crs = 4326) {
-	sf::st_as_sf(df, coords = coords, crs = crs)
-}
-
-# Compute the median value for each row of a matrix
-rowMedians <- function(m) {
-	sapply(1:nrow(m), function(i) median(m[i, ]))
-}
-
-# Subset spatial points using a polygon and transform projection
-sub.and.transproj <- function(mypts, mypoly, mycrs) {
-	sf::st_transform(sf::st_make_valid(mypts[mypoly, ]), crs = mycrs)
-}
-
-# Custom rounding function for Pf sample sizes based on magnitude
-custom_round <- function(x) {
-	if (x < 100) {
-		round(x, 0)
-	} else if (x < 1000) {
-		round(x, -1)
-	} else if (x < 10000) {
-		round(x, -2)
-	} else {
-		round(x, -3)
-	}
-}
-
 ################################################################################
 # Define color settings and projections
 oceancolor <- "transparent"	 # Ocean fill color
-landcolor	<- "#979797"				 # Land color (medium grey)
+landcolor	<- "#bdbdbd"				 # Land color (medium grey)
 myprojs		<- list(wgs84 = st_crs(4326))	# Common projection for plots
 pal_base <- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
 pal_dark <- clr_darken(pal_base, 0.25) # colors for summary table HbS Pf
@@ -185,7 +159,7 @@ ocean <- st_polygon(list(cbind(
 ################################################################################
 # Create and save HbS predicted rasters as TIFF files (mean, q25, etc.)
 hbsraster <- generate_raster_maps(predictions, saveraster = FALSE, saverastername = 'HbS', savepath = "maps not saved")
-echo('Fig1: raster map generated\n')
+#echo('Fig1: raster map generated\n')
 
 # Create HbS masked maps for simulation and mapping
 sf::sf_use_s2(FALSE)
@@ -193,14 +167,6 @@ world_border	 <- st_union(world_sf)
 malariafilter	<- rast( args$pf_prevalence_map )[[1]]	# Use first layer only
 malariafilter[ malariafilter < 0.001 ] = NA
 malariafilter[ malariafilter > 0.001 ] = 1
-
-# Function to crop and resample a raster (align one raster to another)
-cropnresample <- function( poly, spdomain, rgrid ) {
-	mfilter <- terra::crop(poly, vect(spdomain))
-	mfilter <- terra::mask(mfilter, vect(spdomain))
-	mfilter <- resample(mfilter, rgrid, method = "bilinear")
-	project(mfilter, rgrid)
-}
 
 # Crop the malaria filter and apply it to mask HbS rasters to malaria-endemic regions
 malariafilter <- cropnresample( malariafilter, world_sf, hbsraster[[1]] )
@@ -212,7 +178,6 @@ names(hbsmask) <- names(hbsraster)
 #											overwrite = TRUE)
 #}
 #echo('Fig1: raster map hbsmask generated and saved \n')
-
 
 ################################################################################
 # Define spatial extents based on HbS and Pf data
@@ -236,13 +201,13 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				colour = NA
 			)
 		),
-	#	viridisoption = "rocket"
-		viridisoption = list( scale = "cividis", direction = 1 )
+		viridisoption = list( scale = "rocket", direction = 1 )
+	#	viridisoption = list( scale = "cividis", direction = 1 )
 	)
-	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
-	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
-	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
-	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
+#	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
+#	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
+#	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
+#	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
 	echo('Fig1: HbS map in Africa at pixel-level generated\n')
 }
 
@@ -269,10 +234,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
-	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[1]], width = width, height = height )
-	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[1]], width = width, height = height )
-	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[2]], width = 3, height = 2)
-	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[2]], width = 3, height = 2)
+#	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[1]], width = width, height = height )
+#	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[1]], width = width, height = height )
+#	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[2]], width = 3, height = 2)
+#	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[2]], width = 3, height = 2)
 }
 
 ################################################################################
@@ -287,7 +252,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
 
 	# Example: Create HbS hexagon map for Tanzania
-	tza <- world_sf[world_sf$name == 'Tanzania', ]
+	tza <- world_sf[world_sf$name %in% c( 'Tanzania' ), ]
 	sf::sf_use_s2(FALSE)
 	fig1bhexa <- fig1bplot(
 		sp.domain = tza,
@@ -300,12 +265,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		mappf = TRUE,
 		pfvarsize = FALSE,
 		pt.thick = 0.5,
-		viridisoption = list( scale = "cividis", direction = 1),
-		countrybordercol = 'gray90',
+		viridisoption = list( scale = "rocket", direction = 1 ),
+		countrybordercol = 'gray80',
 		countrybuffer = FALSE,
 		HbSbreaks = HbSbreaks,
 		HbSlabels = HbSlabels
 	)
+	# Add distinguished hexagon
+	fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.pdf"), fig1bhexa[[1]], width = 6, height = 7)
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.svg"), fig1bhexa[[1]], width = 6, height = 7)
 	ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.pdf"), fig1bhexa[[2]], width = 6, height = 3)
@@ -348,7 +315,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	)
 
 	# Convert HbS values to per 1,000 (for plotting only)
-	figure_data$HbS <- figure_data$HbS * 10
+	figure_data$HbS <- figure_data$HbS
 	figure_data$geometry <- NULL
 	figure_data$Pfsa1 <- figure_data$`Pfsa1_+` / figure_data$samples
 	figure_data$`Pfsa1_+` <- figure_data$continent <- figure_data$sov_a3 <- NULL
@@ -378,13 +345,13 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		%>% arrange(country, -share)
 	)
 
-	theme_set(theme_minimal(base_family = "sans", base_size = 22))
+	theme_set( theme_minimal(base_family = "sans", base_size = 22) )
 	theme_update(
 		axis.title = element_blank(),
 		axis.text.y = element_text(hjust = 0, color = grey_dark),
 		panel.grid.minor = element_blank(),
 		panel.grid.major = element_blank(),
-		plot.caption = element_markdown(size = rel(0.5), color = grey_base, hjust = 0, margin = margin(t = 20, b = 0), family = 'sans'),
+		plot.caption = element_markdown( size = rel(0.5), color = grey_base, hjust = 0, margin = margin(t = 20, b = 0), family = 'sans'),
 		plot.caption.position = "plot",
 		plot.background = element_rect(fill = "white", color = "white"),
 		legend.position = "none"
@@ -393,27 +360,27 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	figure_data = (
 		figure_data
 		%>% arrange( ifelse(type == "HbS", share, NA_real_), samples, sites )
-		%>% mutate( country = factor(country, levels = unique(country)) )
+		%>% mutate( country = factor(country, levels = unique(country)))
 	)
 
 	{
 		sizes = list(
-			endpoints    = 3,
+			endpoints    = 2,
 			legendpoints = 2,
 		# Font sizes in ggplot are in mm
 		# divide by ggplot2::.pt to convert from pt sizes
-			numbertext   = 8/.pt,
-			countrytext  = 10/.pt,
-			headertext   = 12/.pt,
+			numbertext   = 6/.pt,
+			countrytext  = 9/.pt,
+			headertext   = 8/.pt,
 			linewidth    = 0.25
 		)
 		xs = list(
 			legend = -3.2,
 			names = -3,
 			annotation = c( -1.45, -1.1 ),
-			header = c( -0.3, 0.3 )
+			header = c( -0.5, 0.1 )
 		)
-		p = (
+		summary_plot = (
 			ggplot(
 				figure_data,
 				aes( x = ifelse( type == "Pfsa1", -share, share), y = country )
@@ -495,8 +462,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 					label = ifelse(
 						type == "Pfsa1",
 						percent( abs(share), accuracy = 1, suffix = "%" ),
+						percent( abs(share), accuracy = 1, suffix = "%" )
 #						sprintf( "%.0f", abs(share) * 100 )
-						percent(abs(share), accuracy = 1, suffix = "‰")
+#						percent(abs(share), accuracy = 1, suffix = "‰")
 					),
 					x = ifelse(
 						type == "Pfsa1",
@@ -514,7 +482,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			+ annotate(
 				"text",
 				x = xs$header,
-				y = length( unique(figure_data$country)) + 1.8,
+				y = length( unique(figure_data$country)) + 1.5,
 				label = c("Pfsa1", "HbS" ),
 				family = "sans",
 				fontface = "plain",
@@ -534,14 +502,15 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				hjust = 0.5
 			)
 			# Adjust x-axis limits to allow space for both columns
-			+ coord_cartesian( xlim = c(xs$legend - 0.1, 1.6), clip = "off")
+			+ coord_cartesian( xlim = c(xs$legend - 0.1, 0.2), clip = "off")
 			+ scale_x_continuous(
 	#			breaks = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
 	#			labels = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
-				expand = expansion( add = c(0.05, 0.05)),
+				#expand = expansion( add = c(0.05, 0.05)),
 				guide = "none"
 			)
-			+ scale_y_discrete( expand = expansion( add = c(0.05, 0.05)))
+#			+ scale_y_discrete( expand = expansion( add = c(0.05, 0.05)))
+#			+ scale_y_discrete( limits = c( 0, 33 ))
 			+ scale_color_manual( values = pal_dark)
 			+ theme(
 	#			axis.text.y = element_text( face = "plain", size = text.size ),
@@ -551,24 +520,141 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 		)
 
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), p, width = 5, height = 7, device = cairo_pdf )
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), p, width = 5, height = 7, device = cairo_pdf )
+		ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
 	}
 }
 
-echo("++ End Fig1: plot HbS\n")
-#END
+# hspf fit plot
+{
+	hspf = readRDS( args$hspf_fit )
+	hspf$data$grid = hspf$data$centroid = NULL
+	link_fn = list(
+	logit = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		return( exp(x)/(1+exp(x)) )
+	},
+	`generalised-logit` = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		nu = exp( parameters[['log_nu']] )
+		return( 1/(1 + exp(-x))^(1/nu))
+	},
+	linear = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		return( pmax( pmin( x, 0.999 ), 0.001 ))
+	}
+	)[[hspf$link]]
+	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
+	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
+	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
+
+	xs = seq( from = 0, to = 0.3, by = 0.01 )
+	make_hspf_curve = function( parameters ) {
+		return(
+			tibble(
+				x = xs,
+				y = link_fn( xs, parameters )
+			)
+		)
+	}
+	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 250 )
+	hspf$sampled.parameters$posterior.sample = 1:nrow( hspf$sampled.parameters )
+	curves = (
+		sampled.parameters
+		%>% group_by( posterior.sample )
+		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
+	)
+
+	{
+		country.palette = country.colours()
+		at = list(
+			x = seq( from = 0, to = 0.3, by = 0.05 ),
+			y = seq( from = 0, to = 0.8, by = 0.2 )
+		)
+		hspf_plot = (
+			ggplot(
+				data = hspf$data,
+				aes(
+					x = HbAS_or_SS,
+					y = `Pfsa1_+` / `Pfsa1_N`
+				)
+			)
+			+ geom_segment(
+				data = tibble( x = at$x ),
+				aes(
+					x = x, xend = x,
+					y = -0.01, yend = 0.81
+				),
+				linetype = 1,
+				linewidth = 0.25,
+				col = rgb(0,0,0,0.05)
+			)
+			+ geom_segment(
+				data = tibble( y = at$y ),
+				aes(
+					x = -0.005, xend = 0.305,
+					y = at$y, yend = at$y
+				),
+				linetype = 1,
+				linewidth = 0.25,
+				col = rgb(0,0,0,0.05)
+			)
+			+ geom_point(
+				aes(
+					size = `Pfsa1_N`,
+					colour = country
+				)
+			)
+			+ geom_path(
+				data = curves,
+				aes( x = x, y = y, group = posterior.sample ),
+				linetype = 1,
+				col = rgb( 0, 0, 0, 0.025 )
+			)
+			+ coord_cartesian( clip = "off" )
+			+ scale_x_continuous(
+				breaks = at$x,
+				limits = c( -0.01, 0.31 ),
+				labels = sprintf( "%.0f%%", at$x * 100 ),
+				expand = c( 0, 0 )
+			)
+			+ scale_y_continuous(
+				breaks = at$y,
+				limits = c( -0.01, 0.81 ),
+				labels = sprintf( "%.0f%%", at$y * 100 ),
+				expand = c( 0, 0 )
+			)
+			+ ylab( "<em>Pfsa1+</em><br>frequency" )
+			+ xlab( "Frequency of HbAS/SS genotypes" )
+			+ scale_colour_manual( values = country.palette[ levels( hspf$data$country )], guide = "none" )
+			+ scale_size_area( max_size = 16, guide = "none" )
+#			+ theme_minimal()
+			+ theme(
+				axis.title = element_markdown( size = 10, angle = 0 ),
+				axis.title.y = element_markdown( size = 10, angle = 0, hjust = 1, vjust = 0.5 ),
+				axis.text.x = element_text( size = 8 ),
+				axis.text.y = element_text( size = 8, hjust = 1, angle = 0 ),
+				panel.margin = unit(0.1, "lines"),
+				plot.margin = unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
+			)
+		)
+		ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	}
+}
+
 
 {
 	layout.m = matrix(
 		c(
 			NA,  NA, NA, NA, NA, NA, NA,
 			NA,  1,  1,  1,  1,   1, NA,
+			NA,  NA, NA, NA, NA, NA, NA,
 			NA,  2, NA,  3, NA,   4, NA,
-			NA, NA, NA, NA, NA,   4, NA,
+			NA,  NA, NA, NA, NA, NA, NA,
+			NA,  5, NA,  5, NA,   4, NA,
 			NA,  NA, NA, NA, NA, NA, NA
 		),
-		nrow = 5,
+		nrow = 7,
 		ncol = 7,
 		byrow = T
 	)
@@ -577,11 +663,16 @@ echo("++ End Fig1: plot HbS\n")
 	z = grid.arrange(
 		ggplotGrob( world.hbs.pf.map[[1]] + border ) ,
 		ggplotGrob(hbs.map.africa[[1]] + border ),
-		ggplotGrob( fig1bhexa[[1]] + border ),
-		ggplotGrob( p  + border + theme( plot.margin = margin(b = 0, l = 1, t = 10, r = 15) )),
+		ggplotGrob( fig1bhexa[[1]] + border + theme( plot.margin = margin(b = 5, l = 5, t = 5, r = 5) )),
+		ggplotGrob( summary_plot  + border + theme( plot.margin = margin(b = 0, l = 1, t = 10, r = 15) )),
+		ggplotGrob( hspf_plot ),
 		layout_matrix = layout.m,
-		widths = c(0.1, 1, 0.05, 1, 0.05, 1.5, 0.1 ),
-		heights = c( 0.01, 1, 0.8, 0.8, 0.05 )
+		widths = c(0.1, 1, 0.02, 1, 0.02, 1, 0.1 ),
+		heights = c( 0.1, 1, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8.5, height = 9, device = cairo_pdf )
+	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8, height = 9, device = cairo_pdf )
 }
+
+echo("++ End Fig1: plot HbS\n")
+#END
+

@@ -1,3 +1,40 @@
+# Convert a dataframe with coordinate columns to an sf spatial object
+df2sf <- function(df, coords, crs = 4326) {
+	sf::st_as_sf(df, coords = coords, crs = crs)
+}
+
+# Compute the median value for each row of a matrix
+rowMedians <- function(m) {
+	sapply(1:nrow(m), function(i) median(m[i, ]))
+}
+
+# Subset spatial points using a polygon and transform projection
+sub.and.transproj <- function(mypts, mypoly, mycrs) {
+	sf::st_transform(sf::st_make_valid(mypts[mypoly, ]), crs = mycrs)
+}
+
+# Custom rounding function for Pf sample sizes based on magnitude
+custom_round <- function(x) {
+	if (x < 100) {
+		round(x, 0)
+	} else if (x < 1000) {
+		round(x, -1)
+	} else if (x < 10000) {
+		round(x, -2)
+	} else {
+		round(x, -3)
+	}
+}
+
+# Function to crop and resample a raster (align one raster to another)
+cropnresample <- function( poly, spdomain, rgrid ) {
+	mfilter <- terra::crop(poly, vect(spdomain))
+	mfilter <- terra::mask(mfilter, vect(spdomain))
+	mfilter <- resample(mfilter, rgrid, method = "bilinear")
+	project(mfilter, rgrid)
+}
+
+
 ################################################################################
 # Function to plot HbS at pixel level using a raster layer
 hbsrasplot <- function(
@@ -143,7 +180,7 @@ fig1bplot <- function(
 		myboundary	<- world_sf[world_sf$sovereignt %in% sp.domain[[1]], ]
 		allboundary <- world_sf[world_sf$sovereignt %in% unlist(sp.domain), ]
 	} else {
-		myboundary	<- world_sf[world_sf$sovereignt %in% sp.domain, ]
+		myboundary	<- sp.domain
 		allboundary <- myboundary
 	}
 	# Define ocean surrounding the boundary
@@ -155,7 +192,7 @@ fig1bplot <- function(
 		allland	 <- myboundary
 	}
 	discrete.grid <- st_make_valid(discrete.grid)
-	hexas <- st_intersection(discrete.grid, myboundary)
+	hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union( myboundary ), sparse = FALSE )[,1] == 1 ), ]
 	
 	hbsp <- (
 		ggplot()
@@ -195,7 +232,7 @@ fig1bplot <- function(
 					data = pfsf[myboundary, ],
 					aes(shape = datatype),
 					color = 'black',
-					fill = 'chartreuse',
+					fill = "#28A87D",
 					alpha = 0.9,
 					size = sizept,
 					linewidth = 0.3
