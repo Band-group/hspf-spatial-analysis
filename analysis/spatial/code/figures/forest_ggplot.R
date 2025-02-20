@@ -53,7 +53,6 @@ substitute <- function( string, replacements ) {
 	return( result )
 }
 
-
 load.data <- function(
 	areas,
 	loci = sprintf( "Pfsa%d", 1:4 ),
@@ -98,7 +97,7 @@ make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3", xli
 	ggplot(aes(x = (!!sym(xname)), y = (!!sym(yname)))) +
 	geom_hline(yintercept = 0, col = "grey30", lwd=0.4,linetype='dashed') +
 #	stat_halfeye() + # to add density as shadow behind the CIs
-	stat_interval() +
+	stat_interval( linewidth = 2 ) +
 	stat_summary(geom = "point", fun = median) +
 	scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)]) +
 	coord_flip(ylim = xlim, clip = "on") +
@@ -170,13 +169,27 @@ print( args )
 # Read the gzipped TSV file
 
 # List relevant regions
-areas <- c("global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana", 
+# Create a mapping of original names to proper names and order levels
+area_mapping <- tibble::tibble(
+	area = c( "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana", 
 					 "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf", 
-					 "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania")
+					 "drc+east", "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania"),
+	Region = c("Global","Africa", "West Africa", "Western region", "Eastern region", 
+									"Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo", 
+									"Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa", 
+									"DRC+east", "Democratic Republic of Congo", "East Africa", 
+									"Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"),
+	order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 4, 4), # Assigning hierarchical levels
+	include = c(1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0), # Assigning hierarchical levels
+	parent = c("Global","Global", "Africa", "West Africa", "West Africa", 
+						 "Eastern West Africa", "West Africa", "West Africa", "West Africa", 
+						 "West Africa", "Africa", "Central Africa", "Africa", 
+						 "DRC+east", "DRC+east", "DRC+east", "DRC+east") # Parent (region above) names
+)
 
 # Load data and compute the slope
 res = (
-	load.data( areas, template = args$input_template )
+	load.data( area_mapping$area, template = args$input_template )
 	%>% mutate(
 		slope =	gl( 0.2, pick( intercept, beta, log_nu)) - gl( 0.1, pick( intercept, beta, log_nu ))
 	)
@@ -186,20 +199,6 @@ res = (
 bg_color <- "white" #"grey97"
 font_family <- "sans"
 
-# Create a mapping of original names to proper names and order levels
-area_mapping <- data.frame(
-	area = areas,
-	Region = c("Global","Africa", "West Africa", "Western region", "Eastern region", 
-									"Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo", 
-									"Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa", 
-									"Democratic Republic of Congo", "East Africa", 
-									"Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"),
-	order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4), # Assigning hierarchical levels
-	parent = c("Global","Global", "Africa", "West Africa", "West Africa", 
-						 "Eastern West Africa", "West Africa", "West Africa", "West Africa", 
-						 "West Africa", "Africa", "Central Africa", "Africa", 
-						 "East Africa", "East Africa", "East Africa") # Parent (region above) names
- )
 
 res <- res %>%
  left_join(area_mapping, by = c("area"))
@@ -240,7 +239,7 @@ res <- res %>%
 ggsave(
 	args$output_main,
 	make.forestplot(
-		res %>% filter(order < 3),
+		res %>% filter(order < 3 & include == 1 ),
 		xname = 'RegionStyled',
 		yname = 'slope',
 		brewerstyle = "VanGogh3",

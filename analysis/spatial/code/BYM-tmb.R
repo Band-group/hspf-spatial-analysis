@@ -614,7 +614,8 @@ saveRDS( result, args$output )
 
 if( !is.null( args$output_pdf )) {
 	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
-	pdf( args$output_pdf, width = 4, height = 3 )
+	pdf( args$output_pdf, width = 6, height = 4 )
+	par( mar = c( 4.1, 4.1, 1.1, 1.1 ))
 	source( "code/functions.R" )
 	colours = country.colours()
 	xs = seq( from = 0, to = 0.35, by = 0.001 )
