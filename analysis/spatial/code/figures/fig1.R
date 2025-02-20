@@ -42,13 +42,13 @@ args = NULL
 args <- parse_arguments()
 if( is.null( args )) {
 	args = list()
-	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
+	args$grid = "output/grids/grid-type=hexagon-size=1.35-division=none-area=global.rds"
 	args$pf = "input/hbs-pf-v3.sqlite"
 	args$HbS_survey = "input/cleanHbSdata.csv"
-	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
+	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid]"
 	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
-	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
+	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1.35-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
@@ -105,7 +105,7 @@ lakaf_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "lakaf_sf" )
 # Keep only Pf-relevant countries
 pfrelevantctry <- world_sf[world_sf$SOV_A3 %in% keypfcountries$ISO3, ]
 
-# Load HbS predictions from INLA (try TSV, fallback to RDS)
+# Load HbS predictions from INLA 
 predictions = readRDS(args$HbS_predictions)
 
 # Load raw HbS survey data and convert to sf points
@@ -113,7 +113,7 @@ HbSdata <- read.csv( args$HbS_survey )
 hbssf	 <- df2sf(HbSdata, coords = c('longitude', 'latitude'), crs = 4326)
 
 # Load aggregated HbS samples by polygon
-hbs.grid.samples <- read.table( args$HbS_aggregated, sep = '\t', header = TRUE )
+hbs.grid.samples <- read.table(paste0(args$HbS_aggregated,'.tsv'), sep = '\t', header = TRUE )
 
 ################################################################################
 # Load Pf data and create spatial points
@@ -139,6 +139,7 @@ pf = (
 		`Pfsa4_+`, `Pfsa4_N`
 	)
 )
+
 # Load grid and extract polygon centroid coordinates
 discrete.grid <- readRDS( args$grid )
 discrete.grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
@@ -174,13 +175,6 @@ malariafilter[ malariafilter > 0.001 ] = 1
 malariafilter <- cropnresample( malariafilter, world_sf, hbsraster[[1]] )
 hbsmask <- lapply(hbsraster, function(r) r * malariafilter)
 names(hbsmask) <- names(hbsraster)
-#for (i in seq_along(hbsmask)) {
-#	raster::writeRaster(hbsmask[[i]],
-#											file = paste0(args$outdir, "/hbsmask", names(hbsmask)[i], ".tif"),
-#											overwrite = TRUE)
-#}
-#echo('Fig1: raster map hbsmask generated and saved \n')
-
 ################################################################################
 # Define spatial extents based on HbS and Pf data
 HbSbbox <- st_bbox( hbsmask[[1]] )
@@ -206,10 +200,6 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		viridisoption = list( scale = "rocket", direction = 1 )
 	#	viridisoption = list( scale = "cividis", direction = 1 )
 	)
-#	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
-#	ggsave( paste0(args$outdir, "/hbs_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[1]], width = 7, height = 6, device = cairo_pdf )
-#	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".pdf"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
-#	ggsave( paste0(args$outdir, "/hbslegend_mean_", names(myprojs)[[1]], ".svg"), hbs.map.africa[[2]], width = 3, height = 6, device = cairo_pdf )
 	echo('Fig1: HbS map in Africa at pixel-level generated\n')
 }
 
@@ -229,59 +219,62 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	#	bbox = st_bbox(pfsf),# + c( xmin = -10, ymin = -11.5, xmax = 1, ymax = 11.5),
 		bbox = bbox$bbox,
 		flatcrs = myprojs[[1]],
-		ptsize = 1.3,
+		ptsize = 1.15,
 		pt.thick = 0.1,
 		oceancolor = oceancolor,
 		landcolor = landcolor
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
-#	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[1]], width = width, height = height )
-#	ggsave(paste0(args$outdir, "/worlddata", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[1]], width = width, height = height )
-#	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".pdf"), world.hbs.pf.map[[2]], width = 3, height = 2)
-#	ggsave(paste0(args$outdir, "/worlddatalegend", names(myprojs)[[1]], ".svg"), world.hbs.pf.map[[2]], width = 3, height = 2)
 }
 
 ################################################################################
 # Create HbS hexagon maps
-
+# For Africa and Tanzania
 {
 	source( "code/figures/fig1_impl.R" )
 	# Compute HbS mean from posterior samples (row medians)
 	hbs.grid.samples$HbS <- rowMedians(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
 	# Merge HbS estimates into the discrete grid
-	discrete.grid <- discrete.grid %>% 
+	discrete.grid.hbs <- discrete.grid %>% 
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
 
-	# Example: Create HbS hexagon map for Tanzania
-	tza <- world_sf[world_sf$name %in% c( 'Tanzania' ), ]
-	sf::sf_use_s2(FALSE)
-	fig1bhexa <- fig1bplot(
-		sp.domain = tza,
-		discrete.grid = discrete.grid,
-		hbssf = hbssf,
-		pfsf = pfsf,
-		flatcrs = myprojs[[1]],
-		sizept = 1.25,
-		maphbs = FALSE,
-		mappf = TRUE,
-		pfvarsize = FALSE,
-		pt.thick = 0.5,
-		viridisoption = list( scale = "rocket", direction = 1 ),
-		countrybordercol = 'gray95',
-		countrybuffer = FALSE,
-		HbSbreaks = HbSbreaks,
-		HbSlabels = HbSlabels
-	)
-	# Add distinguished hexagon
-	#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.pdf"), fig1bhexa[[1]], width = 6, height = 7)
-	ggsave(file = paste0(args$outdir, "/fig1bhex_tza.svg"), fig1bhexa[[1]], width = 6, height = 7)
-	ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.pdf"), fig1bhexa[[2]], width = 6, height = 3)
-	ggsave(file = paste0(args$outdir, "/fig1bhex_tzalegend.svg"), fig1bhexa[[2]], width = 6, height = 3)
-	echo('Fig1: Plot Tanzania example fig1bhex_tza completed\n')
+	# Example: Create HbS hexagon map for Tanzania and Africa
+	africanames <- unique(world_sf[world_sf$continent=='Africa',]$name)
+	sp.doms <- list(africanames,'Tanzania')
+	names(sp.doms) <- c('africa','tza')
+	insets <- c(FALSE,TRUE) #make map as inset for Tanzania only
+	for (j in 1:length(sp.doms))
+		{
+		sp.domi <- world_sf[world_sf$name %in% sp.doms[[j]], ]
+		sf::sf_use_s2(FALSE)
+		fig1bhexa <- fig1bplot(
+			sp.domain = sp.domi,
+			discrete.grid = discrete.grid.hbs,
+			inset = insets[j],
+			hbssf = hbssf,
+			pfsf = pfsf,
+			flatcrs = myprojs[[1]],
+			sizept = 1.4,
+			maphbs = FALSE,
+			mappf = TRUE,
+			pfvarsize = FALSE,
+			pt.thick = 0.5,
+			viridisoption = list( scale = "rocket", direction = 1 ),
+			countrybordercol = 'gray95',
+			countrybuffer = FALSE,
+			HbSbreaks = HbSbreaks,
+			HbSlabels = HbSlabels
+		)
+		# Add distinguished hexagon
+		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
+		ggsave(file = paste0(args$outdir, "/fig1bhex",names(sp.doms)[j],".svg"), fig1bhexa[[1]], width = 6, height = 7)
+		ggsave(file = paste0(args$outdir, "/fig1bhexlegend",names(sp.doms)[j],".svg"), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(file = paste0(args$outdir, "/fig1bhexlegend",names(sp.doms)[j],".pdf"), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(file = paste0(args$outdir, "/fig1bhex",names(sp.doms)[j],".pdf"), fig1bhexa[[1]], width = 6, height = 7)
+		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
+	}
 }
-
 ################################################################################
 # Create summary dumbbell plot map aggregating Pf values by location
 
@@ -559,14 +552,25 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 		)
 	}
-	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 250 )
+	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 1000 )
 	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
 	curves = (
 		sampled.parameters
 		%>% group_by( posterior.sample )
 		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
 	)
-
+	# Compute summary statistics for each x
+	curves_summary <- curves %>%
+	group_by(x) %>%
+	summarise(
+		y_median = median(y),
+		y_Q25 = quantile(y, 0.25),
+		y_Q75 = quantile(y, 0.75),
+		y_Q10 = quantile(y, 0.10),
+		y_Q90 = quantile(y, 0.90),
+		y_Q05 = quantile(y, 0.05),
+		y_Q95 = quantile(y, 0.95)
+	)
 	{
 		country.palette = country.colours()
 		at = list(
@@ -607,12 +611,47 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 					colour = country
 				)
 			)
-			+ geom_path(
-				data = curves,
-				aes( x = x, y = y, group = posterior.sample ),
-				linetype = 1,
-				col = rgb( 0, 0, 0, 0.025 )
-			)
+
+  			# Q05-Q95 shaded region (light gray)
+			+ geom_ribbon(data=curves_summary,
+				aes(x=x,y=y_median,ymin = y_Q05, ymax = y_Q95
+				), fill = "black", alpha = 0.1
+					) 
+			# Q10-Q90 shaded region (gray)
+			+ geom_ribbon(data=curves_summary,
+				aes(x=x,y=y_median,ymin = y_Q10, ymax = y_Q90
+					), fill = "black", alpha = 0.25
+						) 
+			# Q25-Q75 shaded region (dark gray)
+			+ geom_ribbon(data=curves_summary,
+			    aes(x=x,y=y_median,ymin = y_Q25, ymax = y_Q75
+					), fill = "black", alpha = 0.5
+					) 
+			# Median line
+			+ geom_line(data=curves_summary,
+				aes(x=x,y=y_median
+					), color = "black", linewidth = 0.3
+						) 
+			# + geom_path(
+			# 	data = curves,
+			# 	aes( x = x, y = y, group = posterior.sample ),
+			# 	linetype = 1,
+			# 	col = rgb( 0, 0, 0, 0.005 )#red grid blue alpha
+			# )
+			# + geom_path(
+			# 	data = curves.mean,
+			# 	aes( x = x, y = y, ),
+			# 	linetype = 1,
+			# 	linewidth = 0.8,
+			# 	col = rgb( 0, 0, 0, 0.55 )#red grid blue alpha
+			# )
+			# + geom_path(
+			# 	data = curves.mean,
+			# 	aes( x = x, y = y, ),
+			# 	linetype = 1,
+			# 	linewidth = 0.1,
+			# 	col = rgb( 1, 1, 1, 0.97)#red grid blue alpha
+			# )
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
@@ -626,14 +665,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa1+</em><br>frequency" )
+			+ ylab( "<em>Pfsa1+</em> frequency" )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
 			+ scale_colour_manual( values = country.palette[ levels( hspf$data$country )], guide = "none" )
 			+ scale_size_area( max_size = 16, guide = "none" )
 #			+ theme_minimal()
 			+ theme(
 				axis.title = element_markdown( size = 10, angle = 0 ),
-				axis.title.y = element_markdown( size = 10, angle = 0, hjust = 1, vjust = 0.5 ),
+				axis.title.y = element_markdown( size = 10, angle = 90, hjust = 0.5, vjust = 0.5 ),
 				axis.text.x = element_text( size = 8 ),
 				axis.text.y = element_text( size = 8, hjust = 1, angle = 0 ),
 				panel.margin = unit(0.1, "lines"),

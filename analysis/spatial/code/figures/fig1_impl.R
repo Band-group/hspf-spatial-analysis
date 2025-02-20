@@ -56,11 +56,12 @@ hbsrasplot <- function(
 		+ geom_sf(data = spatial.domain, fill = landcolor, col = NA) # Land overlay
 		+ ggspatial::layer_spatial( hbs.rast, aes(fill = after_stat(band1)) )
 		+ scale_fill_viridis_c(
+			alpha = 0.7,
 			option = viridisoption$scale,
 			direction = viridisoption$direction,
 			na.value = "transparent",
 			breaks = HbSbreaks,
-			labels = HbSlabels
+			labels = HbSlabels,
 		)
 		+ ggspatial::annotation_spatial(
 			spatial.domain,
@@ -159,6 +160,7 @@ generate_raster_maps <- function(predictions, saveraster = FALSE, saverastername
 fig1bplot <- function(
 	sp.domain,
 	discrete.grid,
+	inset,
 	hbssf,
 	pfsf = NULL,
 	flatcrs,
@@ -173,7 +175,7 @@ fig1bplot <- function(
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels
 ) {
-	boundarywidth <- 1 * pt.thick
+	boundarywidth <- 0.5 * pt.thick
 	
 	# If sp.domain is provided as a list, extract boundaries accordingly
 	if (class(sp.domain)[1] == "list") {
@@ -185,19 +187,33 @@ fig1bplot <- function(
 	}
 	# Define ocean surrounding the boundary
 	oceanaround <- st_make_valid(sf::st_difference(myboundary, world_sf))
-	if ((nrow(myboundary) + 5) < nrow(world_sf)) {
-		allland <- st_intersection(world_sf, myboundary)
-	} else {
-		myboundary <- world_sf[!(world_sf$continent %in% c("Antarctica")), ]
-		allland	 <- myboundary
-	}
+	# if ((nrow(myboundary)  < 130 )) {
+	# 	allland <- st_intersection(world_sf, myboundary)
+	# 	
+	# } else {
+	#myboundary <- world_sf[!(world_sf$continent %in% c("Antarctica")), ]
+	allland	 <- myboundary
+		
 	discrete.grid <- st_make_valid(discrete.grid)
-	box.around.country <- sf::st_bbox(sf::st_buffer(myboundary,2.5))
-	hexas <- sf::st_crop(discrete.grid,box.around.country) 
-	lakes.around.country <- sf::st_crop(lakaf_sf,box.around.country)
-	boundaries.around.country <- sf::st_crop(world_sf,box.around.country)
+
+	if(inset == TRUE) {
+		bufvalue <- 2.5
+		box.around.country <- sf::st_bbox(sf::st_buffer(myboundary,bufvalue))
+		box.around.country <- sf::st_as_sfc(box.around.country)
+		box.around.country <- sf::st_set_crs(box.around.country, 4326) 
+		hexas <- sf::st_crop(discrete.grid,box.around.country)
+		myboundary <- sf::st_crop(world_sf,box.around.country)
+	} else {
+		box.around.country <- myboundary
+		#hexas <- sf::st_crop(discrete.grid,box.around.country)
+		#hexas <- st_intersects(discrete.grid,sf::st_boundary(box.around.country),sparse = FALSE)[, 1]
+		# hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union(box.around.country) , 
+		# sparse = FALSE )[,1] == 1 ), ]
+	}	
+	hexas <- sf::st_intersection(discrete.grid,box.around.country) 
 	
-	#hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union( myboundary ), sparse = FALSE )[,1] == 1 ), ]
+	lakes.around.country <- sf::st_crop(lakaf_sf,box.around.country)
+	boundaries.around.country <- sf::st_union(box.around.country)
 	
 	hbsp <- (
 		ggplot()
@@ -205,8 +221,10 @@ fig1bplot <- function(
 		+ geom_sf( data = allland, fill = landcolor, col = NA )
 		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
 		+ geom_sf( data = lakes.around.country,fill = lakecolor, col = 'transparent')
-	    + geom_sf( data = boundaries.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
+        + geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
+        + geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
 		+ scale_fill_viridis_c(
+			alpha = 0.7,
 			option = viridisoption$scale,
 			name = "HbS frequency\nmean estimate",
 			direction = viridisoption$direction,
