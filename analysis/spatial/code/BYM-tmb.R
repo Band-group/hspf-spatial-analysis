@@ -614,28 +614,37 @@ saveRDS( result, args$output )
 
 if( !is.null( args$output_pdf )) {
 	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
-	pdf( args$output_pdf )
+	pdf( args$output_pdf, width = 6, height = 4 )
+	par( mar = c( 4.1, 4.1, 1.1, 1.1 ))
 	source( "code/functions.R" )
 	colours = country.colours()
 	xs = seq( from = 0, to = 0.35, by = 0.001 )
 	xhbs = result$data$posterior_sample_1
 	plot(
 		xhbs^2 + 2*xhbs*(1-xhbs), result$data$y / result$data$N, cex = sqrt(result$data$N)/6,
-		xlab = "HbAS or SS",
-		ylab = "Pfsa1+",
 		col = colours[ result$data$SOVEREIGNT],
-		pch = 19
+		pch = 19,
+		bty = 'n',
+		xlim = c( 0, 0.3 ),
+		ylim = c( 0, 0.8 ),
+		xaxt = 'n',
+		yaxt = 'n',
+		xlab = "",
+		ylab = "Pfsa1+",
 	)
 	grid()
+	at = list(
+		x = seq( from = 0, to = 0.3, by = 0.05 ),
+		y = seq( from = 0, to = 0.9, by = 0.1 )
+	)
+	axis( 1, at = at$x, label = sprintf( "%.0f%%", at$x * 100 ))
+	axis( 2, at = at$y, label = sprintf( "%.0f%%", at$y * 100 ), las = 1 )
+	mtext( "HbAS or SS frequency", 1, 3 )
+	mtext( "Pfsa1+\nfrequency", 2, 3, las = 1 )
+
 	gl = function( x, nu = 1 ) {
 		1/((1 + exp(-x))^(1/nu))
 	}
-	params = result$fitted.parameters %>% filter( hbs.sample == 'posterior_sample_1' )
-	params = c(
-		mu = (params %>% filter( parameter == 'intercept' ))$mean[1],
-		beta = (params %>% filter( parameter == 'beta' ))$mean[1],
-		nu = exp((params %>% filter( parameter == 'log_nu' ))$mean[1])
-	)
 
 	curves = tibble(
 		x = xs,
@@ -668,17 +677,6 @@ if( !is.null( args$output_pdf )) {
 		type = 'l',
 		lwd = 3,
 		col = "black"
-	)
-
-	points(
-		xs,
-		gl(
-			params['mu'] + params['beta'] * xs,
-			params['nu']
-		),
-		type = 'l',
-		lty = 2,
-		lwd = 2
 	)
 	dev.off()
 }

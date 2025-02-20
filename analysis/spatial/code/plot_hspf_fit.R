@@ -41,7 +41,15 @@ parse_arguments <- function() {
 }
 
 options( width = 300 )
+args = NULL
 args = parse_arguments()
+if( is.null( args )) {
+	args = list()
+	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
+	args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+	args$fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=africa-min_N=0.rds"
+}
 source('code/functions.R')
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
@@ -74,9 +82,24 @@ fit$data$hbs_median = hbs_median[ match( fit$data$polygon_id, hbs$polygon_id )]
 fit$data$hbas_or_ss_mean = fit$data$hbs_mean^2 + 2*fit$data$hbs_mean*(1-fit$data$hbs_mean)
 fit$data$hbas_or_ss_median = fit$data$hbs_median^2 + 2*fit$data$hbs_median*(1-fit$data$hbs_median)
 
-w = which( fit$data$n >= 0 )
-logistic = function(x) { exp(x)/(1+exp(x))}
-xs = seq( from = min( fit$data$hbas_or_ss_mean) / 1.1, to = max(fit$data$hbas_or_ss_mean)*1.1, by = 0.01 )
+link_fn = list(
+	logit = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		return( exp(x)/(1+exp(x)) )
+	},
+	`generalised-logit` = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		nu = exp( parameters[['log_nu']] )
+		return( 1/(1 + exp(-x))^(1/nu))
+	},
+	linear = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		return( pmax( pmin( x, 0.999 ), 0.001 ))
+	}
+)[[fit$link]]
+
+xs = seq( from = 0, to = 0.3, by = 0.01 )
+
 curves = tibble(
 	x = xs,
 	median = NA,
@@ -86,7 +109,7 @@ curves = tibble(
 )
 for( i in 1:length(xs)) {
 	x = xs[i]
-	yvalues = logistic( fit$sampled.parameters[['intercept']] + fit$sampled.parameters[['beta']]*x )
+	yvalues = link_fn( x, fit$sampled.parameters )
 	q = quantile( yvalues, c( 0.025, 0.5, 0.975 ))
 	curves[['lower_2.5']][i] = q[1]
 	curves[['median']][i] = q[2]
@@ -98,12 +121,14 @@ palette = country.colours()
 fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 fit$data$colour[ is.na(fit$data$colour)] = palette['other']
 
-pdf( file = args$output, width = 9, height = 4.25 )
-par( mar = c( 4.1, 7.1, 1.1, 12.1 ))
+pdf( file = args$output, width = 8, height = 5.25 )
+par( mar = c( 4.1, 7.1, 1.1, 1.1 ))
+stopifnot( length( which( fit$data$N == 0 )) == 0 )
+w = 1:nrow(fit$data)
 plot(
 	fit$data$hbas_or_ss_mean[w],
-	fit$data$Y[w] / fit$data$n[w],
-	cex = sqrt(fit$data$n)/6,
+	fit$data$y[w] / fit$data$N[w],
+	cex = sqrt(fit$data$N)/6,
 	col = alpha( fit$data$colour, 0.8 ),
 	pch = 19,
 	xlim = c( 0, 0.3 ),
@@ -115,14 +140,14 @@ plot(
 	ylab = ''
 )
 
-w = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
+wp = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
 legend(
 	x = 0.385,
 	y = 0.5,
 	yjust = 0.5,
-	legend = names(palette)[w],
+	legend = names(palette)[wp],
 	pch = 19,
-	col = palette[w],
+	col = palette[wp],
 	bty = 'n',
 	cex = 0.7,
 	xpd = NA,
@@ -145,19 +170,6 @@ polygon(
 	c( curves$lower_2.5, rev( curves$upper_97.5 )),
 	col = rgb( 0, 0, 0, 0.1 ),
 	border = NA
-)
-
-mean_beta = mean( fit$sampled.parameters$beta )
-q = quantile( fit$sampled.parameters$beta, c( 0.025, 0.975 ) )
-print( mean_beta )
-print( q )
-text(
-	0.31,
-	max( curves$mean ),
-	sprintf( "%s model\n%.1f (%.1f-%.1f)", fit$model, mean_beta, q[1], q[2] ),
-	xpd = NA,
-	adj = c(0,0.5),
-	cex = 0.75
 )
 
 dev.off()

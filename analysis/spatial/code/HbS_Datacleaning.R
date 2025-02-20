@@ -55,7 +55,7 @@ args = parse_arguments()
 
 #load functions
 echo( "++ Initialisation of HbS_Datacleaning.R")
-source('code/Functions.R')
+source('code/functions.R')
 
 echo( "++ Loading Piel et al survey data from %s...\n", args$piel_et_al )
 piel_et_al = load.piel_et_al_data( args$piel_et_al )
