@@ -20,7 +20,8 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_fit", type = "character", help = "path to HbS model fit file", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid]_modelfit.rds" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
-	parser$add_argument("--outdir", type = "character", help = "Output directory", required = TRUE)
+	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots", required = TRUE)
+	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
 
 	return(parser$parse_args())
 }
@@ -727,10 +728,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8, height = 9 )
-	ggsave( z, file = "tmp/figure_1/joined.svg", width = 8, height = 9 )
+	ggsave( z, file = args$output, width = 8, height = 9, device = cairo_pdf )
+	ggsave( z, file = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
 }
 
 echo("++ End Fig1: plot HbS\n")
 #END
-

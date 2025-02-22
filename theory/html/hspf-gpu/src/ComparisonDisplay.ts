@@ -25,10 +25,15 @@ export default class ComparisonDisplay {
 	geom: Geom ;
 	elt: SVGElement ;
 	colours: { [key: string]: string } ;
+	names: { [key: string]: string } ;
 
 	constructor(
 		counts: Array<PfsaCounts>,
 		elt: SVGElement,
+		plot_name: string,
+		y_column_name: string,
+		N_column_name: string,
+		limit: number,
 		geom: Geom = {
 			'width': 1000,
 			'height': 700,
@@ -44,7 +49,11 @@ export default class ComparisonDisplay {
 		this.counts = counts ;
 		this.elt = elt ;
 		this.geom = geom ;
-
+		this.names = {
+			title: plot_name,
+			y: y_column_name,
+			N: N_column_name
+		} ;
 		this.colours = {
 			"Morocco": "#292933",
 			"Mauritania": "#090953",
@@ -99,11 +108,11 @@ export default class ComparisonDisplay {
 		this.scales = {
 			// @ts-ignore 
 			x: new d3.scaleLinear()
-				.domain( [0,1] )
+				.domain( [0,limit] )
 				.range( [ this.geom.margins.left, this.geom.width - this.geom.margins.right]),
 			// @ts-ignore 
 			y: new d3.scaleLinear()
-				.domain( [0,1] )
+				.domain( [0,limit] )
 				.range( [ this.geom.height - this.geom.margins.bottom, this.geom.margins.top ]),
 			// @ts-ignore 
 			fill: function( country ) { return self.colours[country] }
@@ -131,6 +140,25 @@ export default class ComparisonDisplay {
 			.attr( 'transform', 'translate(' + (this.geom.margins.left - 5) + ' 0 )' )
 			.call( d3.axisLeft(this.scales.y))
 			.attr( 'font-size', '10pt' ) ;
+		;
+
+		svg
+			.append( 'g' )
+			.attr( 'transform', 'translate(' + (this.geom.margins.left + 5) + ' ' + (this.geom.margins.top + 10) + ')' )
+			.append( 'text' )
+			.text( this.names.title )
+			.attr( 'font-size', '16pt' )
+			.attr( 'font-weight', 'bold' )
+		;
+
+		svg
+			.append( 'g' )
+			.attr( 'transform', 'translate(' + (this.geom.margins.left + (this.geom.width - this.geom.margins.left - this.geom.margins.right)/2) + ' ' + (this.geom.height) + ')' )
+			.append( 'text' )
+			.text( "Observed" )
+			.attr( 'text-anchor', 'middle' )
+			.attr( 'font-size', '16pt' )
+			.attr( 'font-weight', 'bold' )
 		;
 
 		svg.selectAll( 'line.vertical' )
@@ -193,16 +221,16 @@ export default class ComparisonDisplay {
 
 	draw( pfsa: GridData, layer: number = 0 ) {
 		let svg = d3.select(this.elt) ;
-
+		let self = this ;
 		let data = this.counts.map(
 			(pt:PfsaCounts) => ({
 				country: pt.country,
 				admin1: pt.admin1,
 				latlong: pt.latlong,
 				xy: pt.xy,
-				N: pt.pfsa13N,
+				N: pt[self.names.N],
 				modelled: this.sample( pt.xy, pfsa, layer ),
-				observed: pt.pfsa13p / pt.pfsa13N
+				observed: pt[self.names.y] / pt[self.names.N]
 			} as PlotPt )
 		) ;
 
@@ -227,20 +255,23 @@ export default class ComparisonDisplay {
 			// @ts-ignore 
 			.attr( "fill", (pt:PlotPt) => this.scales.fill(pt.country)) ;
 
+			/*
 		svg.selectAll( 'text.label' )
 			.data( data )
 			.enter()
 			.append( 'text' )
 			.attr( 'class', 'label' ) ;
+
 		svg.selectAll( 'text.label' )
 			// @ts-ignore 
-			.attr( 'x', (pt:PlotPt) => this.scales.x(pt.observed) + 10 )
+			.attr( 'x', (pt:PlotPt) => this.scales.x(pt.observed) + 5 )
 			// @ts-ignore 
 			.attr( 'y', (pt:PlotPt) => this.scales.y(pt.modelled) )
 			// @ts-ignore 
-			.text( (pt:PlotPt) => pt.country )
+			.text( (pt:PlotPt) => pt.country.replace( "Democratic Republic of the Congo", "DRC" ) )
 			.attr( 'alignment-baseline', 'middle' )
-			.attr( 'font-size', '6pt' )
+			.attr( 'font-size', '4pt' )
 		;
+		*/
 	}
 } ;

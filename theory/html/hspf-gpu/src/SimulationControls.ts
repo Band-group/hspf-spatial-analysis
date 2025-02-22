@@ -73,7 +73,7 @@ export default class SimulationControls {
 		{
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.fitness' ) ;
 			this.fitnessControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
-			this.fitnessControl.innerHTML = '<h2>Fitness</h2>' + buildTable(
+			this.fitnessControl.innerHTML = '<fieldset id="fitness"><legend>Fitness:</legend>' + buildTable(
 				'fitness',
 				['A', 'S'],
 				['--', '-+', '+-', '++'],
@@ -87,18 +87,18 @@ export default class SimulationControls {
 					"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
 					"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
 				}
-			) ;
+			) + '</fieldset>' ;
 		}
 
 		{
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.reset' ) ;
 			this.resetControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' );
 			this.resetControl.innerHTML = (
-				'<h2>Reset</h2>'
-				+ '<fieldset id="reset_map">'
+				'<fieldset id="reset_map">'
 				+ '<legend>Reset:</legend>'
 				+ '<button id="flat_10pc_pp">10% ++</button>'
 				+ '<button id="flat_20pc_pp">20% ++</button>'
+				+ '<button id="flat_1pc_ind">1%, unlinked</button>'
 				+ '<button id="flat_10pc_ind">10%, unlinked</button>'
 				+ '<button id="flat_20pc_ind">20%, unlinked</button>'
 				+ '<button id="flat_50pc_ind">50%, unlinked</button>'
@@ -109,8 +109,7 @@ export default class SimulationControls {
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.features' ) ;
 			this.featuresControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
 			this.featuresControl.innerHTML = (
-				'<h2>Features</h2>'
-				+ '<fieldset id="iteration_control">'
+				'<fieldset id="iteration_control">'
 				+ '<legend>Iterations:</legend>'
 				+ '<input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px">'
 				+ '<label for="stop_every">Stop every nth generation?</label>'
@@ -148,7 +147,7 @@ export default class SimulationControls {
 		{
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.spread' ) ;
 			this.spreadControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
-			this.spreadControl.innerHTML = '<h2>Spread</h2>' + buildTable(
+			this.spreadControl.innerHTML = '<fieldset><legend>Spread:</legend>' + buildTable(
 				'spread',
 				[ 'value' ],
 				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
@@ -159,7 +158,7 @@ export default class SimulationControls {
 					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
 					'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
 				}
-			) ;
+			) + '</fieldset>';
 			d3.select( this.spreadControl ).append( 'svg' ) ;
 		}
 		this.m_callbacks = {
@@ -331,7 +330,7 @@ export default class SimulationControls {
 				'additive': 1,
 				'multiplicative': 2,
 				'dominant': 3,
-				'overdominant': 3
+				'overdominant': 4
 			}[fitness_mode.value] || -1 ;
 		}
 		if( stop_every ) {
@@ -347,6 +346,7 @@ export default class SimulationControls {
 		let starting_values = {
 			'flat_10pc_pp': new GridData( [ 1, 4 ], [ 0.9, 0.0, 0.0, 0.1 ] ),
 			'flat_20pc_pp': new GridData( [ 1, 4 ], [ 0.8, 0.0, 0.0, 0.2 ] ),
+			'flat_1pc_ind': new GridData( [ 1, 4 ], [ 0.99*0.99, 0.99*0.01, 0.01*0.99, 0.01*0.01 ] ),
 			'flat_10pc_ind': new GridData( [ 1, 4 ], [ 0.9*0.9, 0.9*0.1, 0.1*0.9, 0.1*0.1 ] ),
 			'flat_20pc_ind': new GridData( [ 1, 4 ], [ 0.8*0.8, 0.8*0.2, 0.2*0.8, 0.2*0.2 ] ),
 			'flat_50pc_ind': new GridData( [ 1, 4 ], [ 0.5*0.5, 0.5*0.5, 0.5*0.5, 0.5*0.5 ] )

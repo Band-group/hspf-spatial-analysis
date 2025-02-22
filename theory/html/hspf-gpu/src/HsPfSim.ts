@@ -1,6 +1,6 @@
 import GridData from "./GridData.js" ;
 import betaPDF from "./beta.js" ;
-
+import beta from '@stdlib/random/base/beta' ;
 
 interface LocalData {
 	nbhd: GridData,
@@ -552,8 +552,11 @@ export default class HsPfSim {
 		// const dbeta = require( '@stdlib/stats/base/dists/beta/pdf' ) ;
 		for( let i = 0; i < n; ++i ) {
 			const direction = Math.random() * 2 * Math.PI ;
-			const distance01 = Math.random() ; //beta( 1, spread ) ;
-			const weight = betaPDF( distance01, 1, concentration ) ;
+			//const distance01 = Math.random() ; //beta( 1, spread ) ;
+			//const weight = betaPDF( distance01, 1, concentration ) ;
+			const distance01 = beta( 1, concentration ) ;
+			const weight = 1.0 ;
+			console.log( "MOZZIE", distance01, weight, concentration ) ;
 			const distanceInCells = distance01 * maxDistanceInKm / cellWidthInKm ;
 			let dx = Math.round( Math.cos(direction) * distanceInCells ) ;
 			let dy = Math.round( Math.sin(direction) * distanceInCells ) ;

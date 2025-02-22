@@ -29,6 +29,11 @@ export interface PfsaCounts {
 	pfsa3N: number,
 	pfsa4p: number,
 	pfsa4m: number,
-	pfsa4N: number
+	pfsa4N: number,
+	pfsa13mm: number,
+	pfsa13mp: number,
+	pfsa13pm: number,
+	pfsa13pp: number,
+	pfsa13N: number
 } ;
 
