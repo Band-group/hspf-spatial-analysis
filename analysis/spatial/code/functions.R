@@ -667,19 +667,19 @@ load.piel_et_al_data <- function(
   result <- result[ !is.na( result$hbaa + result$hbas ), ]
   result$Dataset <- "original"
   
-  result = result[,
+  resultsel = result[,
                   c( "Dataset", "latitude", "longitude",
                      "hbaa", "hbas", "hbss",
-                     "HbFA", "HbFAS", "HbFS","identifiedproblem","id"
+                     "HbFA", "HbFAS", "HbFS","identifiedproblem"
                   )
   
   ]
   #add source
-  result$`ID_Piel_OR_PUBMED` <- result$id
-  result$DOI <- NA
-  result$id <- NULL
+  resultsel$DOI <- NA
+  resultsel$`ID_Piel_OR_PUBMED` <- result$id
+  resultsel$source <- result$source
   
-  return( result )
+  return( resultsel )
 }
 
 load.extended_data <- function( filename, exclude_wide_areas = TRUE ) {
@@ -703,7 +703,7 @@ load.extended_data <- function( filename, exclude_wide_areas = TRUE ) {
   #add source
   result$`ID_Piel_OR_PUBMED` <- result$PMID
   result$PMID <- NULL
-  result$DOI <- result$DOI
+  result$source<- NA
   return( result )
 }
 #Compute S allele

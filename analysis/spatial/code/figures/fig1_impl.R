@@ -56,7 +56,7 @@ hbsrasplot <- function(
 		+ geom_sf(data = spatial.domain, fill = landcolor, col = NA) # Land overlay
 		+ ggspatial::layer_spatial( hbs.rast, aes(fill = after_stat(band1)) )
 		+ scale_fill_viridis_c(
-			alpha = 0.7,
+			alpha = 0.5,
 			option = viridisoption$scale,
 			direction = viridisoption$direction,
 			na.value = "transparent",
@@ -70,7 +70,7 @@ hbsrasplot <- function(
 			linewidth = 0.25
 		)
 		+ xlim( myext[1], myext[2]) + ylim(myext[3], myext[4] )
-		+ theme_void()
+		+ theme_void(base_family = "sans")
 	)
 	for( name in names(features)) {
 		fig1a = (
@@ -93,7 +93,7 @@ hbsrasplot <- function(
 	legendfig1a <- ggpubr::as_ggplot(ggpubr::get_legend(fig1awithlegend))
 	
 	fig1a <- fig1a + coord_sf(crs = flatcrs, expand = FALSE) +
-		theme_void() + theme.panelgrid
+		theme_void(base_family = "sans") + theme.panelgrid
 	
 	return(list(fig1a, legendfig1a))
 }
@@ -130,7 +130,7 @@ graphabsplot <- function(
 	if (st_crs(world) == st_crs(4326)) {
 		hbsp <- hbsp + xlim(bbox[1], bbox[3]) + ylim(bbox[2], bbox[4])
 	}
-	hbsp <- hbsp + theme_void() + theme.panelgrid
+	hbsp <- hbsp + theme_void(base_family = "sans") + theme.panelgrid
 	
 	# Extract and return the legend separately
 	hbsplegend <- hbsp + theme(legend.position = 'bottom', legend.direction = "vertical",
@@ -169,6 +169,7 @@ fig1bplot <- function(
 	mappf = TRUE,
 	pfvarsize = FALSE,
 	pt.thick = 1,
+	pfcoltype = 'country',
 	viridisoption = "rocket",
 	countrybordercol = 'gray97',
 	countrybuffer = FALSE,
@@ -221,17 +222,17 @@ fig1bplot <- function(
 		+ geom_sf( data = allland, fill = landcolor, col = NA )
 		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
 		+ geom_sf( data = lakes.around.country,fill = lakecolor, col = 'transparent')
-        + geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
-        + geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
+    + geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
+    + geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
 		+ scale_fill_viridis_c(
-			alpha = 0.7,
+			alpha = 0.5,
 			option = viridisoption$scale,
 			name = "HbS frequency\nmean estimate",
 			direction = viridisoption$direction,
 			na.value = "transparent",
 			breaks = HbSbreaks,
 			labels = HbSlabels,
-			guide = guide_legend(override.aes = list(alpha = 1), order = 2, ncol = 2)
+			guide = guide_legend(override.aes = list(alpha = 0.5), order = 2, ncol = 2)
 		)
 	)
 	# Optionally overlay raw HbS data points
@@ -249,18 +250,40 @@ fig1bplot <- function(
 	# Optionally overlay Pf data points (with variable point size if desired)
 	if (mappf) {
 		if (!pfvarsize) {
-			hbsp <- (
+			if(pfcoltype == 'country') {
+		  hbsp <- (
 				hbsp
 				+ ggnewscale::new_scale_colour()
+				+ ggnewscale::new_scale_fill()
 				+ geom_sf(
 					data = pfsf[boundaries.around.country, ],
-					aes(shape = datatype),
-					color = 'black',
-					fill = "#28A87D",
-					alpha = 0.8,
+					aes(shape = datatype,fill=as.factor(country)),
+					color = 'gray35',
+					alpha = 0.95,
 					size = sizept,
-					linewidth = 0.3
-				)
+					linewidth = 0.01
+				  )
+				+ scale_fill_manual( values = country.colours() 
+				  )
+		  )
+			} else {
+			  hbsp <- (
+			    hbsp
+			    + ggnewscale::new_scale_colour()
+			    + geom_sf(
+			      data = pfsf[boundaries.around.country, ],
+			      aes(shape = datatype),
+			      color = 'gray35',
+			      fill = "#28A87D",
+			      alpha = 0.95,
+			      size = sizept,
+			      linewidth = 0.01
+			    )
+			  )
+			  
+			}
+		  hbsp <- (
+		    hbsp
 				+ scale_shape_manual(
 					values = c(21, 24),
 					name = "Pfsa type",
@@ -293,12 +316,12 @@ fig1bplot <- function(
 		}
 	}
 	
-	hbsplegend <- hbsp + theme(legend.position = 'bottom', legend.direction = "vertical", text = element_text(family = "sans"))
+	hbsplegend <- hbsp + guides (fill="none") + theme(legend.position = 'bottom', legend.direction = "vertical", text = element_text(family = "sans"))
 	legendfig <- ggpubr::as_ggplot(ggpubr::get_legend(hbsplegend))
 	
 	hbsp <- hbsp +
 		coord_sf(crs = flatcrs, expand = TRUE) +
-		theme_void() + theme.panelgrid
+		theme_void(base_family = "sans") + theme.panelgrid
 	
 	return(list(hbsp, legendfig))
 }

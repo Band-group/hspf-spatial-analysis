@@ -69,6 +69,8 @@ piel_et_al <- piel_et_al[!(piel_et_al$latitude==15.4745 & piel_et_al$longitude==
 
 echo( "++ combining data..\n" )
 #put data together
+#align variable order between the datasets
+extended <- extended[colnames(piel_et_al)]
 all.data = rbind( piel_et_al, extended )
 all.data = cbind(
   all.data,

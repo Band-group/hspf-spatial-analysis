@@ -42,13 +42,13 @@ args = NULL
 args <- parse_arguments()
 if( is.null( args )) {
 	args = list()
-	args$grid = "output/grids/grid-type=hexagon-size=1.35-division=none-area=global.rds"
+	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
 	args$pf = "input/hbs-pf-v3.sqlite"
 	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid]"
 	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
-	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1.35-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
+	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
@@ -62,8 +62,9 @@ sf::sf_use_s2(TRUE)
 
 # Define common breakpoints and labels for HbS plots
 # Do we need a first break -0.01 here?
-HbSbreaks <- c(0.0005, seq(0.025, 0.125, 0.025))
-HbSlabels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%")	# \u2030 = per mille
+HbSbreaks <- c(0.0005, seq(0.025, 0.175, 0.025))
+HbSlabels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
+               "12.5%","15%","17.5%")	# \u2030 = per mille
 
 ################################################################################
 # Define helper functions
@@ -92,6 +93,9 @@ keypfcountries <- data.frame(
 							 "Cote_dIvoire", "Madagascar", "Gabon", "Benin", "Senegal", "Indonesia",
 							 "Sudan", "Mauritania", "Venezuela", "India", "Mozambique", "Zambia")
 )
+
+#set theme font type for all plots
+theme_set(theme_minimal(base_family = "sans"))
 
 ################################################################################
 ## Loading data
@@ -208,7 +212,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	source( "code/figures/fig1_impl.R" )
 	bbox = list(
 		centre = list( x = 25.830923, y = 4.384554),
-		extension = c( -110, -50 , +130, +50 )
+		extension = c( -115, -50 , +130, +50 )
 	)
 	bbox$bbox = c( xmin = bbox$centre$x, ymin = bbox$centre$y , xmax = bbox$centre$x, ymax = bbox$centre$y ) + bbox$extension
 	world.hbs.pf.map <- graphabsplot(
@@ -219,7 +223,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	#	bbox = st_bbox(pfsf),# + c( xmin = -10, ymin = -11.5, xmax = 1, ymax = 11.5),
 		bbox = bbox$bbox,
 		flatcrs = myprojs[[1]],
-		ptsize = 1.15,
+		ptsize = 1.0,
 		pt.thick = 0.1,
 		oceancolor = oceancolor,
 		landcolor = landcolor
@@ -238,11 +242,16 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	# Merge HbS estimates into the discrete grid
 	discrete.grid.hbs <- discrete.grid %>% 
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
-
+	extracted_values <- terra::extract(malariafilter, vect(discrete.grid.hbs))
+	# Summarize: Check if each polygon has at least one pixel with value 1
+	polygon_has_1 <- tapply(extracted_values[,2], extracted_values[,1], function(x) any(x == 1, na.rm = TRUE))
+	# Keep only polygons where at least one raster cell has value 1
+	discrete.grid.hbs <- discrete.grid.hbs[names(polygon_has_1)[polygon_has_1], ]
 	# Example: Create HbS hexagon map for Tanzania and Africa
 	africanames <- unique(world_sf[world_sf$continent=='Africa',]$name)
 	sp.doms <- list(africanames,'Tanzania')
 	names(sp.doms) <- c('africa','tza')
+	pfcoltypes <- c('country','pftype')
 	insets <- c(FALSE,TRUE) #make map as inset for Tanzania only
 	for (j in 1:length(sp.doms))
 		{
@@ -255,11 +264,12 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			hbssf = hbssf,
 			pfsf = pfsf,
 			flatcrs = myprojs[[1]],
-			sizept = 1.4,
+			sizept = 1.5,
 			maphbs = FALSE,
 			mappf = TRUE,
 			pfvarsize = FALSE,
-			pt.thick = 0.5,
+			pt.thick = 0.1,
+			pfcoltype = pfcoltypes[[j]],
 			viridisoption = list( scale = "rocket", direction = 1 ),
 			countrybordercol = 'gray95',
 			countrybuffer = FALSE,
@@ -383,7 +393,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# Vertical dashed line at x = 0
 			+ geom_segment(
 				x = 0, xend = 0,
-				y = 0.75, yend = length(unique( figure_data$country )) + 0.25,
+				y = 0.75, yend = length(unique( figure_data$country )) + 0.00,
 				linetype = "dashed", color = grey_dark, linewidth = sizes$linewidth
 			)
 			# Colored point as first column
@@ -510,8 +520,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			+ theme(
 	#			axis.text.y = element_text( face = "plain", size = text.size ),
 	#			plot.margin = margin(10, 10, 10, 80)
-				axis.text.y = element_blank()
-			#	plot.margin = margin(t = 10, r = 1, b = 10, l = 0)
+				axis.text.y = element_blank(),
+			 plot.margin = margin(t = 10, r = 5)#, b = 10, l = 0)
 			)
 		)
 
@@ -559,6 +569,11 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		%>% group_by( posterior.sample )
 		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
 	)
+	
+	curves.mean <- curves %>%
+	  group_by(x) %>%
+	  summarise(
+	    y = mean(y))
 	# Compute summary statistics for each x
 	curves_summary <- curves %>%
 	group_by(x) %>%
@@ -612,46 +627,46 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				)
 			)
 
-  			# Q05-Q95 shaded region (light gray)
-			+ geom_ribbon(data=curves_summary,
-				aes(x=x,y=y_median,ymin = y_Q05, ymax = y_Q95
-				), fill = "black", alpha = 0.1
-					) 
-			# Q10-Q90 shaded region (gray)
-			+ geom_ribbon(data=curves_summary,
-				aes(x=x,y=y_median,ymin = y_Q10, ymax = y_Q90
-					), fill = "black", alpha = 0.25
-						) 
-			# Q25-Q75 shaded region (dark gray)
-			+ geom_ribbon(data=curves_summary,
-			    aes(x=x,y=y_median,ymin = y_Q25, ymax = y_Q75
-					), fill = "black", alpha = 0.5
-					) 
-			# Median line
-			+ geom_line(data=curves_summary,
-				aes(x=x,y=y_median
-					), color = "black", linewidth = 0.3
-						) 
-			# + geom_path(
-			# 	data = curves,
-			# 	aes( x = x, y = y, group = posterior.sample ),
-			# 	linetype = 1,
-			# 	col = rgb( 0, 0, 0, 0.005 )#red grid blue alpha
-			# )
-			# + geom_path(
-			# 	data = curves.mean,
-			# 	aes( x = x, y = y, ),
-			# 	linetype = 1,
-			# 	linewidth = 0.8,
-			# 	col = rgb( 0, 0, 0, 0.55 )#red grid blue alpha
-			# )
-			# + geom_path(
-			# 	data = curves.mean,
-			# 	aes( x = x, y = y, ),
-			# 	linetype = 1,
-			# 	linewidth = 0.1,
-			# 	col = rgb( 1, 1, 1, 0.97)#red grid blue alpha
-			# )
+#   			# Q05-Q95 shaded region (light gray)
+# 			+ geom_ribbon(data=curves_summary,
+# 				aes(x=x,y=y_median,ymin = y_Q05, ymax = y_Q95
+# 				), fill = "black", alpha = 0.1
+# 					) 
+# 			# Q10-Q90 shaded region (gray)
+# 			+ geom_ribbon(data=curves_summary,
+# 				aes(x=x,y=y_median,ymin = y_Q10, ymax = y_Q90
+# 					), fill = "black", alpha = 0.15
+# 						) 
+# 			# Q25-Q75 shaded region (dark gray)
+# 			+ geom_ribbon(data=curves_summary,
+# 			    aes(x=x,y=y_median,ymin = y_Q25, ymax = y_Q75
+# 					), fill = "black", alpha = 0.3
+# 					) 
+# 			# Median line
+# 			+ geom_line(data=curves_summary,
+# 				aes(x=x,y=y_median
+# 					), color = "black", linewidth = 0.3
+# 						) 
+      + geom_path(
+      	data = curves,
+      	aes( x = x, y = y, group = posterior.sample ),
+      	linetype = 1,
+      	col = rgb( 0, 0, 0, 0.005 )#red green blue alpha
+      )
+      + geom_path(
+      	data = curves.mean,
+      	aes( x = x, y = y, ),
+      	linetype = 1,
+      	linewidth = 0.5,
+      	col = rgb( 0, 0, 0, 0.55 )
+      )
+      + geom_path(
+      	data = curves.mean,
+      	aes( x = x, y = y, ),
+      	linetype = 1,
+      	linewidth = 0.05,
+      	col = rgb( 1, 1, 1, 0.97)
+      )
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
@@ -669,8 +684,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
 			+ scale_colour_manual( values = country.palette[ levels( hspf$data$country )], guide = "none" )
 			+ scale_size_area( max_size = 16, guide = "none" )
-#			+ theme_minimal()
+			+ theme_minimal(base_family = "sans")
 			+ theme(
+			  
 				axis.title = element_markdown( size = 10, angle = 0 ),
 				axis.title.y = element_markdown( size = 10, angle = 90, hjust = 0.5, vjust = 0.5 ),
 				axis.text.x = element_text( size = 8 ),
@@ -709,9 +725,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		ggplotGrob( hspf_plot ),
 		layout_matrix = layout.m,
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
-		heights = c( 0.1, 1, 0.05, 1, 0.05, 1, 0.1 )
+		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8, height = 9, device = cairo_pdf )
+	ggsave( z, file = "tmp/figure_1/joined.pdf", width = 8, height = 9 )
 	ggsave( z, file = "tmp/figure_1/joined.svg", width = 8, height = 9 )
 }
 
