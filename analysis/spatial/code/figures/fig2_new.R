@@ -5,8 +5,24 @@ source( "code/figures/fig1_impl.R" )
 ########################
 # CONFIGURATION
 
-args = NULL
 #args <- parse_arguments()
+# Parse command-line arguments using argparse
+parse_arguments <- function() {
+	parser <- ArgumentParser( description = 'Create Figure 2' )
+	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
+	parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-v3.sqlite" )
+	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
+	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
+	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
+	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename" )
+	parser$add_argument("--output_svg", type = "character", help = "Output svg filename" )
+
+	return(parser$parse_args())
+}
+
+args = NULL
+args = parse_arguments()
+
 if( is.null( args )) {
 	args = list()
 	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
@@ -260,23 +276,23 @@ pfsf = load_pfsf( args$pf )
 	)
 	#border = theme(plot.background = element_rect(size = 0.5, linetype="solid", color="black" ))
 	border = theme(plot.background = element_blank())
-	areascale = scale_size( range = c( 0, 5 ), limits = c( 0, 3000 ), guide = "none" )
+	areascale = scale_size( range = c( 0, 5 ), breaks = seq( from = 1, to = 3000, by = 1 ), limits = c( 0, 3000 ), guide = "none" )
 	shapescale = scale_shape_manual( values = 21 )
 	hspftheme = theme( plot.margin = unit( c( t = 0, b = 0, r = 0, l = 0 ), "inches" ))
 	z = grid.arrange(
 		(fig1bhexa[[1]] + border),
-		hspf_plots[['Pfsa1-area=waf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa1-area=DRC']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa2-area=DRC']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa3-area=DRC']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa4-area=DRC']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa1-area=eaf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa2-area=eaf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa3-area=eaf']] + areascale + hspftheme + border,
-		hspf_plots[['Pfsa4-area=eaf']] + areascale + hspftheme + border,
+		hspf_plots[['Pfsa1-area=waf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa1-area=DRC']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa2-area=DRC']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa3-area=DRC']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa4-area=DRC']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa1-area=eaf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa2-area=eaf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa3-area=eaf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa4-area=eaf']] + areascale + hspftheme + shapescale + border,
 		(
 			forestplot
 			+ theme(
@@ -297,7 +313,12 @@ pfsf = load_pfsf( args$pf )
 		widths = geom$columns,
 		heights = geom$rows
 	)
-	ggsave( z, file = args$output, width = geom$width, height = geom$height, device = cairo_pdf )
+	if( !is.null( args$output_pdf )) {
+		ggsave( z, file = args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf )
+	}
+	if( !is.null( args$output_svg )) {
+		ggsave( z, file = args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf )
+	}
 }
 
 echo("++ End Fig2!! Great success!\n" )

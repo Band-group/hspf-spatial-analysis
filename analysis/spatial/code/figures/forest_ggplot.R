@@ -41,119 +41,7 @@ parse_arguments <- function() {
 	return( parser$parse_args() )
 }
 
-substitute <- function( string, replacements ) {
-	result = string
-	for( thing in names( replacements )) {
-		result = stringr::str_replace_all(
-			result,
-			stringr::fixed(sprintf( '{%s}', thing )),
-			replacements[[thing]]
-		)
-	}
-	return( result )
-}
-
-load.data <- function(
-	areas,
-	loci = sprintf( "Pfsa%d", 1:4 ),
-	template
-) {
-	result = tibble::tibble()
-	for( area in areas ) {
-		for( locus in loci ) {
-			filename = substitute( template, list(
-				locus = locus,
-				area = area
-			))
-			if( file.exists( filename )) {
-				X = readRDS( filename )
-				sampled.parameters = (
-					X$sampled.parameters
-					%>% mutate(
-						Pfsa1_N = sum( X$data$Pfsa1_N ),
-						Pfsa2_N = sum( X$data$Pfsa2_N ),
-						Pfsa3_N = sum( X$data$Pfsa3_N ),
-						Pfsa4_N = sum( X$data$Pfsa4_N ),
-						number_of_hexagons = nrow(X$data)
-					)
-				)
-				X$area = factor( X$area, levels = rev(areas))
-				result = bind_rows(
-					result,
-					bind_cols(
-						locus = locus,
-						area = area,
-						sampled.parameters
-					)
-				)
-			}
-		}
-	}
-	return( result )
-}
-
-make.forestplot <- function( tibble, xname, yname, brewerstyle = "VanGogh3", xlim = c( -0.25, 0.50 ) ) {
-	p <- tibble %>%
-	ggplot(aes(x = (!!sym(xname)), y = (!!sym(yname)))) +
-	geom_hline(yintercept = 0, col = "grey30", lwd=0.4,linetype='dashed') +
-#	stat_halfeye() + # to add density as shadow behind the CIs
-	stat_interval( linewidth = 2 ) +
-	stat_summary(geom = "point", fun = median) +
-	scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)]) +
-	coord_flip(ylim = xlim, clip = "on") +
-	guides(col = "none") +
-	labs(title = "", x = NULL,
-			 y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
-	) +
-	scale_y_continuous(
-		labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
-		limits = round( xlim * 100 ),	# Make sure the limits are correct based on your data
-		expand = c(0, 0))+	# Prevent extra space beyond the limits) +
-	#add sample size on top of median values
-	stat_summary(
-		geom = "richtext",	# Allows background
-		fun = median,
-		aes(label = paste0("N = ", scales::comma(N))),
-		hjust = 0.5, vjust = -0.2,
-		size = 2,
-	 # alpha = 1,#transparency optional
-		family = font_family,
-		fill = 'NA', label.size = NA	# label.size = NA for no border
-	 #Note that for png image label.size = 0 works too but not for pdf output
-	) +
-
-	facet_grid(~locus,labeller=labeller(locus=new_labels)) +
-	theme_minimal(base_family = font_family) +
-	theme(
-		axis.title.x = element_text(margin = margin(t=10)),
-		axis.line.y = element_blank(),
-		axis.ticks.y = element_blank(),
-		axis.line.x = element_line(color = "black", linewidth =	0.5),
-		axis.ticks.x = element_line(linewidth = 0.5),
-		panel.spacing = unit(2, "lines") ,
-		# Change panel label position and font
-		strip.text = element_text(
-			hjust = 0,# alight title of panels to the left
-			size = 12,						# Change font size
-			face = "italic",				# Font style (bold, italic, etc.)
-			color = "black"#,			 # Change color of the label
-		#	family = "serif"			# Change font family (e.g., "sans", "serif", etc.)
-		),
-		plot.background = element_rect(color = 'white', fill = bg_color),
-		panel.background = element_rect(fill = "white", color = "white"),
-		panel.grid = element_blank(),
-		panel.grid.major.x = element_line(linewidth = 0.1, color = "grey75"),
-		plot.title = element_blank(),
-		axis.text.x = element_markdown(size = 10),	# Apply markdown formatting to x labels
-		axis.text.y = element_markdown(
-			hjust = 0, 
-			#margin = margin(l = 10),#text margin left
-			#margin = margin(r = -1),#text margin right
-			size=13
-		),
-		plot.margin = margin(6, 5, 5, 5)# top, right, bottom, and left margins.
-	) 
-}
+source( "code/figures/fig1_impl.R" )
 
 # Generalised link function
 gl = function( v, parameters ) {
@@ -162,11 +50,8 @@ gl = function( v, parameters ) {
 	return( 1/(1 + exp(-x))^(1/nu))
 }
 
-
 args = parse_arguments()
 print( args )
-
-# Read the gzipped TSV file
 
 # List relevant regions
 # Create a mapping of original names to proper names and order levels
@@ -189,7 +74,7 @@ area_mapping <- tibble::tibble(
 
 # Load data and compute the slope
 res = (
-	load.data( area_mapping$area, template = args$input_template )
+	load.forestplot.data( area_mapping$area, template = args$input_template )
 	%>% mutate(
 		slope =	gl( 0.2, pick( intercept, beta, log_nu)) - gl( 0.1, pick( intercept, beta, log_nu ))
 	)

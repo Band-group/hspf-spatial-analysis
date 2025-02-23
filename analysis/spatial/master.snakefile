@@ -15,7 +15,6 @@ types = [
 
 covariates = [ 'none' ]
 
-
 # Africa is 3,736.69km across West-East at Equator
 # 6,604.55km from coast of Gambia to coast of Kenya
 # At equator, 1 degree ~ 111km so 1.35 degrees ~ 150 km at the equator
@@ -47,7 +46,8 @@ areas = {
 	# Central africa region.  Not needed.
 	'caf': [ 'Democratic Republic of the Congo', 'Zambia', 'Gabon' ],
 	# Eestern africa region matching Pfsa2/4 distribution split
-	'eaf': [ 'Democratic Republic of the Congo', 'Ethiopia', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania',  'Madagascar' ],
+	'drc+east': [ 'Democratic Republic of the Congo', 'Ethiopia', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania',  'Madagascar' ],
+	'eaf': [ 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania' ],
 	#
 	'gambia+senegal': [ 'Gambia', 'Senegal' ],
 	'mali': [ 'Mali' ],
@@ -71,7 +71,7 @@ config = {
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 	"regression_model": [ 'bym2' ], #, 'norandom' ],
 	"min_km_to_survey_pt": surveykms,
-	"min_N": [ '5' ],#'0', 
+	"min_N": [ '0', '5' ],
 	"area": areas.keys(),
 }
 
@@ -91,8 +91,11 @@ def dict_product(dicts):
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = list(dict_product( config ))
 master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
-
+[]
 localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2
+
+wildcard_constraints:
+	min_N = "[0-9]*"
 
 rule all:
 	input:
@@ -122,7 +125,7 @@ rule all:
 			area = [ 'global' ]
 		),
 		hspf_plots = [
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],
@@ -133,7 +136,7 @@ rule all:
 			covariates = covariates
 		),
 		fig1 = expand(
-			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/samplingprocedure.pdf",
+			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figure1.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -142,7 +145,7 @@ rule all:
 			divide = ["none"]
 		),
 		fig2 = expand(
-			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
