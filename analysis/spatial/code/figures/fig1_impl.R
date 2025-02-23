@@ -1,5 +1,3 @@
-# Convert a dataframe with coordinate columns to an sf spatial object
-
 # Compute the median value for each row of a matrix
 rowMedians <- function(m) {
 	sapply(1:nrow(m), function(i) median(m[i, ]))
@@ -11,6 +9,50 @@ df2sf <- function(df, coords, crs = 4326) {
 # Subset spatial points using a polygon and transform projection
 sub.and.transproj <- function(mypts, mypoly, mycrs) {
 	sf::st_transform(sf::st_make_valid(mypts[mypoly, ]), crs = mycrs)
+}
+
+load_grid <- function( filename, as_df = FALSE ) {
+	grid <- readRDS( filename )
+	# Put back the lat / long columns.
+	grid$longitude = sf::st_coordinates( grid$centroid )[,1]
+	grid$latitude = sf::st_coordinates( grid$centroid )[,2]
+	if( as_df ) {
+		grid$centroid = grid$grid = NULL
+	}
+	return( grid )
+}
+
+load_pfsf = function( filename ) {
+	library( RSQLite )
+	################################################################################
+	# Load Pf data and create spatial points
+	db <- dbConnect( dbDriver("SQLite"), filename )
+	pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+	stopifnot( max(pfsource$N) == 1 )
+	pf = (
+		pfsource
+		%>% dplyr::mutate(
+			`Pfsa1_+` = `Pfsa1:nonref`,
+			`Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
+			`Pfsa2_+` = `Pfsa2:nonref`,
+			`Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
+			`Pfsa3_+` = `Pfsa3:nonref`,
+			`Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
+			`Pfsa4_+` = `Pfsa4:ref`,
+			`Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`	)
+		%>% dplyr::select(
+			source, datatype, latitude, longitude, country,
+			`Pfsa1_+`, `Pfsa1_N`,
+			`Pfsa2_+`, `Pfsa2_N`,
+			`Pfsa3_+`, `Pfsa3_N`,
+			`Pfsa4_+`, `Pfsa4_N`
+		)
+	)
+
+	return(
+		df2sf( pf, coords = c('longitude', 'latitude'), crs = 4326)
+		%>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
+	)
 }
 
 # Custom rounding function for Pf sample sizes based on magnitude
@@ -44,7 +86,12 @@ hbsrasplot <- function(
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels, flatcrs,
 	features = list(), # list of lists, each has data, colour, fill.
-	viridisoption = list( scale = "rocket", direction = 1)
+	viridisoption = list( scale = "rocket", direction = 1),
+	aesthetic = list(
+		oceancolor = "blue",
+		landcolor = "grey",
+		lakecolor = "blue"
+	)
 ) {
 	hbs.rast <- crop(hbs.rast, spatial.domain)	# Crop to the spatial domain
 	hbs.rast <- mask(hbs.rast, spatial.domain)		# Mask out areas outside the domain
@@ -52,8 +99,8 @@ hbsrasplot <- function(
 	
 	fig1a <- (
 		ggplot()
-		+ geom_sf(data = ocean, fill = oceancolor, col = NA ) # Ocean background
-		+ geom_sf(data = spatial.domain, fill = landcolor, col = NA) # Land overlay
+		+ geom_sf(data = ocean, fill = aesthetic$oceancolor, col = NA ) # Ocean background
+		+ geom_sf(data = spatial.domain, fill = aesthetic$landcolor, col = NA) # Land overlay
 		+ ggspatial::layer_spatial( hbs.rast, aes(fill = after_stat(band1)) )
 		+ scale_fill_viridis_c(
 			alpha = 0.5,
@@ -109,13 +156,15 @@ graphabsplot <- function(
 	flatcrs, 
 	ptsize = 1.05,
 	pt.thick = 0.3,
-	oceancolor = oceancolor,
-	landcolor = landcolor
+	aesthetic = list(
+		oceancolor = "blue",
+		landcolor = "grey"
+	)
 ) {
 	hbsp <- (
 		ggplot()
-		+ geom_sf(data = ocean, fill = oceancolor, col = NA)
-		+ geom_sf(data = world, fill = landcolor, col = NA, lwd = 0.25)	# land over ocean
+		+ geom_sf(data = ocean, fill = aesthetic$oceancolor, col = NA)
+		+ geom_sf(data = world, fill = aesthetic$landcolor, col = NA, lwd = 0.25)	# land over ocean
 		+ geom_sf(data = hbssf, aes(color = Dataset), shape = 22, fill = "#EFAC00", alpha = 0.9, size = ptsize, linewidth = pt.thick)
 		+ scale_color_manual(values = c("black", "#EDEDED"), name = "HbS dataset", guide = guide_legend(override.aes = list(alpha = 1), order = 1))
 		+ ggnewscale::new_scale_colour()
@@ -174,7 +223,12 @@ fig1bplot <- function(
 	countrybordercol = 'gray97',
 	countrybuffer = FALSE,
 	HbSbreaks = HbSbreaks,
-	HbSlabels = HbSlabels
+	HbSlabels = HbSlabels,
+	aesthetic = list(
+		oceancolor = "blue",
+		landcolor = "grey",
+		lakecolor = "blue"
+	)
 ) {
 	boundarywidth <- 0.5 * pt.thick
 	
@@ -187,7 +241,7 @@ fig1bplot <- function(
 		allboundary <- myboundary
 	}
 	# Define ocean surrounding the boundary
-	oceanaround <- st_make_valid(sf::st_difference(myboundary, world_sf))
+	oceanaround <- sf::st_make_valid(sf::st_difference(myboundary, world_sf))
 	# if ((nrow(myboundary)  < 130 )) {
 	# 	allland <- st_intersection(world_sf, myboundary)
 	# 	
@@ -195,7 +249,7 @@ fig1bplot <- function(
 	#myboundary <- world_sf[!(world_sf$continent %in% c("Antarctica")), ]
 	allland	 <- myboundary
 		
-	discrete.grid <- st_make_valid(discrete.grid)
+	discrete.grid <- sf::st_make_valid(discrete.grid)
 
 	if(inset == TRUE) {
 		bufvalue <- 2.5
@@ -218,10 +272,10 @@ fig1bplot <- function(
 	
 	hbsp <- (
 		ggplot()
-		+ geom_sf( data = oceanaround, fill = oceancolor, col = NA )	 # Ocean background
-		+ geom_sf( data = allland, fill = landcolor, col = NA )
+		+ geom_sf( data = oceanaround, fill = aesthetic$oceancolor, col = NA )	 # Ocean background
+		+ geom_sf( data = allland, fill = aesthetic$landcolor, col = NA )
 		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
-		+ geom_sf( data = lakes.around.country,fill = lakecolor, col = 'transparent')
+		+ geom_sf( data = lakes.around.country,fill = aesthetic$lakecolor, col = 'transparent')
     + geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
     + geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
 		+ scale_fill_viridis_c(
@@ -324,4 +378,341 @@ fig1bplot <- function(
 		theme_void(base_family = "sans") + theme.panelgrid
 	
 	return(list(hbsp, legendfig))
+}
+
+plot_hspf = function(
+	hspf,
+	locus = "Pfsa1",
+	uncertainty = "lines"
+) {
+	hspf$data$grid = hspf$data$centroid = NULL
+	link_fn = list(
+		logit = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( exp(x)/(1+exp(x)) )
+		},
+		`generalised-logit` = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			nu = exp( parameters[['log_nu']] )
+			return( 1/(1 + exp(-x))^(1/nu))
+		},
+		linear = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( pmax( pmin( x, 0.999 ), 0.001 ))
+		}
+	)[[hspf$link]]
+	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
+	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
+	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
+
+	xs = seq( from = 0, to = 0.3, by = 0.01 )
+	make_hspf_curve = function( parameters ) {
+		return(
+			tibble(
+				x = xs,
+				y = link_fn( xs, parameters )
+			)
+		)
+	}
+	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 1000 )
+	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
+	curves = (
+		sampled.parameters
+		%>% group_by( posterior.sample )
+		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
+	)
+	
+	curves.mean <- (
+		curves
+		%>% group_by(x)
+		%>% summarise( y = mean(y) )
+	)
+	# Compute summary statistics for each x
+	curves_summary <- (
+		curves
+		%>% group_by(x)
+		%>% summarise(
+			y_median = median(y),
+			y_Q25 = quantile(y, 0.25),
+			y_Q75 = quantile(y, 0.75),
+			y_Q10 = quantile(y, 0.10),
+			y_Q90 = quantile(y, 0.90),
+			y_Q05 = quantile(y, 0.05),
+			y_Q95 = quantile(y, 0.95)
+		)
+	)
+
+	{
+		country.palette = country.colours()
+		at = list(
+			x = seq( from = 0, to = 0.3, by = 0.05 ),
+			y = seq( from = 0, to = 0.8, by = 0.2 )
+		)
+		ycol = sprintf( "%s_+", locus )
+		ncol = sprintf( "%s_N", locus )
+
+
+		hspf_plot = (
+			ggplot(
+				data = hspf$data,
+				aes(
+					x = HbAS_or_SS,
+					y = !!sym(ycol)/!!sym(ncol)
+				)
+			)
+			+ geom_segment(
+				data = tibble( x = at$x ),
+				aes(
+					x = x, xend = x,
+					y = -0.01, yend = 0.81
+				),
+				linetype = 1,
+				linewidth = 0.25,
+				col = rgb(0,0,0,0.05)
+			)
+			+ geom_segment(
+				data = tibble( y = at$y ),
+				aes(
+					x = -0.005, xend = 0.305,
+					y = at$y, yend = at$y
+				),
+				linetype = 1,
+				linewidth = 0.25,
+				col = rgb(0,0,0,0.05)
+			)
+			+ geom_point(
+				aes(
+					size = `Pfsa1_N`,
+					colour = country
+				)
+			)
+		)
+		if( uncertainty == "lines" ) {
+			hspf_plot = (
+				hspf_plot
+				+ geom_path(
+					data = curves,
+					aes( x = x, y = y, group = posterior.sample ),
+					linetype = 1,
+					col = rgb( 0, 0, 0, 0.005 )#red green blue alpha
+				)
+			)
+		} else if( uncertainty == "areas" ) {
+			hspf_plot = (
+				hspf_plot
+#   			# Q05-Q95 shaded region (light gray)
+ 				+ geom_ribbon(data=curves_summary,
+					aes(x=x,y=y_median,ymin = y_Q05, ymax = y_Q95
+					), fill = "black", alpha = 0.1
+				) 
+ 			# Q10-Q90 shaded region (gray)
+				+ geom_ribbon(data=curves_summary,
+					aes(x=x,y=y_median,ymin = y_Q10, ymax = y_Q90
+						), fill = "black", alpha = 0.15
+				) 
+ 			# Q25-Q75 shaded region (dark gray)
+				+ geom_ribbon(data=curves_summary,
+					aes(x=x,y=y_median,ymin = y_Q25, ymax = y_Q75
+ 					), fill = "black", alpha = 0.3
+				) 
+ 			# Median line
+				+ geom_line(data=curves_summary,
+					aes(x=x,y=y_median
+						), color = "black", linewidth = 0.3
+				) 
+			)
+		} else if( uncertainty == "simple" ) {
+			hspf_plot = (
+				hspf_plot
+ 				+ geom_ribbon(
+					data = curves_summary,
+					aes( x=x, y = y_median, ymin = y_Q05, ymax = y_Q95 ),
+					fill = rgb( 0, 0, 0, 0.1 )
+				)
+			)
+		}
+
+		hspf_plot = (
+			hspf_plot
+			+ geom_path(
+				data = curves.mean,
+				aes( x = x, y = y, ),
+				linetype = 1,
+				linewidth = 0.5,
+				col = rgb( 0, 0, 0, 0.55 )
+			)
+			+ geom_path(
+				data = curves.mean,
+				aes( x = x, y = y, ),
+				linetype = 1,
+				linewidth = 0.05,
+				col = rgb( 1, 1, 1, 0.97)
+			)
+			+ coord_cartesian( clip = "off" )
+			+ scale_x_continuous(
+				breaks = at$x,
+				limits = c( -0.01, 0.31 ),
+				labels = sprintf( "%.0f%%", at$x * 100 ),
+				expand = c( 0, 0 )
+			)
+			+ scale_y_continuous(
+				breaks = at$y,
+				limits = c( -0.01, 0.81 ),
+				labels = sprintf( "%.0f%%", at$y * 100 ),
+				expand = c( 0, 0 )
+			)
+			+ ylab( "<em>Pfsa1+</em> frequency" )
+			+ xlab( "Frequency of HbAS/SS genotypes" )
+			+ scale_colour_manual(
+				values = country.palette[ levels( hspf$data$country )],
+				guide = "none"
+			)
+		)
+	}
+	return( hspf_plot )
+}
+
+substitute <- function( string, replacements ) {
+	result = string
+	for( thing in names( replacements )) {
+		result = stringr::str_replace_all(
+			result,
+			stringr::fixed(sprintf( '{%s}', thing )),
+			replacements[[thing]]
+		)
+	}
+	return( result )
+}
+
+load.forestplot.data <- function(
+	areas,
+	loci = sprintf( "Pfsa%d", 1:4 ),
+	template
+) {
+	result = tibble::tibble()
+	for( area in areas ) {
+		for( locus in loci ) {
+			filename = substitute( template, list(
+				locus = locus,
+				area = area
+			))
+			print( filename )
+			if( file.exists( filename )) {
+				X = readRDS( filename )
+				sampled.parameters = (
+					X$sampled.parameters
+					%>% mutate(
+						Pfsa1_N = sum( X$data$Pfsa1_N ),
+						Pfsa2_N = sum( X$data$Pfsa2_N ),
+						Pfsa3_N = sum( X$data$Pfsa3_N ),
+						Pfsa4_N = sum( X$data$Pfsa4_N ),
+						number_of_hexagons = nrow(X$data)
+					)
+				)
+				X$area = factor( X$area, levels = rev(areas))
+				result = bind_rows(
+					result,
+					bind_cols(
+						locus = locus,
+						area = area,
+						sampled.parameters
+					)
+				)
+			}
+		}
+	}
+	return( result )
+}
+
+make.forestplot <- function(
+	tibble,
+	xname,
+	yname,
+	brewerstyle = "VanGogh3",
+	xlim = c( -0.25, 0.50 ),
+	aesthetic = list(
+		bg_color = "white",
+		font_family = "sans",
+		labels = c(
+			"Pfsa1" = "Pfsa1+",	
+			"Pfsa2" = "Pfsa2+",
+			"Pfsa3" = "Pfsa3+",
+			"Pfsa4" = "Pfsa4+"
+		)
+	)
+) {
+	library( ggdist )
+	library( ggtext )
+	p <- (
+		ggplot( data = tibble, aes(x = (!!sym(xname)), y = (!!sym(yname))) )
+		+ geom_hline(yintercept = 0, col = "grey30", lwd=0.4, linetype='dashed' )
+	#	stat_halfeye() + # to add density as shadow behind the CIs
+		+ stat_interval( linewidth = 2 )
+		+ stat_summary( geom = "point", fun = median )
+		+ scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)])
+		+ coord_flip( ylim = xlim, clip = "on" )
+		+ guides( col = "none" )
+		+ labs(
+			title = "",
+			x = NULL,
+			y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
+		)
+		+ scale_y_continuous(
+			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
+			limits = round( xlim * 100 ),	# Make sure the limits are correct based on your data
+			expand = c(0, 0)
+		)	# Prevent extra space beyond the limits) +
+		#add sample size on top of median values
+		+ stat_summary(
+			geom = "richtext",	# Allows background
+			fun = median,
+			aes( label = paste0("N = ", scales::comma(N)) ),
+			hjust = 0.5, vjust = -0.1,
+			size = 2,
+		# alpha = 1,#transparency optional
+			family = aesthetic$font_family,
+			fill = 'NA',
+			label.size = NA	# label.size = NA for no border
+		#Note that for png image label.size = 0 works too but not for pdf output
+		)
+		+ facet_grid( ~locus, labeller = labeller( locus = aesthetic$labels ))
+		+ theme_minimal( base_family = aesthetic$font_family )
+		+ theme(
+			axis.title.x = element_text(margin = margin(t=10)),
+			axis.line.y = element_blank(),
+			axis.ticks.y = element_blank(),
+			axis.line.x = element_line(color = "black", linewidth =	0.5),
+			axis.ticks.x = element_line(linewidth = 0.5),
+			panel.spacing = unit(2, "lines") ,
+			# Change panel label position and font
+			strip.text = element_text(
+				hjust = 0,# alight title of panels to the left
+				size = 12,						# Change font size
+				face = "italic",				# Font style (bold, italic, etc.)
+				color = "black"#,			 # Change color of the label
+			#	family = "serif"			# Change font family (e.g., "sans", "serif", etc.)
+			),
+			plot.background = element_rect(color = 'white', fill = aesthetic$bg_color),
+			panel.background = element_rect(fill = "white", color = "white"),
+			panel.grid = element_blank(),
+			panel.grid.major.x = element_line(linewidth = 0.1, color = "grey75"),
+			plot.title = element_blank(),
+			axis.text.x = element_markdown(size = 10),	# Apply markdown formatting to x labels
+			axis.text.y = element_markdown(
+				hjust = 0, 
+				#margin = margin(l = 10),#text margin left
+				#margin = margin(r = -1),#text margin right
+				size=13
+			),
+			plot.margin = margin(6, 5, 5, 5)# top, right, bottom, and left margins.
+		)
+	)
+	return(p)
+}
+
+# Generalised link function
+gl = function( v, parameters ) {
+	x = parameters[['intercept']] + parameters[['beta']]*v
+	nu = exp( parameters[['log_nu']] )
+	return( 1/(1 + exp(-x))^(1/nu))
 }

@@ -195,7 +195,6 @@ rule fit_hspf_in_areas:
 	output:
 		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
-
 	input:
 		grid = rules.create_grid.output.rds,
 		pf = rules.aggregate_pf.output.tsv,
@@ -269,26 +268,26 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		--threads {threads}
 	"""
 
-#rule plot_hspf:
-#	output:
-#		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
-#	input:
-#		fit = rules.fit_hspf_in_areas.output.rds,
-#		grid = rules.create_grid.output.rds,
-#		pf = rules.aggregate_pf.output.tsv,
-#		hbs = rules.aggregate_HbS.output.tsv,
-#		world = "geodata/naturalearthdata.Rdata"
-#	params:
-#		script = srcdir( "code/plot_hspf_fit.R" ),
-#		script2 = srcdir( "code/plot_hspf_fit_grid.R" )
-#	shell: """
-#		Rscript --vanilla {params.script} \
-#		--grid {input.grid} \
-#		--HbS_aggregated {input.hbs} \
-#		--pf_aggregated {input.pf} \
-#		--fit {input.fit} \
-#		--output {output.pdf}
-#	"""
+rule plot_hspf:
+	output:
+		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
+	input:
+		fit = rules.fit_hspf_in_areas.output.rds,
+		grid = rules.create_grid.output.rds,
+		pf = rules.aggregate_pf.output.tsv,
+		hbs = rules.aggregate_HbS.output.tsv,
+		world = "geodata/naturalearthdata.Rdata"
+	params:
+		script = srcdir( "code/plot_hspf_fit.R" ),
+		script2 = srcdir( "code/plot_hspf_fit_grid.R" )
+	shell: """
+		Rscript --vanilla {params.script} \
+		--grid {input.grid} \
+		--HbS_aggregated {input.hbs} \
+		--pf_aggregated {input.pf} \
+		--fit {input.fit} \
+		--output {output.pdf}
+	"""
 
 rule plot_hspf_areas:
 	output:

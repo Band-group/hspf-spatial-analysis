@@ -35,7 +35,6 @@ invisible(sapply(required_libs, library, character.only = TRUE))
 
 # Load theme for panel grid (custom functions)
 source('code/functions.R')
-
 source( "code/figures/fig1_impl.R" )
 
 # Parse arguments
@@ -61,25 +60,33 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 # Enable s2 geometry for spatial operations (required here)
 sf::sf_use_s2(TRUE)
 
-# Define common breakpoints and labels for HbS plots
-# Do we need a first break -0.01 here?
-HbSbreaks <- c(0.0005, seq(0.025, 0.175, 0.025))
-HbSlabels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
-               "12.5%","15%","17.5%")	# \u2030 = per mille
 
 ################################################################################
 # Define helper functions
 
 ################################################################################
 # Define color settings and projections
-oceancolor <- "transparent"	 # Ocean fill color
-landcolor	<- "#bdbdbd"				 # Land color (medium grey)
-myprojs		<- list(wgs84 = st_crs(4326))	# Common projection for plots
-pal_base <- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
-pal_dark <- clr_darken(pal_base, 0.25) # colors for summary table HbS Pf
-grey_base <- "grey50" # colors for summary table HbS Pf
-grey_dark <- "grey15" # colors for summary table HbS Pf
-lakecolor <- "#2d56af"
+map_projections	<- list(wgs84 = st_crs(4326))	# Common projection for plots
+aesthetic = list(
+	map = list(
+		oceancolor		<- "transparent"	 # Ocean fill color
+		landcolor		<- "#bdbdbd",				 # Land color (medium grey)
+		lakecolor		<- "#2d56af"
+	),
+	table = list(
+		pal_base		<- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
+		pal_dark		<- clr_darken(c("#EFAC00", "#28A87D"), 0.25) # colors for summary table HbS Pf
+		grey_base		<- "grey50" # colors for summary table HbS Pf
+		grey_dark		<- "grey15" # colors for summary table HbS Pf
+	),
+	HbS = list(
+		# Define common breakpoints and labels for HbS plots
+		# Do we need a first break -0.01 here?
+		breaks <- c(0.0005, seq(0.025, 0.175, 0.025))
+		labels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
+					"12.5%","15%","17.5%")	# \u2030 = per mille
+	)
+)
 
 ################################################################################
 # Define list of countries with Pf presence
@@ -118,42 +125,14 @@ HbSdata <- read.csv( args$HbS_survey )
 hbssf	 <- df2sf(HbSdata, coords = c('longitude', 'latitude'), crs = 4326)
 
 # Load aggregated HbS samples by polygon
-hbs.grid.samples <- read.table(paste0(args$HbS_aggregated,'.tsv'), sep = '\t', header = TRUE )
-
-################################################################################
-# Load Pf data and create spatial points
-db <- dbConnect( dbDriver("SQLite"), args$pf )
-pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
-stopifnot(max(pfsource$N) == 1)
-pf = (
-	pfsource
-	%>% dplyr::mutate(
-		`Pfsa1_+` = `Pfsa1:nonref`,
-		`Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
-		`Pfsa2_+` = `Pfsa2:nonref`,
-		`Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
-		`Pfsa3_+` = `Pfsa3:nonref`,
-		`Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
-		`Pfsa4_+` = `Pfsa4:ref`,
-		`Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`	)
-	%>% dplyr::select(
-		source, datatype, latitude, longitude, country,
-		`Pfsa1_+`, `Pfsa1_N`,
-		`Pfsa2_+`, `Pfsa2_N`,
-		`Pfsa3_+`, `Pfsa3_N`,
-		`Pfsa4_+`, `Pfsa4_N`
-	)
-)
+hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
 
 # Load grid and extract polygon centroid coordinates
-discrete.grid <- readRDS( args$grid )
-discrete.grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
-discrete.grid$latitude = sf::st_coordinates( discrete.grid$centroid )[,2]
+grid <- readRDS( args$grid )
+grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
+grid$latitude = sf::st_coordinates( discrete.grid$centroid )[,2]
 
-pfsf <- (
-	df2sf( pf, coords = c('longitude', 'latitude'), crs = 4326)
-	%>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
-)
+pfsf = load_pfsf( args$pf )
 
 ################################################################################
 # Create an ocean polygon for background plotting
@@ -192,9 +171,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		ocean = ocean,
 		spatial.domain = africa_sf,
 		hbs.rast = hbsmask[['mean']],
-		HbSbreaks = HbSbreaks,
-		HbSlabels = HbSlabels,
-		flatcrs = myprojs[[1]],
+		HbSbreaks = aesthetic$HbS$breaks,
+		HbSlabels = aesthetic$HbS$labels,
+		flatcrs = map_projections[[1]],
 		features = list(
 			lakes = list(
 				data = lakaf_sf,
@@ -202,7 +181,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				colour = NA
 			)
 		),
-		viridisoption = list( scale = "rocket", direction = 1 )
+		viridisoption = list( scale = "rocket", direction = 1 ),
+		aesthetic = aesthetic$map
 	#	viridisoption = list( scale = "cividis", direction = 1 )
 	)
 	echo('Fig1: HbS map in Africa at pixel-level generated\n')
@@ -223,11 +203,11 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		pfsf = pfsf,
 	#	bbox = st_bbox(pfsf),# + c( xmin = -10, ymin = -11.5, xmax = 1, ymax = 11.5),
 		bbox = bbox$bbox,
-		flatcrs = myprojs[[1]],
+		flatcrs = map_projections[[1]],
 		ptsize = 1.0,
 		pt.thick = 0.1,
-		oceancolor = oceancolor,
-		landcolor = landcolor
+		oceancolor = aesthetic$map$oceancolor,
+		landcolor = aesthetic$map$landcolor
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
@@ -238,8 +218,9 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 # For Africa and Tanzania
 {
 	source( "code/figures/fig1_impl.R" )
-	# Compute HbS mean from posterior samples (row medians)
-	hbs.grid.samples$HbS <- rowMedians(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
+	# Compute HbS mean from posterior samples
+	# Note: we are using row means (not medians) as described in the text.
+	hbs.grid.samples$HbS <- rowMeans(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
 	# Merge HbS estimates into the discrete grid
 	discrete.grid.hbs <- discrete.grid %>% 
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
@@ -264,7 +245,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			inset = insets[j],
 			hbssf = hbssf,
 			pfsf = pfsf,
-			flatcrs = myprojs[[1]],
+			flatcrs = map_projections[[1]],
 			sizept = 1.5,
 			maphbs = FALSE,
 			mappf = TRUE,
@@ -274,15 +255,16 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			viridisoption = list( scale = "rocket", direction = 1 ),
 			countrybordercol = 'gray95',
 			countrybuffer = FALSE,
-			HbSbreaks = HbSbreaks,
-			HbSlabels = HbSlabels
+			HbSbreaks = aesthetic$HbS$breaks,
+			HbSlabels = aesthetic$HbS$labels,
+			aesthetic = aesthetic$map
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		ggsave(file = paste0(args$outdir, "/fig1bhex",names(sp.doms)[j],".svg"), fig1bhexa[[1]], width = 6, height = 7)
-		ggsave(file = paste0(args$outdir, "/fig1bhexlegend",names(sp.doms)[j],".svg"), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = paste0(args$outdir, "/fig1bhexlegend",names(sp.doms)[j],".pdf"), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = paste0(args$outdir, "/fig1bhex",names(sp.doms)[j],".pdf"), fig1bhexa[[1]], width = 6, height = 7)
+		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
 		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
 	}
 }
@@ -354,10 +336,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	theme_set( theme_minimal(base_family = "sans", base_size = 22) )
 	theme_update(
 		axis.title = element_blank(),
-		axis.text.y = element_text(hjust = 0, color = grey_dark),
+		axis.text.y = element_text(hjust = 0, color = aesthetic$table$grey_dark),
 		panel.grid.minor = element_blank(),
 		panel.grid.major = element_blank(),
-		plot.caption = element_markdown( size = rel(0.5), color = grey_base, hjust = 0, margin = margin(t = 20, b = 0), family = 'sans'),
+		plot.caption = element_markdown( size = rel(0.5), color = aesthetic$table$grey_base, hjust = 0, margin = margin(t = 20, b = 0), family = 'sans'),
 		plot.caption.position = "plot",
 		plot.background = element_rect(fill = "white", color = "white"),
 		legend.position = "none"
@@ -395,7 +377,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			+ geom_segment(
 				x = 0, xend = 0,
 				y = 0.75, yend = length(unique( figure_data$country )) + 0.00,
-				linetype = "dashed", color = grey_dark, linewidth = sizes$linewidth
+				linetype = "dashed", color = aesthetic$table$grey_dark, linewidth = sizes$linewidth
 			)
 			# Colored point as first column
 			+ geom_point(
@@ -407,7 +389,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				shape = 21,
 				size = sizes$legendpoints,
 				stroke = 0.5,
-				color = grey_dark
+				color = aesthetic$table$grey_dark
 			)
 			# Colored point as first column
 			+ geom_text(
@@ -417,12 +399,12 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				),
 				x = xvs$names,
 				size = sizes$countrytext,
-				color = grey_dark,
+				color = aesthetic$table$grey_dark,
 				hjust = 0
 			)
 			+ scale_fill_manual( values = country.colours() )
 			# Dumbbell segments
-			+ stat_summary( geom = "linerange", fun.min = min, fun.max = max, linewidth = sizes$linewidth, color = grey_dark )
+			+ stat_summary( geom = "linerange", fun.min = min, fun.max = max, linewidth = sizes$linewidth, color = aesthetic$table$grey_dark )
 			# White point overplot for line endings
 			# + geom_point(
 			# 	data = figure_data %>% filter( abs(share) >= 0.01 ),
@@ -440,10 +422,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				data = figure_data %>% filter( abs(share) >= 0.01 ),
 				aes(
 					x = ifelse( type == "Pfsa1", -share, share),
-					fill = grey_dark,
+					fill = aesthetic$table$grey_dark,
 					size = "large"
 				),
-				color = grey_base,
+				color = aesthetic$table$grey_base,
 				shape = 21,
 				stroke = 0.4,
 				alpha = 0.99
@@ -492,7 +474,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# 	label = c("Pfsa1", "HbS" ),
 			#     family = "sans",
 			# 	fontface = "plain",
-			# 	color = grey_dark,
+			# 	color = aesthetic$table$grey_dark,
 			# 	size = sizes$headertext,
 			# 	hjust = 0.5
 			# )
@@ -503,7 +485,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# 	label = c( "(%)", "(per 1,000)" ),
 			# 	family = "sans",
 			# 	fontface = "plain",
-			# 	color = grey_dark,
+			# 	color = aesthetic$table$grey_dark,
 			# 	size = sizes$headertext * 0.6,
 			# 	hjust = 0.5
 			# )
@@ -517,7 +499,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 #			+ scale_y_discrete( expand = expansion( add = c(0.05, 0.05)))
 #			+ scale_y_discrete( limits = c( 0, 33 ))
-			+ scale_color_manual( values = pal_dark)
+			+ scale_color_manual( values = aesthetic$table$pal_dark)
 			+ theme(
 	#			axis.text.y = element_text( face = "plain", size = text.size ),
 	#			plot.margin = margin(10, 10, 10, 80)
@@ -531,175 +513,22 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	}
 }
 
-# hspf fit plot
 {
-	hspf = readRDS( args$hspf_fit )
-	hspf$data$grid = hspf$data$centroid = NULL
-	link_fn = list(
-	logit = function( v, parameters ) {
-		x = parameters[['intercept']] + parameters[['beta']]*v
-		return( exp(x)/(1+exp(x)) )
-	},
-	`generalised-logit` = function( v, parameters ) {
-		x = parameters[['intercept']] + parameters[['beta']]*v
-		nu = exp( parameters[['log_nu']] )
-		return( 1/(1 + exp(-x))^(1/nu))
-	},
-	linear = function( v, parameters ) {
-		x = parameters[['intercept']] + parameters[['beta']]*v
-		return( pmax( pmin( x, 0.999 ), 0.001 ))
-	}
-	)[[hspf$link]]
-	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
-	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
-	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
-
-	xs = seq( from = 0, to = 0.3, by = 0.01 )
-	make_hspf_curve = function( parameters ) {
-		return(
-			tibble(
-				x = xs,
-				y = link_fn( xs, parameters )
-			)
+	hspf_plot = (
+		plot_hspf( args$hspf_fit, locus = "Pfsa1", uncertainty = "lines" )
+		+ scale_size_area( max_size = 16, guide = "none" )
+		+ theme_minimal( base_family = "sans" )
+		+ theme(
+			axis.title		= ggtext::element_markdown( size = 10, angle = 0 ),
+			axis.title.y	= ggtext::element_markdown( size = 10, angle = 90, hjust = 0.5, vjust = 0.5 ),
+			axis.text.x		= element_text( size = 8 ),
+			axis.text.y		= element_text( size = 8, hjust = 1, angle = 0 ),
+			panel.margin	= unit(0.1, "lines"),
+			plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 		)
-	}
-	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 1000 )
-	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
-	curves = (
-		sampled.parameters
-		%>% group_by( posterior.sample )
-		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
 	)
-	
-	curves.mean <- curves %>%
-	  group_by(x) %>%
-	  summarise(
-	    y = mean(y))
-	# Compute summary statistics for each x
-	curves_summary <- curves %>%
-	group_by(x) %>%
-	summarise(
-		y_median = median(y),
-		y_Q25 = quantile(y, 0.25),
-		y_Q75 = quantile(y, 0.75),
-		y_Q10 = quantile(y, 0.10),
-		y_Q90 = quantile(y, 0.90),
-		y_Q05 = quantile(y, 0.05),
-		y_Q95 = quantile(y, 0.95)
-	)
-	{
-		country.palette = country.colours()
-		at = list(
-			x = seq( from = 0, to = 0.3, by = 0.05 ),
-			y = seq( from = 0, to = 0.8, by = 0.2 )
-		)
-		hspf_plot = (
-			ggplot(
-				data = hspf$data,
-				aes(
-					x = HbAS_or_SS,
-					y = `Pfsa1_+` / `Pfsa1_N`
-				)
-			)
-			+ geom_segment(
-				data = tibble( x = at$x ),
-				aes(
-					x = x, xend = x,
-					y = -0.01, yend = 0.81
-				),
-				linetype = 1,
-				linewidth = 0.25,
-				col = rgb(0,0,0,0.05)
-			)
-			+ geom_segment(
-				data = tibble( y = at$y ),
-				aes(
-					x = -0.005, xend = 0.305,
-					y = at$y, yend = at$y
-				),
-				linetype = 1,
-				linewidth = 0.25,
-				col = rgb(0,0,0,0.05)
-			)
-			+ geom_point(
-				aes(
-					size = `Pfsa1_N`,
-					colour = country
-				)
-			)
-
-#   			# Q05-Q95 shaded region (light gray)
-# 			+ geom_ribbon(data=curves_summary,
-# 				aes(x=x,y=y_median,ymin = y_Q05, ymax = y_Q95
-# 				), fill = "black", alpha = 0.1
-# 					) 
-# 			# Q10-Q90 shaded region (gray)
-# 			+ geom_ribbon(data=curves_summary,
-# 				aes(x=x,y=y_median,ymin = y_Q10, ymax = y_Q90
-# 					), fill = "black", alpha = 0.15
-# 						) 
-# 			# Q25-Q75 shaded region (dark gray)
-# 			+ geom_ribbon(data=curves_summary,
-# 			    aes(x=x,y=y_median,ymin = y_Q25, ymax = y_Q75
-# 					), fill = "black", alpha = 0.3
-# 					) 
-# 			# Median line
-# 			+ geom_line(data=curves_summary,
-# 				aes(x=x,y=y_median
-# 					), color = "black", linewidth = 0.3
-# 						) 
-      + geom_path(
-      	data = curves,
-      	aes( x = x, y = y, group = posterior.sample ),
-      	linetype = 1,
-      	col = rgb( 0, 0, 0, 0.005 )#red green blue alpha
-      )
-      + geom_path(
-      	data = curves.mean,
-      	aes( x = x, y = y, ),
-      	linetype = 1,
-      	linewidth = 0.5,
-      	col = rgb( 0, 0, 0, 0.55 )
-      )
-      + geom_path(
-      	data = curves.mean,
-      	aes( x = x, y = y, ),
-      	linetype = 1,
-      	linewidth = 0.05,
-      	col = rgb( 1, 1, 1, 0.97)
-      )
-			+ coord_cartesian( clip = "off" )
-			+ scale_x_continuous(
-				breaks = at$x,
-				limits = c( -0.01, 0.31 ),
-				labels = sprintf( "%.0f%%", at$x * 100 ),
-				expand = c( 0, 0 )
-			)
-			+ scale_y_continuous(
-				breaks = at$y,
-				limits = c( -0.01, 0.81 ),
-				labels = sprintf( "%.0f%%", at$y * 100 ),
-				expand = c( 0, 0 )
-			)
-			+ ylab( "<em>Pfsa1+</em> frequency" )
-			+ xlab( "Frequency of HbAS/SS genotypes" )
-			+ scale_colour_manual( values = country.palette[ levels( hspf$data$country )], guide = "none" )
-			+ scale_size_area( max_size = 16, guide = "none" )
-			+ theme_minimal(base_family = "sans")
-			+ theme(
-			  
-				axis.title = element_markdown( size = 10, angle = 0 ),
-				axis.title.y = element_markdown( size = 10, angle = 90, hjust = 0.5, vjust = 0.5 ),
-				axis.text.x = element_text( size = 8 ),
-				axis.text.y = element_text( size = 8, hjust = 1, angle = 0 ),
-				panel.margin = unit(0.1, "lines"),
-				plot.margin = unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
-			)
-		)
-		ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
-	}
+	ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
 }
-
 
 {
 	layout.m = matrix(

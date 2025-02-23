@@ -1,36 +1,30 @@
 rule create_figure1:
 	output:
-		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/samplingprocedure.pdf"
+		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figure1.pdf"
 	input:
-		grid = rules.create_grid.output.rds.format( type = "{type}", size = "{size}", divide = "{divide}", area = "global" ),
-		fit = (
-			[
-				rules.fit_hspf_in_areas.output.rds
-					.replace( "{area}", "global" )
-					.replace( "{locus}",  'Pfsa1' )
-					.replace( "{regression_model}", "bym2" )
-					.replace( "{min_km_to_survey_pt}", "200" )
-					.replace( "{min_N}", "0" )
-			]
-		),
-		pf_aggregated = rules.aggregate_pf.output.tsv.replace( "{area}", "global" ),
-		HbS_aggregated = rules.aggregate_HbS.output.tsv.replace( "{area}", "global" ),
+		grid = "output/grids/grid-type={type}-size={size}-division={divide}-area=global.rds",
+		pf = "input/hbs-pf-v3.sqlite",
 		HbS_survey = "input/cleanHbSdata.csv",
-		HbS_predictions = rules.fit_hbs_map.output.predictions 
-
+		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-division={divide}-area=global.tsv",
+		HbS_predictions = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_predictions.rds",
+		HbS_fit = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_modelfit.rds",
+		hspf_fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 	params:
-		script = srcdir( 'code/figures/fig1.R' ),
-		outdir = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}"
+		outdir = "tmp",
+		script = srcdir( "code/figures/fig1.R")
 	shell: """
-	echo {input.fit}
-	mkdir -p {params.outdir}
 	Rscript --vanilla {params.script} \
-	--grid {input.grid} \
-	--HbS_survey {input.HbS_survey} \
-	--HbS_aggregated {input.HbS_aggregated} \
-	--pf_aggregated {input.pf_aggregated} \
-	--HbS_predictions {input.HbS_predictions} \
-	--outdir {params.outdir}
+		--grid {input.grid} \
+		--pf {input.pf} \
+		--HbS_survey {input.HbS_survey} \
+		--HbS_aggregated {input.HbS_aggregated} \
+		--HbS_predictions {input.HbS_predictions} \
+		--HbS_fit {input.HbS_fit} \
+		--hspf_fit {input.hspf_fit} \
+		--pf_prevalence_map {input.pf_prevalence_map} \
+		--outdir {params.outdir} \
+		--output {output.pdf}
 """
 
 rule create_figure2:
