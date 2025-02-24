@@ -60,31 +60,26 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 # Enable s2 geometry for spatial operations (required here)
 sf::sf_use_s2(TRUE)
 
-
-################################################################################
-# Define helper functions
-
 ################################################################################
 # Define color settings and projections
-map_projections	<- list(wgs84 = st_crs(4326))	# Common projection for plots
+map_projections	<- list( wgs84 = st_crs(4326) )	# Common projection for plots
 aesthetic = list(
 	map = list(
-		oceancolor		<- "transparent"	 # Ocean fill color
-		landcolor		<- "#bdbdbd",				 # Land color (medium grey)
-		lakecolor		<- "#2d56af"
+		oceancolor		= "transparent",	 # Ocean fill color
+		landcolor		= "#bdbdbd",				 # Land color (medium grey)
+		lakecolor		= "#2d56af"
 	),
 	table = list(
-		pal_base		<- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
-		pal_dark		<- clr_darken(c("#EFAC00", "#28A87D"), 0.25) # colors for summary table HbS Pf
-		grey_base		<- "grey50" # colors for summary table HbS Pf
-		grey_dark		<- "grey15" # colors for summary table HbS Pf
+		pal_base		= c("#EFAC00", "#28A87D"), # colors for summary table HbS Pf
+		pal_dark		= clr_darken(c("#EFAC00", "#28A87D"), 0.25), # colors for summary table HbS Pf
+		grey_base		= "grey50", # colors for summary table HbS Pf
+		grey_dark		= "grey15" # colors for summary table HbS Pf
 	),
 	HbS = list(
 		# Define common breakpoints and labels for HbS plots
 		# Do we need a first break -0.01 here?
-		breaks <- c(0.0005, seq(0.025, 0.175, 0.025))
-		labels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
-					"12.5%","15%","17.5%")	# \u2030 = per mille
+		breaks  = c(0.0005, seq(0.025, 0.175, 0.025)),
+		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
 	)
 )
 
@@ -129,8 +124,8 @@ hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
 
 # Load grid and extract polygon centroid coordinates
 grid <- readRDS( args$grid )
-grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
-grid$latitude = sf::st_coordinates( discrete.grid$centroid )[,2]
+grid$longitude = sf::st_coordinates( grid$centroid )[,1]
+grid$latitude = sf::st_coordinates( grid$centroid )[,2]
 
 pfsf = load_pfsf( args$pf )
 
@@ -176,8 +171,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		flatcrs = map_projections[[1]],
 		features = list(
 			lakes = list(
-				data = lakaf_sf,
-				fill = lakecolor,
+				data = aesthetic$map$lakaf_sf,
+				fill = aesthetic$map$lakecolor,
 				colour = NA
 			)
 		),
@@ -206,8 +201,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		flatcrs = map_projections[[1]],
 		ptsize = 1.0,
 		pt.thick = 0.1,
-		oceancolor = aesthetic$map$oceancolor,
-		landcolor = aesthetic$map$landcolor
+		aesthetic = aesthetic$map
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
@@ -222,7 +216,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	# Note: we are using row means (not medians) as described in the text.
 	hbs.grid.samples$HbS <- rowMeans(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
 	# Merge HbS estimates into the discrete grid
-	discrete.grid.hbs <- discrete.grid %>% 
+	discrete.grid.hbs <- grid %>% 
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
 	extracted_values <- terra::extract(malariafilter, vect(discrete.grid.hbs))
 	# Summarize: Check if each polygon has at least one pixel with value 1
@@ -261,10 +255,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		#ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		#ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		#ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		#ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
 		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
 	}
 }
@@ -508,14 +502,19 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 		)
 
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		#ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		#ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
 	}
 }
 
 {
+	echo( "++ HSPF plot...\n" )
 	hspf_plot = (
-		plot_hspf( args$hspf_fit, locus = "Pfsa1", uncertainty = "lines" )
+		plot_hspf(
+			readRDS(args$hspf_fit),
+			locus = "Pfsa1",
+			uncertainty = "lines"
+		)
 		+ scale_size_area( max_size = 16, guide = "none" )
 		+ theme_minimal( base_family = "sans" )
 		+ theme(
@@ -527,7 +526,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 		)
 	)
-	ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	echo( "++ Ok!\n" )
+	#ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
 }
 
 {

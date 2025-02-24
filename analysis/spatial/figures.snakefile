@@ -29,7 +29,8 @@ rule create_figure1:
 
 rule create_figure2:
 	output:
-		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf"
+		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf",
+		svg = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-division={divide}-area=global.rds",
 		pf = "input/hbs-pf-v3.sqlite",
@@ -59,5 +60,6 @@ rule create_figure2:
 		--HbS_aggregated {input.HbS_aggregated} \
 		--hspf_fit {params.hspf_fit_template} \
 		--pf_prevalence_map {input.pf_prevalence_map} \
-		--output_pdf {output.pdf}
+		--output_pdf {output.pdf} \
+		--output_pdf {output.svg}
 """

@@ -145,7 +145,7 @@ rule all:
 			divide = ["none"]
 		),
 		fig2 = expand(
-			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf",
+			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.{extension}",
 			r0 = ranges,
 			sigma0 = sigmas,
 			covariates = covariates,
@@ -154,7 +154,8 @@ rule all:
 			size = cellsizes,
 			divide = ["none"],
 			regression_model = [ 'norandom', 'bym2' ],
-			min_N = [ '0', '5' ]
+			min_N = [ '0', '5' ],
+			extension = [ 'pdf', 'svg' ]
 		),
 		forest_plot = expand(
 			"output/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",

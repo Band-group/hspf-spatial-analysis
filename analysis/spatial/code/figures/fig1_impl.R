@@ -383,7 +383,13 @@ fig1bplot <- function(
 plot_hspf = function(
 	hspf,
 	locus = "Pfsa1",
-	uncertainty = "lines"
+	uncertainty = "lines",
+	xlim = c( 0, 0.3 ),
+	ylim = c( 0, 0.8 ),
+	at = list(
+		x = seq( from = xlim[1], to = xlim[2], by = 0.05 ),
+		y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
+	)
 ) {
 	hspf$data$grid = hspf$data$centroid = NULL
 	link_fn = list(
@@ -444,14 +450,19 @@ plot_hspf = function(
 
 	{
 		country.palette = country.colours()
-		at = list(
-			x = seq( from = 0, to = 0.3, by = 0.05 ),
-			y = seq( from = 0, to = 0.8, by = 0.2 )
-		)
+		if( is.null( at )) {
+			at = list(
+				x = seq( from = xlim[1], to = xlim[2], by = 0.05 ),
+				y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
+			)
+		}
 		ycol = sprintf( "%s_+", locus )
 		ncol = sprintf( "%s_N", locus )
 
-
+		hspf$data$type = factor( "WGS", levels = c( "WGS", "MIP" ))
+		hspf$data$type[ hspf$data$sources %in% c( 'Verity et al 2021', 'Moser et al 2021' )] = "MIP"
+		# Plot WGS on top, if you need to
+		hspf$data = hspf$data %>% arrange( desc( type ))
 		hspf_plot = (
 			ggplot(
 				data = hspf$data,
@@ -460,6 +471,7 @@ plot_hspf = function(
 					y = !!sym(ycol)/!!sym(ncol)
 				)
 			)
+			+ coord_cartesian( clip = "off" )
 			+ geom_segment(
 				data = tibble( x = at$x ),
 				aes(
@@ -483,8 +495,10 @@ plot_hspf = function(
 			+ geom_point(
 				aes(
 					size = `Pfsa1_N`,
-					colour = country
-				)
+					colour = type,
+					fill = country
+				),
+				shape = 21
 			)
 		)
 		if( uncertainty == "lines" ) {
@@ -551,20 +565,24 @@ plot_hspf = function(
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
-				limits = c( -0.01, 0.31 ),
+				limits = xlim + c( -0.01, 0.01 ),
 				labels = sprintf( "%.0f%%", at$x * 100 ),
 				expand = c( 0, 0 )
 			)
 			+ scale_y_continuous(
 				breaks = at$y,
-				limits = c( -0.01, 0.81 ),
+				limits = ylim + c( -0.01, 0.01 ),
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
 			+ ylab( "<em>Pfsa1+</em> frequency" )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
-			+ scale_colour_manual(
+			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
+				guide = "none"
+			)
+			+ scale_colour_manual(
+				values = c( rgb( 0, 0, 0, 0.9 ), rgb( 0, 0, 0, 0.1 ) ),
 				guide = "none"
 			)
 		)
@@ -650,7 +668,7 @@ make.forestplot <- function(
 		+ stat_interval( linewidth = 2 )
 		+ stat_summary( geom = "point", fun = median )
 		+ scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)])
-		+ coord_flip( ylim = xlim, clip = "on" )
+		+ coord_flip( ylim = xlim, clip = "off" )
 		+ guides( col = "none" )
 		+ labs(
 			title = "",
@@ -667,7 +685,7 @@ make.forestplot <- function(
 			geom = "richtext",	# Allows background
 			fun = median,
 			aes( label = paste0("N = ", scales::comma(N)) ),
-			hjust = 0.5, vjust = -0.1,
+			hjust = 0.5, vjust = -0.025,
 			size = 2,
 		# alpha = 1,#transparency optional
 			family = aesthetic$font_family,
