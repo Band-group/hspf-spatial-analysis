@@ -52,6 +52,15 @@ if( is.null( args )) {
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
+#check if tmp folder exist and otherwise create it
+# Check if the folder exists
+if (!dir.exists(args$outdir)) {
+  # Create the folder if it doesn't exist
+  dir.create(args$outdir)
+  cat("Folder 'tmp' has been created.\n")
+} else {
+  cat("Folder 'tmp' already exists.\n")
+}
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 args$pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
@@ -69,21 +78,21 @@ sf::sf_use_s2(TRUE)
 map_projections	<- list(wgs84 = st_crs(4326))	# Common projection for plots
 aesthetic = list(
 	map = list(
-		oceancolor		<- "transparent"	 # Ocean fill color
-		landcolor		<- "#bdbdbd",				 # Land color (medium grey)
-		lakecolor		<- "#2d56af"
+		oceancolor		= "transparent",	 # Ocean fill color
+		landcolor		= "#bdbdbd",				 # Land color (medium grey)
+		lakecolor		= "#2d56af"
 	),
 	table = list(
-		pal_base		<- c("#EFAC00", "#28A87D") # colors for summary table HbS Pf
-		pal_dark		<- clr_darken(c("#EFAC00", "#28A87D"), 0.25) # colors for summary table HbS Pf
-		grey_base		<- "grey50" # colors for summary table HbS Pf
-		grey_dark		<- "grey15" # colors for summary table HbS Pf
+		pal_base		= c("#EFAC00", "#28A87D"), # colors for summary table HbS Pf
+		pal_dark		= clr_darken(c("#EFAC00", "#28A87D"), 0.25), # colors for summary table HbS Pf
+		grey_base		= "grey50", # colors for summary table HbS Pf
+		grey_dark		= "grey15" # colors for summary table HbS Pf
 	),
 	HbS = list(
 		# Define common breakpoints and labels for HbS plots
 		# Do we need a first break -0.01 here?
-		breaks <- c(0.0005, seq(0.025, 0.175, 0.025))
-		labels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
+		breaks = c(0.0005, seq(0.025, 0.175, 0.025)),
+		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
 					"12.5%","15%","17.5%")	# \u2030 = per mille
 	)
 )
@@ -129,8 +138,8 @@ hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
 
 # Load grid and extract polygon centroid coordinates
 grid <- readRDS( args$grid )
-grid$longitude = sf::st_coordinates( discrete.grid$centroid )[,1]
-grid$latitude = sf::st_coordinates( discrete.grid$centroid )[,2]
+grid$longitude = sf::st_coordinates( grid$centroid )[,1]
+grid$latitude = sf::st_coordinates( grid$centroid )[,2]
 
 pfsf = load_pfsf( args$pf )
 
@@ -177,7 +186,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		features = list(
 			lakes = list(
 				data = lakaf_sf,
-				fill = lakecolor,
+				fill = aesthetic$map$lakecolor,
 				colour = NA
 			)
 		),
@@ -206,8 +215,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		flatcrs = map_projections[[1]],
 		ptsize = 1.0,
 		pt.thick = 0.1,
-		oceancolor = aesthetic$map$oceancolor,
-		landcolor = aesthetic$map$landcolor
+		aesthetic = aesthetic$map
+	
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
@@ -222,7 +231,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	# Note: we are using row means (not medians) as described in the text.
 	hbs.grid.samples$HbS <- rowMeans(as.matrix(hbs.grid.samples[, grep("posterior_sample", colnames(hbs.grid.samples))]))
 	# Merge HbS estimates into the discrete grid
-	discrete.grid.hbs <- discrete.grid %>% 
+	discrete.grid.hbs <- grid %>% 
 		dplyr::left_join(hbs.grid.samples[, c("polygon_id", "HbS")], by = "polygon_id")
 	extracted_values <- terra::extract(malariafilter, vect(discrete.grid.hbs))
 	# Summarize: Check if each polygon has at least one pixel with value 1
@@ -515,7 +524,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 
 {
 	hspf_plot = (
-		plot_hspf( args$hspf_fit, locus = "Pfsa1", uncertainty = "lines" )
+		plot_hspf( hspfrdspath = args$hspf_fit, locus = "Pfsa1", uncertainty = "lines" )
 		+ scale_size_area( max_size = 16, guide = "none" )
 		+ theme_minimal( base_family = "sans" )
 		+ theme(
