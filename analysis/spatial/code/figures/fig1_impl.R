@@ -28,6 +28,7 @@ load_pfsf = function( filename ) {
 	# Load Pf data and create spatial points
 	db <- dbConnect( dbDriver("SQLite"), filename )
 	pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+	dbDisconnect(db)#end connnection when finished the work
 	stopifnot( max(pfsource$N) == 1 )
 	pf = (
 		pfsource
@@ -156,10 +157,7 @@ graphabsplot <- function(
 	flatcrs, 
 	ptsize = 1.05,
 	pt.thick = 0.3,
-	aesthetic = list(
-		oceancolor = "blue",
-		landcolor = "grey"
-	)
+	aesthetic = aesthetic$map 
 ) {
 	hbsp <- (
 		ggplot()
@@ -225,10 +223,12 @@ fig1bplot <- function(
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels,
 	aesthetic = list(
-		oceancolor = "blue",
-		landcolor = "grey",
-		lakecolor = "blue"
-	)
+	map = list(
+		oceancolor		= "transparent",	 # Ocean fill color
+		landcolor		= "#bdbdbd",				 # Land color (medium grey)
+		lakecolor		= "#2d56af"
+		)
+	)	
 ) {
 	boundarywidth <- 0.5 * pt.thick
 	
@@ -381,10 +381,11 @@ fig1bplot <- function(
 }
 
 plot_hspf = function(
-	hspf,
+	hspfrdspath,
 	locus = "Pfsa1",
 	uncertainty = "lines"
 ) {
+	hspf <- readRDS(hspfrdspath)
 	hspf$data$grid = hspf$data$centroid = NULL
 	link_fn = list(
 		logit = function( v, parameters ) {
