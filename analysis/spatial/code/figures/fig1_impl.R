@@ -223,11 +223,10 @@ fig1bplot <- function(
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels,
 	aesthetic = list(
-	map = list(
 		oceancolor		= "transparent",	 # Ocean fill color
 		landcolor		= "#bdbdbd",				 # Land color (medium grey)
 		lakecolor		= "#2d56af"
-		)
+		
 	)	
 ) {
 	boundarywidth <- 0.5 * pt.thick
