@@ -270,10 +270,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+		ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
 		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
 	}
 }
@@ -517,8 +517,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 		)
 
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		ggsave( filename = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		ggsave( filename = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
 	}
 }
 
@@ -536,7 +536,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 		)
 	)
-	ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
 }
 
 {
@@ -566,8 +566,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, file = args$output, width = 8, height = 9, device = cairo_pdf )
-	ggsave( z, file = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
+	ggsave( z, filename = args$output, width = 8, height = 9, device = cairo_pdf )
+	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
 }
 
 echo("++ End Fig1: plot HbS\n")
