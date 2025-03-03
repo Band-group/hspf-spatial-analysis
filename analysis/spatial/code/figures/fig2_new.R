@@ -42,10 +42,8 @@ if( is.null( args )) {
 if (!dir.exists("tmp/figure_2")) {
   # Create the folder if it doesn't exist
   dir.create("tmp/figure_2")
-  cat("Folder 'tmp/figure_2' has been created.\n")
-} else {
-  cat("Folder 'tmp/figure_2' already exists.\n")
-}
+  cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
+} 
 
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
@@ -86,7 +84,7 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 	malariafilter[ malariafilter > 0.001 ] = 1
 }
 
-hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
+hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated,show_col_types = FALSE )
 grid <- load_grid( args$grid )
 pfsf = load_pfsf( args$pf )
 

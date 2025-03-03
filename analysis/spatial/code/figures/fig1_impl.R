@@ -233,14 +233,14 @@ fig1bplot <- function(
 	
 	# If sp.domain is provided as a list, extract boundaries accordingly
 	if (class(sp.domain)[1] == "list") {
-		myboundary	<- world_sf[world_sf$sovereignt %in% sp.domain[[1]], ]
-		allboundary <- world_sf[world_sf$sovereignt %in% unlist(sp.domain), ]
+		myboundary	<- suppressMessages(world_sf[world_sf$sovereignt %in% sp.domain[[1]], ])
+		allboundary <- suppressMessages(world_sf[world_sf$sovereignt %in% unlist(sp.domain), ])
 	} else {
 		myboundary	<- sp.domain
 		allboundary <- myboundary
 	}
 	# Define ocean surrounding the boundary
-	oceanaround <- sf::st_make_valid(sf::st_difference(myboundary, world_sf))
+	oceanaround <- sf::st_make_valid(suppressWarnings(suppressMessages(sf::st_difference(myboundary, world_sf,show_col_types = FALSE))))
 	# if ((nrow(myboundary)  < 130 )) {
 	# 	allland <- st_intersection(world_sf, myboundary)
 	# 	
@@ -252,7 +252,7 @@ fig1bplot <- function(
 
 	if(inset == TRUE) {
 		bufvalue <- 2.5
-		box.around.country <- sf::st_bbox(sf::st_buffer(myboundary,bufvalue))
+		box.around.country <- sf::st_bbox(suppressMessages(sf::st_buffer(myboundary,bufvalue)))
 		box.around.country <- sf::st_as_sfc(box.around.country)
 		box.around.country <- sf::st_set_crs(box.around.country, 4326) 
 		hexas <- sf::st_crop(discrete.grid,box.around.country)
@@ -264,10 +264,9 @@ fig1bplot <- function(
 		# hexas <- discrete.grid[ which( st_intersects(discrete.grid, sf::st_union(box.around.country) , 
 		# sparse = FALSE )[,1] == 1 ), ]
 	}	
-	hexas <- sf::st_intersection(discrete.grid,box.around.country) 
-	
-	lakes.around.country <- sf::st_crop(lakaf_sf,box.around.country)
-	boundaries.around.country <- sf::st_union(box.around.country)
+	hexas <- suppressWarnings(suppressMessages(sf::st_intersection(discrete.grid,box.around.country,show_col_types = FALSE)))
+	lakes.around.country <- suppressWarnings(suppressMessages(sf::st_crop(lakaf_sf,box.around.country)))
+	boundaries.around.country <- suppressMessages(sf::st_union(box.around.country,show_col_types = FALSE))
 	
 	hbsp <- (
 		ggplot()
@@ -291,10 +290,11 @@ fig1bplot <- function(
 	# Optionally overlay raw HbS data points
 	if (maphbs) {
 		if (countrybuffer) {
-			boundaries.around.country <- st_buffer(boundaries.around.country, 1)
+			boundaries.around.country <- suppressWarnings(st_buffer(boundaries.around.country, 1))
 		}
+		hbssfdf <- suppressMessages(hbssf[boundaries.around.country, ])
 		hbsp <- hbsp +
-			geom_sf(data = hbssf[boundaries.around.country, ], aes(color = Dataset), shape = 22, fill = "#EFAC00",
+			geom_sf(data = hbssfdf, aes(color = Dataset), shape = 22, fill = "#EFAC00",
 							size = sizept, linewidth = boundarywidth,alpha=0.8) +
 			scale_color_manual(values = c("black", "white"), name = "HbS dataset",
 												 guide = guide_legend(override.aes = list(alpha = 1), order = 1))
@@ -303,13 +303,14 @@ fig1bplot <- function(
 	# Optionally overlay Pf data points (with variable point size if desired)
 	if (mappf) {
 		if (!pfvarsize) {
-			if(pfcoltype == 'country') {
-		  hbsp <- (
+			pfsfdf <- suppressMessages(pfsf[boundaries.around.country, ])
+			if(pfcoltype == 'country') {			
+		  		hbsp <- (
 				hbsp
 				+ ggnewscale::new_scale_colour()
 				+ ggnewscale::new_scale_fill()
 				+ geom_sf(
-					data = pfsf[boundaries.around.country, ],
+					data = pfsfdf,
 					aes(shape = datatype,fill=as.factor(country)),
 					color = 'gray35',
 					alpha = 0.95,
@@ -324,7 +325,7 @@ fig1bplot <- function(
 			    hbsp
 			    + ggnewscale::new_scale_colour()
 			    + geom_sf(
-			      data = pfsf[boundaries.around.country, ],
+			      data = pfsfdf,
 			      aes(shape = datatype),
 			      color = 'gray35',
 			      fill = "#28A87D",
