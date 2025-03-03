@@ -1,11 +1,11 @@
 ranges = [
-#	'10.0',
+	'10.0',
 	'25.0',
-#	'50.0'
+	'50.0'
 ]
 sigmas = [
 	'0.6',
-#	'1.0'
+	'1.0'
 ]
 
 types = [
@@ -26,7 +26,7 @@ cellsizes = [
 ]
 surveykms = [
 	'200',
-#	'500'
+	'500'
 ]
 
 def srcdir(x):
@@ -69,7 +69,7 @@ config = {
 	"divide": [ 'none' ],
 	"size": cellsizes,
 	"locus": [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-	"regression_model": [ 'bym2' ], #, 'norandom' ],
+	"regression_model": [ 'bym2' , 'norandom' ],
 	"min_km_to_survey_pt": surveykms,
 	"min_N": [ '0', '5' ],
 	"area": areas.keys(),
@@ -92,7 +92,7 @@ def dict_product(dicts):
 master_hspf_analyses = list(dict_product( config ))
 master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 []
-localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2
+localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list
 
 wildcard_constraints:
 	min_N = "[0-9]*"
@@ -161,6 +161,12 @@ rule all:
 			min_km_to_survey_pt = surveykms,
 			size = cellsizes,
 			regression_model = [ 'norandom', 'bym2' ],
+			min_N = [ '0', '5' ]
+		),
+		summary_list = expand(
+			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
+			size = cellsizes,
+			min_km_to_survey_pt = surveykms,
 			min_N = [ '0', '5' ]
 		)
 #		),

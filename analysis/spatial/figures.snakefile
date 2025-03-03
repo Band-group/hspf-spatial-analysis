@@ -35,6 +35,7 @@ rule create_figure2:
 		pf = "input/hbs-pf-v3.sqlite",
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-division={divide}-area=global.tsv",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
+	
 	params:
 		script = srcdir( "code/figures/fig2_new.R" ),
 		hspf_fit_template = lambda w: (
@@ -60,4 +61,30 @@ rule create_figure2:
 		--hspf_fit {params.hspf_fit_template} \
 		--pf_prevalence_map {input.pf_prevalence_map} \
 		--output_pdf {output.pdf}
+"""
+
+rule create_summary_list:
+	output:
+		rds = "output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds"
+	input:
+		grid = "output/grids/grid-type=hexagon-size={size}-division=none-area=global.rds",
+		pf = "input/hbs-pf-v3.sqlite",
+		HbS_survey = "input/HbS_survey.csv",
+		extended = "input/HbSgooglesheet.csv",
+		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size={size}-division=none-area=global.tsv",
+		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}-division=none/Pfsa1-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
+		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
+	params:
+		output = "summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
+		script = srcdir( "code/data_summary.R")
+	shell: """
+	Rscript --vanilla {params.script} \
+		--grid {input.grid} \
+		--pf {input.pf} \
+		--HbS_survey {input.HbS_survey} \
+		--extended {input.extended} \
+		--HbS_aggregated {input.HbS_aggregated} \
+		--hspf_fit {input.hspf_fit} \
+		--pf_prevalence_map {input.pf_prevalence_map} \
+		--output {params.output} 
 """
