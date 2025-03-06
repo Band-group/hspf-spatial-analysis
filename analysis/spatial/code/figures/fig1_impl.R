@@ -290,7 +290,7 @@ fig1bplot <- function(
 	# Optionally overlay raw HbS data points
 	if (maphbs) {
 		if (countrybuffer) {
-			boundaries.around.country <- suppressWarnings(st_buffer(boundaries.around.country, 1))
+			boundaries.around.country <- suppressWarnings(suppressMessages(st_buffer(boundaries.around.country, 1)))
 		}
 		hbssfdf <- suppressMessages(hbssf[boundaries.around.country, ])
 		hbsp <- hbsp +
@@ -405,7 +405,6 @@ plot_hspf = function(
 	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
 	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
 	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
-
 	xs = seq( from = 0, to = 0.3, by = 0.01 )
 	make_hspf_curve = function( parameters ) {
 		return(
@@ -452,7 +451,32 @@ plot_hspf = function(
 		ycol = sprintf( "%s_+", locus )
 		ncol = sprintf( "%s_N", locus )
 
+        #illustrate 95CI for a location in Tanzania########################
+		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
+		#take 17th row, with HbAS_or_SS of 0.11695021
+		tzadf <- tzadf[17,] 
+		#print
+		echo(paste0('\nSingle point illustrated in fig1, Tanzania is lon/lat:(',tzadf$longitude,
+		'/',tzadf$latitude,")\n"))
 
+		tzasamples = as.matrix(tzadf[, grep("posterior_sample", colnames(tzadf))])
+		tzaCIs = apply(tzasamples, 1, function(x) quantile(x, probs = c(0.025, 0.975)))
+		# Add lower and upper bounds of HbS 95CIs
+		tzadf = tzadf %>% mutate( 
+			HbAS_or_SS_low = tzaCIs[1, ]^2 + 2 * tzaCIs[1, ]*(1-tzaCIs[1, ]),
+			HbAS_or_SS_upp = tzaCIs[2, ]^2 + 2 * tzaCIs[2, ]*(1-tzaCIs[2, ])
+		)
+		# Add lower and upper bounds of Pf 95CIs
+		alpha <- 1  # Prior parameter (default for uniform prior)
+		beta <- 1   # Prior parameter (default for uniform prior)
+		# Compute 95% Credible Interval
+		Pf_CI <- qbeta(c(0.025, 0.975), tzadf[[ycol]] + alpha, tzadf[[ncol]] -tzadf[[ycol]] + beta)
+        tzadf = tzadf %>% mutate( 
+			Pf_low = Pf_CI[1],
+			Pf_upp = Pf_CI[2]
+		)
+		##################################################################
+		#plot
 		hspf_plot = (
 			ggplot(
 				data = hspf$data,
@@ -548,6 +572,20 @@ plot_hspf = function(
 				linetype = 1,
 				linewidth = 0.05,
 				col = rgb( 1, 1, 1, 0.97)
+			)
+			+ geom_errorbarh(
+				data = tzadf, 
+				aes(xmin = HbAS_or_SS_low, xmax = HbAS_or_SS_upp, y = !!sym(ycol) / !!sym(ncol)), 
+				height = 0.01,  # Small vertical bars at the ends
+				color = "black",
+				linewidth = 0.25
+			)
+			+ geom_errorbar(
+				data = tzadf, 
+				aes(ymin = Pf_low, ymax = Pf_upp), 
+				width = 0.003,  # Small vertical bars at the ends
+				color = "black",
+				linewidth = 0.25
 			)
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
