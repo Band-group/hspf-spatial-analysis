@@ -455,6 +455,7 @@ plot_hspf = function(
 		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
 		#take 17th row, with HbAS_or_SS of 0.11695021
 		tzadf <- tzadf[17,] 
+		if(nrow(tzadf)>0) {
 		#print
 		echo(paste0('\nSingle point illustrated in fig1, Tanzania is lon/lat:(',tzadf$longitude,
 		'/',tzadf$latitude,")\n"))
@@ -475,6 +476,7 @@ plot_hspf = function(
 			Pf_low = Pf_CI[1],
 			Pf_upp = Pf_CI[2]
 		)
+		}
 		##################################################################
 		#plot
 		hspf_plot = (
@@ -573,20 +575,28 @@ plot_hspf = function(
 				linewidth = 0.05,
 				col = rgb( 1, 1, 1, 0.97)
 			)
+		)
+		if(nrow(tzadf)>0) {	
+			hspf_plot = (
+			hspf_plot
 			+ geom_errorbarh(
 				data = tzadf, 
 				aes(xmin = HbAS_or_SS_low, xmax = HbAS_or_SS_upp, y = !!sym(ycol) / !!sym(ncol)), 
 				height = 0.01,  # Small vertical bars at the ends
 				color = "black",
 				linewidth = 0.25
-			)
+				)
 			+ geom_errorbar(
 				data = tzadf, 
 				aes(ymin = Pf_low, ymax = Pf_upp), 
 				width = 0.003,  # Small vertical bars at the ends
 				color = "black",
 				linewidth = 0.25
+				)
 			)
+		}	
+		hspf_plot = (
+			hspf_plot
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
