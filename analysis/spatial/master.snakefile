@@ -10,7 +10,7 @@ sigmas = [
 
 types = [
 	'hexagon',
-	'square'
+#	'square'
 ]
 
 covariates = [ 'none' ]
