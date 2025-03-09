@@ -141,6 +141,9 @@ export default class SimulationControls {
 				+ '<input type="radio" id="overdominant" name="fitness_mode" value="overdominant"/>'
 				+ '<label for="overdominant">Over-dominant</label>'
 				+ '<br/>'
+				+ '<input type="radio" id="no_selection" name="fitness_mode" value="no_selection"/>'
+				+ '<label for="overdominant">No selection</label>'
+				+ '<br/>'
 				+ '</fieldset>'
 			) ;
 		}
@@ -417,6 +420,23 @@ export default class SimulationControls {
 			set_value(   'input[id="fitness-A:+-"]', a2 / 2.0 ) ;
 			set_value(   'input[id="fitness-S:-+"]', s1 / 2.0 ) ;
 			set_value(   'input[id="fitness-S:+-"]', s1 / 2.0 ) ;
+		} else if( mode == "no_selection" ) {
+			set_enabled( 'input[id="fitness-A:--"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:++"]', false ) ;
+			set_enabled( 'input[id="fitness-S:--"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:++"]', false ) ;
+			set_value(   'input[id="fitness-A:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:++"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:++"]', 1.0 ) ;
 		} else {
 			set_enabled( 'input[id="fitness-A:-+"]', true ) ;
 			set_enabled( 'input[id="fitness-A:+-"]', true ) ;

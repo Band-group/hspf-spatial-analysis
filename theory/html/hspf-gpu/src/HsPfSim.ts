@@ -1,5 +1,5 @@
 import GridData from "./GridData.js" ;
-import betaPDF from "./beta.js" ;
+//import betaPDF from "./beta.js" ;
 import beta from '@stdlib/random/base/beta' ;
 
 interface LocalData {
