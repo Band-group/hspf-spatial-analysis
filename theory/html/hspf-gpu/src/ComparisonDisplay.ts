@@ -223,18 +223,20 @@ export default class ComparisonDisplay {
 		let svg = d3.select(this.elt) ;
 		let self = this ;
 		let data = this.counts.map(
-			(pt:PfsaCounts) => ({
+			(pt:PfsaCounts, index:number) => ({
+				index: index,
 				country: pt.country,
 				admin1: pt.admin1,
 				latlong: pt.latlong,
 				xy: pt.xy,
+				// @ts-ignore
 				N: pt[self.names.N],
+				// @ts-ignore
 				modelled: this.sample( pt.xy, pfsa, layer ),
+				// @ts-ignore
 				observed: pt[self.names.y] / pt[self.names.N]
 			} as PlotPt )
 		) ;
-
-		// console.log( "comparison data", this.counts, data ) ;
 
 		let points = svg.selectAll( 'circle' )
 			.data( data ) ;

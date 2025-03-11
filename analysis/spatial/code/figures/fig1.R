@@ -20,7 +20,7 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_fit", type = "character", help = "path to HbS model fit file", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid]_modelfit.rds" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
-	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots", required = TRUE)
+	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
 
 	return(parser$parse_args())
@@ -45,13 +45,20 @@ if( is.null( args )) {
 	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
 	args$pf = "input/hbs-pf-v3.sqlite"
 	args$HbS_survey = "input/cleanHbSdata.csv"
-	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid]"
+	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
 	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
 	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
+#check if tmp folder exist and otherwise create it
+# Check if the folder exists
+if (!dir.exists(args$outdir)) {
+  # Create the folder if it doesn't exist
+  dir.create(args$outdir)
+  cat("Folder 'tmp' did not exist and has been created.\n")
+} 
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
 args$pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
@@ -120,7 +127,7 @@ HbSdata <- read.csv( args$HbS_survey )
 hbssf	 <- df2sf(HbSdata, coords = c('longitude', 'latitude'), crs = 4326)
 
 # Load aggregated HbS samples by polygon
-hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
+hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated,show_col_types = FALSE )
 
 # Load grid and extract polygon centroid coordinates
 grid <- readRDS( args$grid )
@@ -145,8 +152,8 @@ hbsraster <- generate_raster_maps(predictions, saveraster = FALSE, saverasternam
 
 # Create HbS masked maps for simulation and mapping
 sf::sf_use_s2(FALSE)
-world_border	 <- st_union(world_sf)
-malariafilter	<- rast( args$pf_prevalence_map )[[1]]	# Use first layer only
+world_border <- suppressMessages(st_union(world_sf))
+malariafilter <- rast( args$pf_prevalence_map )[[1]]	# Use first layer only
 malariafilter[ malariafilter < 0.001 ] = NA
 malariafilter[ malariafilter > 0.001 ] = 1
 
@@ -255,10 +262,12 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		#ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-		#ggsave(file = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		#ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		#ggsave(file = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		if( !is.null( args$outdir )) {
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		}
 		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
 	}
 }
@@ -267,17 +276,17 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 
 # Aggregate Pf values at latitude/longitude
 {
-	pfagg <- (
+	pfagg <- suppressMessages((
 		pfsf
 		%>% dplyr::mutate(longitude = st_coordinates(.)[,1], latitude = st_coordinates(.)[,2])
 		%>% dplyr::group_by(country, longitude, latitude)
 		%>% dplyr::summarise(across(where(is.numeric), sum, na.rm = TRUE))
-	)
+	))
 	# Extract HbS estimates from the raster for aggregated Pf points
 	HbS <- terra::extract(hbsmask[['mean']], vect(pfagg))
 	pfagg$HbS <- HbS[,2]
 
-	pfagg <- sf::st_join(pfagg, world_sf %>% dplyr::select(continent) )
+	pfagg <- suppressMessages(sf::st_join(pfagg, world_sf %>% dplyr::select(continent) ))
 
 	weighted_average <- function(value, weights, na.rm = FALSE) {
 		w <- which(!is.na(value) & !is.na(weights))
@@ -285,7 +294,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	}
 
 	# Summarize data by country
-	figure_data = (
+	figure_data = suppressMessages((
 		pfagg
 		%>% group_by(country)
 		%>% dplyr::summarise(
@@ -294,7 +303,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			samples   = sum(`Pfsa1_N`),
 			HbS		  = weighted_average( HbS, `Pfsa1_N` )
 		)
-	)
+	))
 
 	# Convert HbS values to per 1,000 (for plotting only)
 	figure_data$HbS <- figure_data$HbS
@@ -399,18 +408,6 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			+ scale_fill_manual( values = country.colours() )
 			# Dumbbell segments
 			+ stat_summary( geom = "linerange", fun.min = min, fun.max = max, linewidth = sizes$linewidth, color = aesthetic$table$grey_dark )
-			# White point overplot for line endings
-			# + geom_point(
-			# 	data = figure_data %>% filter( abs(share) >= 0.01 ),
-			# 	aes(
-			# 		x = ifelse( type == "Pfsa1", -share, share),
-			# 		size = "large"
-			# 	),
-			# 	shape = 21,
-			# 	stroke = 0.53,
-			# 	color = "white",
-			# 	fill = "white"
-			# )
 			#Semi-transparent point fill (here I kept it opaque more more clarity)
 			+ geom_point(
 				data = figure_data %>% filter( abs(share) >= 0.01 ),
@@ -424,15 +421,6 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 				stroke = 0.4,
 				alpha = 0.99
 			)
-			# Point outline
-			# + geom_point(
-			# 	data = figure_data %>% filter( abs(share) >= 0.01 ),
-			# 	aes(
-			# 		x = ifelse(type == "Pfsa1", -share, share),
-			# 		size = "large"
-			# 	),
-			# 	shape = 21, stroke = 0.51, color = "white", fill = NA
-			# )
 			+ scale_size_manual( values = c( sizes$endpoints, 0 ))
 			# Sample size column (next to country names)
 			+ geom_text( aes( y = country, x = xvs$annotation[1], label = scales::comma(samples)), hjust = 1, size = sizes$numbertext, color = "black")
@@ -485,20 +473,11 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# )
 			# Adjust x-axis limits to allow space for both columns
 			+ coord_cartesian( xlim = c(xvs$legend - 0.1, 0.2), clip = "off")
-			+ scale_x_continuous(
-	#			breaks = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
-	#			labels = c( seq(-1, 0, by = 0.2), seq(0, 0.2, by = 0.05)),
-				#expand = expansion( add = c(0.05, 0.05)),
-				guide = "none"
-			)
-#			+ scale_y_discrete( expand = expansion( add = c(0.05, 0.05)))
-#			+ scale_y_discrete( limits = c( 0, 33 ))
+			+ scale_x_continuous(guide = "none")
 			+ scale_color_manual( values = aesthetic$table$pal_dark)
 			+ theme(
-	#			axis.text.y = element_text( face = "plain", size = text.size ),
-	#			plot.margin = margin(10, 10, 10, 80)
 				axis.text.y = element_blank(),
-			 plot.margin = margin(t = 10, r = 5)#, b = 10, l = 0)
+			 	plot.margin = margin(t = 10, r = 5)#, b = 10, l = 0)
 			)
 		)
 
@@ -522,12 +501,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			axis.title.y	= ggtext::element_markdown( size = 10, angle = 90, hjust = 0.5, vjust = 0.5 ),
 			axis.text.x		= element_text( size = 8 ),
 			axis.text.y		= element_text( size = 8, hjust = 1, angle = 0 ),
-			panel.margin	= unit(0.1, "lines"),
+			panel.spacing	= unit(0.1, "lines"),#old way panel.margin
 			plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 		)
 	)
-	echo( "++ Ok!\n" )
-	#ggsave( hspf_plot, file = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	if( !is.null( args$outdir )) {
+		ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	}
+	echo( "++ Ok\n" )
 }
 
 {
@@ -557,8 +538,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, file = args$output, width = 8, height = 9, device = cairo_pdf )
-	ggsave( z, file = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
+	ggsave( z, filename = args$output, width = 8, height = 9, device = cairo_pdf )
+	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
 }
 
 echo("++ End Fig1: plot HbS\n")

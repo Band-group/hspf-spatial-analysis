@@ -15,9 +15,9 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
-	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename" )
-	parser$add_argument("--output_svg", type = "character", help = "Output svg filename" )
-
+	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename", default = "tmp/figure_2/figure_2.pdf" )
+	parser$add_argument("--output_svg", type = "character", help = "Output svg filename", default = "tmp/figure_2/figure_2.svg" )
+    parser$add_argument("--outdir", type = "character", help = "General output file for plots except fig2" )
 	return(parser$parse_args())
 }
 
@@ -32,24 +32,32 @@ if( is.null( args )) {
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
 #	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 #	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
-	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
+	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/{locus}-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
-#	args$outdir = "tmp"
-	args$output = "tmp/figure_2/figure_2.pdf"
+	args$outdir = "tmp"
+	args$output_pdf = "tmp/figure_2/figure_2.pdf"
+	args$output_svg = "tmp/figure_2/figure_2.svg"
 }
+
+if (!dir.exists("tmp/figure_2")) {
+  # Create the folder if it doesn't exist
+  dir.create("tmp/figure_2")
+  cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
+} 
+
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
 aesthetic = list(
 	map = list(
-		oceancolor		<- "transparent",
-		landcolor		<- "#bdbdbd",
-		lakecolor		<- "#2d56af"
+		oceancolor		= "transparent",
+		landcolor		= "#bdbdbd",
+		lakecolor		= "#2d56af"
 	),
 	HbS = list(
 		# Define common breakpoints and labels for HbS plots
 		# Do we need a first break -0.01 here?
-		breaks <- c(0.0005, seq(0.025, 0.175, 0.025)),
-		labels	<- c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%" )
+		breaks = c(0.0005, seq(0.025, 0.175, 0.025)),
+		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%" )
 	)
 )
 
@@ -76,7 +84,7 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 	malariafilter[ malariafilter > 0.001 ] = 1
 }
 
-hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated )
+hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated,show_col_types = FALSE )
 grid <- load_grid( args$grid )
 pfsf = load_pfsf( args$pf )
 
@@ -118,13 +126,17 @@ pfsf = load_pfsf( args$pf )
 			countrybordercol = 'gray95',
 			countrybuffer = FALSE,
 			HbSbreaks = aesthetic$HbS$breaks,
-			HbSlabels = aesthetic$HbS$labels
+			HbSlabels = aesthetic$HbS$labels,
+			aesthetic = aesthetic$map
 		)
+	  	
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		#ggsave(file = sprintf( "%s/fig1bxhexAfrica.svg", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
-		#ggsave(file = sprintf( "%s/fig1bxhexAfrica.pdf", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
-		#echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
+		if( !is.null( args$outdir )) {
+			ggsave(filename = sprintf( "%s/fig1bxhexAfrica.svg", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
+			ggsave(filename = sprintf( "%s/fig1bxhexAfrica.pdf", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
+		}
+		echo('Fig1: Plot Africa hexagons HbS completed\n')
 	}
 }
 
@@ -143,7 +155,7 @@ pfsf = load_pfsf( args$pf )
 			print( filename )
 			hspf_plots[[sprintf( "%s-area=%s", locus, area )]] = (
 				plot_hspf(
-					readRDS(filename),
+					filename,
 					locus = locus,
 					uncertainty = "simple",
 					xlim = c( 0.025, 0.275 ),
@@ -153,7 +165,7 @@ pfsf = load_pfsf( args$pf )
 						y = seq( from = 0, to = 1, by = 0.2 )
 					)
 				)
-				+ scale_size( range = c( 0, 8 ), limits = c( 0, 3000 ), guide = "none" )
+				+ scale_size_area( max_size = 8,  limits = c( 0, 3000 ), guide = "none" )
 				+ theme_minimal( base_family = "sans" )
 				+ theme(
 					axis.title		= element_blank(),
@@ -165,7 +177,9 @@ pfsf = load_pfsf( args$pf )
 #					plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 				)
 			)
-#			ggsave( hspf_plots[[sprintf( "%s-area=%s", locus, area )]], file = sprintf( "%s/hspf-%s-area=%s.pdf", args$outdir, locus, area ), width = 4, height = 3 )
+			if( !is.null( args$outdir )) {
+				ggsave( hspf_plots[[sprintf( "%s-area=%s", locus, area )]], filename = sprintf( "%s/hspf-%s-area=%s.pdf", args$outdir, locus, area ), width = 4, height = 3 )
+			}
 		}
 	}
 }
@@ -246,17 +260,18 @@ pfsf = load_pfsf( args$pf )
 		xlim = c( -0.2, 0.5 ),
 		aesthetic = aesthetic$forest_plot
 	)
-
-#	ggsave(
-#		forestplot,
-#		file = sprintf( "%s/forest_plot.pdf", args$outdir ),
-#		width = 15, height = 4
-#	)
-#	ggsave(
-#		forestplot,
-#		file = sprintf( "%s/forest_plot.svg", args$outdir ),
-#		width = 15, height = 4
-#	)
+	if( !is.null( args$outdir )) {
+		ggsave(
+			forestplot,
+			filename =  sprintf( "%s/forest_plot.pdf", args$outdir ),
+			width = 15, height = 4
+		)
+		ggsave(
+			forestplot,
+			filename =  sprintf( "%s/forest_plot.svg", args$outdir ),
+			width = 15, height = 4
+		)
+	}
 }
 
 {
@@ -334,10 +349,22 @@ pfsf = load_pfsf( args$pf )
 		heights = geom$rows
 	)
 	if( !is.null( args$output_pdf )) {
-		ggsave( z, file = args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf )
+		tryCatch({
+		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf )
+		}, error = function(e) {
+		message ('Cairo failed, using ggsave without cairo instead')
+		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height )
+		
+		})
 	}
 	if( !is.null( args$output_svg )) {
-		ggsave( z, file = args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf )
+	tryCatch({
+		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf )
+		}, error = function(e) {
+		message ('Cairo failed, using ggsave without cairo instead')
+		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height )
+		
+		})	
 	}
 }
 

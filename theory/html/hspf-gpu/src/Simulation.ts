@@ -44,7 +44,8 @@ interface SimulationData {
 interface ComparisonSpec {
 	title: string,
 	y: string,
-	N: string
+	N: string,
+	layer: number
 } ;
 
 export class Simulation {
@@ -265,16 +266,24 @@ export class Simulation {
 					}
 				)
 				section.appendChild( container ) ;
+				//@ts-ignore
 				this.comparisons = [] ;
 				let left = 20 ;
 				let countries =  ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Uganda', 'Democratic Republic of the Congo', 'United Republic of Tanzania', 'Kenya' ] ;
+				interface Genotypes {
+					name: string,
+					count: string,
+					N: string,
+					layer: number,
+					limit: number
+				} ;				
 				let genotypes = [
 					{ "name": "-+", "count": "pfsa13mp", "N": "pfsa13N", "layer": 1, "limit": 0.3 },
 					{ "name": "+-", "count": "pfsa13pm", "N": "pfsa13N", "layer": 2, "limit": 0.3 },
 					{ "name": "++", "count": "pfsa13pp", "N": "pfsa13N", "layer": 3, "limit": 1 }
 				] ;
 				genotypes.forEach(
-					( a: { [key:string]: string } ) => {
+					( a: Genotypes ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
 						container.appendChild( overlay ) ;
