@@ -23,8 +23,8 @@ params:
    regression_model:
       - "bym2"
    min_km_to_survey_pt:
-      - "200km"
-      - "500km"
+      - 200
+      - 500
    min_N:
       - 0
    area:
