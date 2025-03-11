@@ -467,7 +467,7 @@ plot_hspf = function(
         #illustrate 95CI for a location in Tanzania########################
 		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
 		#take 17th row, with HbAS_or_SS of 0.11695021
-		tzadf <- tzadf[17,] 
+		tzadf <- tzadf[tzadf$HbAS_or_SS>0.1169502 & tzadf$HbAS_or_SS<0.1169503,] 
 		if(nrow(tzadf)>0) {
 		#print
 		echo(paste0('\nSingle point illustrated in fig1, Tanzania is lon/lat:(',tzadf$longitude,
