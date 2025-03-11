@@ -61,5 +61,5 @@ rule create_figure2:
 		--hspf_fit {params.hspf_fit_template} \
 		--pf_prevalence_map {input.pf_prevalence_map} \
 		--output_pdf {output.pdf} \
-		--output_pdf {output.svg}
+		--output_svg {output.svg}
 """

@@ -26,7 +26,7 @@ cellsizes = [
 ]
 surveykms = [
 	'200',
-#	'500'
+	'500'
 ]
 
 def srcdir(x):

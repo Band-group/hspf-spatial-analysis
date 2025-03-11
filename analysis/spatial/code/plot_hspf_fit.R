@@ -118,58 +118,69 @@ for( i in 1:length(xs)) {
 }
 
 palette = country.colours()
+palette = palette[ names(palette) %in% fit$data$SOVEREIGNT ]
 fit$data$colour = palette[ fit$data$SOVEREIGNT ]
 fit$data$colour[ is.na(fit$data$colour)] = palette['other']
 
-pdf( file = args$output, width = 8, height = 5.25 )
-par( mar = c( 4.1, 7.1, 1.1, 1.1 ))
-stopifnot( length( which( fit$data$N == 0 )) == 0 )
-w = 1:nrow(fit$data)
-plot(
-	fit$data$hbas_or_ss_mean[w],
-	fit$data$y[w] / fit$data$N[w],
-	cex = sqrt(fit$data$N)/6,
-	col = alpha( fit$data$colour, 0.8 ),
-	pch = 19,
-	xlim = c( 0, 0.3 ),
-	ylim = c( 0, 1.0 ),
-	bty = 'n',
-	xaxt = 'n',
-	yaxt = 'n',
-	xlab = 'HbAS or SS frequency, average',
-	ylab = ''
-)
+{
+	pdf( file = args$output, width = 8, height = 5.25 )
+	par( mar = c( 4.1, 7.1, 1.1, 1.1 ))
+	stopifnot( length( which( fit$data$N == 0 )) == 0 )
+	w = 1:nrow(fit$data)
+	plot(
+		fit$data$hbas_or_ss_mean[w],
+		fit$data$y[w] / fit$data$N[w],
+		cex = sqrt(fit$data$N)/6,
+		col = alpha( fit$data$colour, 0.8 ),
+		pch = 19,
+		xlim = c( 0, 0.3 ),
+		ylim = c( 0, 1.0 ),
+		bty = 'n',
+		xaxt = 'n',
+		yaxt = 'n',
+		xlab = 'HbAS or SS frequency, average',
+		ylab = ''
+	)
 
-wp = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
-legend(
-	x = 0.385,
-	y = 0.5,
-	yjust = 0.5,
-	legend = names(palette)[wp],
-	pch = 19,
-	col = palette[wp],
-	bty = 'n',
-	cex = 0.7,
-	xpd = NA,
-	ncol = 1# + (length(w) > 20)
-)
-axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
-axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
-grid()
+	wp = which( names( palette ) %in% fit$data$SOVEREIGNT[w] )
+	legend(
+		x = 0.385,
+		y = 0.5,
+		yjust = 0.5,
+		legend = names(palette)[wp],
+		pch = 19,
+		col = palette[wp],
+		bty = 'n',
+		cex = 0.7,
+		xpd = NA,
+		ncol = 1# + (length(w) > 20)
+	)
+	axis(1, at = seq( from = 0, to = 0.3, by = 0.05 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.05 )*100 ))
+	axis(2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 )*100 ), las = 1)
+	grid()
 
-mtext( sprintf( "%s\nfrequency", fit$allele ), side = 2, line = 3, las = 1 )
-points(
-	curves$x,
-	curves$mean,
-	type = 'l',
-	lwd = 3,
-	col = "black"
-)
-polygon(
-	c( curves$x, rev(curves$x)),
-	c( curves$lower_2.5, rev( curves$upper_97.5 )),
-	col = rgb( 0, 0, 0, 0.1 ),
-	border = NA
-)
-
-dev.off()
+	mtext( sprintf( "%s\nfrequency", fit$allele ), side = 2, line = 3, las = 1 )
+	points(
+		curves$x,
+		curves$mean,
+		type = 'l',
+		lwd = 3,
+		col = "black"
+	)
+	polygon(
+		c( curves$x, rev(curves$x)),
+		c( curves$lower_2.5, rev( curves$upper_97.5 )),
+		col = rgb( 0, 0, 0, 0.1 ),
+		border = NA
+	)
+	legend(
+		"topleft",
+		names(palette),
+		col = palette,
+		pch = 19,
+		bty = 'n',
+		ncol = 4,
+		cex = 0.8
+	)
+	dev.off()
+}
