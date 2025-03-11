@@ -47,7 +47,7 @@ rule create_figure2:
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
 			regression_model = w.regression_model,
 			min_km_to_survey_pt = w.min_km_to_survey_pt,
-			area = areas.keys(),
+			area = config['areas'].keys(),
 			min_N = w.min_N
 		)
 	params:

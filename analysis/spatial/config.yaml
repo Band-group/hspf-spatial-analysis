@@ -1,0 +1,47 @@
+params:
+   r0:
+      - 25.0
+   sigma0:
+      - 0.6
+   type:
+      - "hexagon"
+   covariates:
+      - "none"
+   divide:
+      - "none"
+   size:
+      # Africa is 3,736.69km across West-East at Equator
+      # 6,604.55km from coast of Gambia to coast of Kenya
+      # At equator, 1 degree ~ 111km so 1.35 degrees ~ 150 km at the equator
+      - 1
+      - 1.35
+   locus:
+      - "Pfsa1"
+      - "Pfsa2"
+      - "Pfsa3"
+      - "Pfsa4"
+   regression_model:
+      - "bym2"
+   min_km_to_survey_pt:
+      - "200km"
+      - "500km"
+   min_N:
+      - 0
+   area:
+      - global
+      - africa
+      - waf
+      - wwaf
+      - ewaf
+      - caf
+      - drc+east
+      - eaf
+      - gambia+senegal
+      - mali
+      - ghana
+      - ghana+burkina+togo
+      - ghana+burkina+togo+benin+ivorycoast
+      - uganda
+      - tanzania
+      - tanzania+kenya+uganda+rwanda
+      - DRC
