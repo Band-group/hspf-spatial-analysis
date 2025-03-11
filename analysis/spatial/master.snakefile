@@ -7,15 +7,15 @@ if not 'params' in config.keys():
 	print( "!! You must expect you to provide a config file, as in `--configfile config.yaml`" )
 	exit(-1)
 
+print( "++ The configuration is:" )
+from pprint import pp
+pp( config, indent = 2, compact = True )
+
 config['areas'] = get_area_definitions( config['params']['area'] )
 
 # This list details all the hs-pf comparison analyses we really want to run.
 master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
-
-print( "++ The configuration is:" )
-from pprint import pp
-pp( config, indent = 2, compact = True )
 
 localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list
 
