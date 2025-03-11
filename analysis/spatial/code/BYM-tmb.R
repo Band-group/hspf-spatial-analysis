@@ -200,7 +200,7 @@ fitit <- function(
 
 	report <- sdreport(tmb_obj)
 
-	TMBfixfit = (
+	estimates = (
 		tibble::rownames_to_column(
 			as.data.frame(
 				summary(report, "fixed")
@@ -219,7 +219,7 @@ fitit <- function(
 	return(
 		list(
 			fit = fit,
-			estimates = TMBfixfit,
+			estimates = estimates,
 			report = report
 		)
 	)
