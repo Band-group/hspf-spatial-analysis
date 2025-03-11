@@ -37,21 +37,19 @@ rule create_figure2:
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-division={divide}-area=global.tsv",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 		hspf_fit = lambda w: expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
-				r0 = w.r0,
-				sigma0 = w.sigma0,
-				covariates = w.covariates,
-				type = w.type,
-				size = w.size,
-				divide = w.divide,
-				locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-				regression_model = w.regression_model,
-				min_km_to_survey_pt = w.min_km_to_survey_pt,
-				area = areas.keys(),
-				min_N = w.min_N
-			)
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			r0 = w.r0,
+			sigma0 = w.sigma0,
+			covariates = w.covariates,
+			type = w.type,
+			size = w.size,
+			divide = w.divide,
+			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
+			regression_model = w.regression_model,
+			min_km_to_survey_pt = w.min_km_to_survey_pt,
+			area = areas.keys(),
+			min_N = w.min_N
 		)
-	
 	params:
 		script = srcdir( "code/figures/fig2_new.R" ),
 		hspf_fit_template = lambda w: (
@@ -77,8 +75,7 @@ rule create_figure2:
 		--hspf_fit {params.hspf_fit_template} \
 		--pf_prevalence_map {input.pf_prevalence_map} \
 		--output_pdf {output.pdf} \
-		--output_svg {output.svg} \
-		--outdir {}
+		--output_svg {output.svg}
 """
 
 rule create_summary_list:
