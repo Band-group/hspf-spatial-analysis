@@ -490,7 +490,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	echo( "++ HSPF plot...\n" )
 	hspf_plot = (
 		plot_hspf(
-			readRDS(args$hspf_fit),
+			args$hspf_fit,
 			locus = "Pfsa1",
 			uncertainty = "lines"
 		)
