@@ -724,7 +724,7 @@ make.forestplot <- function(
 		+ labs(
 			title = "",
 			x = NULL,
-			y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
+			y = expression(bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%"))
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
@@ -736,7 +736,7 @@ make.forestplot <- function(
 			geom = "richtext",	# Allows background
 			fun = median,
 			aes( label = paste0("N = ", scales::comma(N)) ),
-			hjust = 0.5, vjust = -0.025,
+			hjust = 0.5, vjust = -0.001,
 			size = 2,
 		# alpha = 1,#transparency optional
 			family = aesthetic$font_family,
