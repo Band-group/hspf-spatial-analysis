@@ -626,7 +626,7 @@ plot_hspf = function(
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa1+</em> frequency" )
+			+ ylab( "<em>Pfsa1+ </em> frequency" )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],

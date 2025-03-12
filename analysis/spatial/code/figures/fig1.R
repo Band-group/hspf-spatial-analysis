@@ -538,8 +538,22 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, filename = args$output, width = 8, height = 9, device = cairo_pdf )
-	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
+    #save using cairo if normal save fails
+   	tryCatch({
+		ggsave( z, filename =  args$output, width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
+    #save svg as well when possible
+	tryCatch({
+		ggsave( z, filename =  gsub( ".pdf", ".svg", args$output ), width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
 }
 
 echo("++ End Fig1: plot HbS\n")
