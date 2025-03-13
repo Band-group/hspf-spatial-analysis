@@ -724,7 +724,8 @@ make.forestplot <- function(
 		+ labs(
 			title = "",
 			x = NULL,
-			y = expression("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
+			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ 
+			frequency between values corresponding to sickle allele frequency at 20% and 10%"
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100

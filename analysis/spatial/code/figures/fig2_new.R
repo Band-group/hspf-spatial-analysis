@@ -194,7 +194,7 @@ pfsf = load_pfsf( args$pf )
 		# See master.snakefile for how these are defined
 		area = c( "global", "africa", "waf", "DRC", "eaf" ),
 		Region = c(
-			"Global", "Africa", "West&nbsp;Africa", "DRC", "East&nbsp;Africa"
+			"Global", "Africa", "Western&nbsp;&nbsp;pop.", "DRC", "East&nbsp;&nbsp;pop."
 		),
 		order = c(
 			1, 1, 2, 2, 2
