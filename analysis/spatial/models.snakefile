@@ -162,9 +162,8 @@ rule aggregate_pf:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
 	input:
-		# 8th Feb 2025: we are testing flipping the Verity et al data alleles which seem wron
 		#pf = "input/hbs-pf-v2.sqlite",
-		pf = "input/hbs-pf-v2-flippedDRC.sqlite",
+		pf = "input/hbs-pf-v3.sqlite",
 		polygons = rules.create_grid.output.rds,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
