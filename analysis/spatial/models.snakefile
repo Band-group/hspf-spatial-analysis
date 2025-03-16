@@ -45,7 +45,7 @@ rule create_grid:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		script = "code/create_aggregation_polygons.R",
-		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] )
 	shell: """
 	Rscript --vanilla {params.script} \
 		--world {input.world} \
@@ -127,27 +127,27 @@ rule summarise_HbS_fits:
 		grid = rules.create_grid.output.rds.format( type = "hexagon", size = 1, divide = "none", area = "global" ),
 		HbS_fit = expand(
 			rules.fit_hbs_map.output.fit,
-			r0 = ranges,
-			sigma0 = sigmas,
-			covariates = covariates
+			r0 = config['params']['r0'],
+			sigma0 = config['params']['sigma0'],
+			covariates = config['params']['covariates']
 		),
 		piel_comparison = expand(
 			rules.compare_HbS_vs_piel_vs_data.output.tsv.format(
 				type = "hexagon", size = 1, divide = "none", area = "global",
 				r0 = '{r0}', sigma0 = '{sigma0}', covariates = '{covariates}'
 			),
-			r0 = ranges,
-			sigma0 = sigmas,
-			covariates = covariates
+			r0 = config['params']['r0'],
+			sigma0 = config['params']['sigma0'],
+			covariates = config['params']['covariates']
 		)
 	params:
 		script = "code/summarise_HbS_fits.R"
 	run:
 		for row in dict_product(
 			{
-				"r0": ranges,
-				"sigma0": sigmas,
-				"covariates": covariates
+				"r0": config['params']['r0'],
+				"sigma0": config['params']['sigma0'],
+				"covariates": config['params']['covariates']
 			}
 		):
 			hbs_fit_filename = rules.fit_hbs_map.output.fit.format( r0 = row['r0'], sigma0 = row['sigma0'], covariates = row['covariates'] )
@@ -204,7 +204,7 @@ rule fit_hspf_in_areas:
 	params:
 		#script = srcdir( "code/BYM-inla.R" ),
 		script = srcdir( "code/BYM-tmb.R" ),
-		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] )
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] )
 	threads: 1
 	shell: """
 		Rscript --vanilla {params.script} \
@@ -238,7 +238,7 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		script = srcdir( "code/BYM-tmb.R" ),
-		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( areas[w.area] ),
+		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
 		source = lambda w: (
 			{
 				"pf7": ["MalariaGEN Pf7"],
@@ -343,7 +343,7 @@ rule create_forest_plot:
 			min_km_to_survey_pt = '{min_km_to_survey_pt}',
 			min_N = '{min_N}',
 			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-			area = areas.keys()
+			area = config['areas'].keys()
 		)
 	params:
 		script = srcdir( 'code/figures/forest_ggplot.R' ),

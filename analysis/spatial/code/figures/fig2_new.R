@@ -1,5 +1,5 @@
 library( dplyr )
-library( argparse)
+library( argparse )
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
@@ -17,7 +17,7 @@ parse_arguments <- function() {
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename", default = "tmp/figure_2/figure_2.pdf" )
 	parser$add_argument("--output_svg", type = "character", help = "Output svg filename", default = "tmp/figure_2/figure_2.svg" )
-    parser$add_argument("--outdir", type = "character", help = "General output file for plots except fig2", default =  "tmp")
+    parser$add_argument("--outdir", type = "character", help = "General output file for plots except fig2" )
 	return(parser$parse_args())
 }
 
@@ -132,8 +132,10 @@ pfsf = load_pfsf( args$pf )
 	  	
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		ggsave(filename = sprintf( "%s/fig1bxhexAfrica.svg", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
-		ggsave(filename = sprintf( "%s/fig1bxhexAfrica.pdf", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
+		if( !is.null( args$outdir )) {
+			ggsave(filename = sprintf( "%s/fig1bxhexAfrica.svg", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
+			ggsave(filename = sprintf( "%s/fig1bxhexAfrica.pdf", args$outdir ), fig1bhexa[[1]], width = 6, height = 7)
+		}
 		echo('Fig1: Plot Africa hexagons HbS completed\n')
 	}
 }
@@ -155,7 +157,13 @@ pfsf = load_pfsf( args$pf )
 				plot_hspf(
 					filename,
 					locus = locus,
-					uncertainty = "simple" # or "none" or "areas" or "lines"
+					uncertainty = "simple",
+					xlim = c( 0.025, 0.275 ),
+					ylim = c( 0, 1 ),
+					at = list(
+						x = seq( from = 0.05, to = 0.25, by = 0.1 ),
+						y = seq( from = 0, to = 1, by = 0.2 )
+					)
 				)
 				+ scale_size_area( max_size = 8,  limits = c( 0, 3000 ), guide = "none" )
 				+ theme_minimal( base_family = "sans" )
@@ -169,7 +177,9 @@ pfsf = load_pfsf( args$pf )
 #					plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 				)
 			)
-			ggsave( hspf_plots[[sprintf( "%s-area=%s", locus, area )]], filename = sprintf( "%s/hspf-%s-area=%s.pdf", args$outdir, locus, area ), width = 4, height = 3 )
+			if( !is.null( args$outdir )) {
+				ggsave( hspf_plots[[sprintf( "%s-area=%s", locus, area )]], filename = sprintf( "%s/hspf-%s-area=%s.pdf", args$outdir, locus, area ), width = 4, height = 3 )
+			}
 		}
 	}
 }
@@ -184,7 +194,7 @@ pfsf = load_pfsf( args$pf )
 		# See master.snakefile for how these are defined
 		area = c( "global", "africa", "waf", "DRC", "eaf" ),
 		Region = c(
-			"Global", "Africa", "West&nbsp;Africa", "DRC", "East&nbsp;Africa"
+			"Global", "Africa", "Western&nbsp;&nbsp;pop.", "DRC", "East&nbsp;&nbsp;pop."
 		),
 		order = c(
 			1, 1, 2, 2, 2
@@ -250,17 +260,18 @@ pfsf = load_pfsf( args$pf )
 		xlim = c( -0.2, 0.5 ),
 		aesthetic = aesthetic$forest_plot
 	)
-
-	ggsave(
-		forestplot,
-		filename =  sprintf( "%s/forest_plot.pdf", args$outdir ),
-		width = 15, height = 4
-	)
-	ggsave(
-		forestplot,
-		filename =  sprintf( "%s/forest_plot.svg", args$outdir ),
-		width = 15, height = 4
-	)
+	if( !is.null( args$outdir )) {
+		ggsave(
+			forestplot,
+			filename =  sprintf( "%s/forest_plot.pdf", args$outdir ),
+			width = 15, height = 4
+		)
+		ggsave(
+			forestplot,
+			filename =  sprintf( "%s/forest_plot.svg", args$outdir ),
+			width = 15, height = 4
+		)
+	}
 }
 
 {
@@ -289,21 +300,34 @@ pfsf = load_pfsf( args$pf )
 	border = theme(plot.background = element_blank())
 	areascale = scale_size( range = c( 0, 5 ), breaks = seq( from = 1, to = 3000, by = 1 ), limits = c( 0, 3000 ), guide = "none" )
 	shapescale = scale_shape_manual( values = 21 )
-	hspftheme = theme( plot.margin = unit( c( t = 0, b = 0, r = 0, l = 0 ), "inches" ))
+	hspftheme = theme(
+		axis.text.x = element_text( size = 6 ),
+		plot.margin = unit( c( t = 0, r = 0, b = 0.2, l = 0 ), "inches" )
+	)
+	yaxis = theme(
+		axis.text.y = element_text( size = 6 )
+	)
+	rightaxis = scale_y_continuous(
+		position = "right",
+		breaks = seq( from = 0, to = 1, by = 0.2 ),
+		limits = c( -0.01, 1.01 ),
+		labels = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 ) * 100 ),
+		expand = c( 0, 0 )
+	)
 	z = grid.arrange(
 		(fig1bhexa[[1]] + border),
-		hspf_plots[['Pfsa1-area=waf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa1-area=DRC']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa2-area=DRC']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa3-area=DRC']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa4-area=DRC']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa1-area=eaf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa2-area=eaf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa3-area=eaf']] + areascale + hspftheme + shapescale + border,
-		hspf_plots[['Pfsa4-area=eaf']] + areascale + hspftheme + shapescale + border,
+		hspf_plots[['Pfsa1-area=waf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa1-area=DRC']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=DRC']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=DRC']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=DRC']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa1-area=eaf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=eaf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
 		(
 			forestplot
 			+ theme(
@@ -326,19 +350,19 @@ pfsf = load_pfsf( args$pf )
 	)
 	if( !is.null( args$output_pdf )) {
 		tryCatch({
-		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf )
+		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height)
 		}, error = function(e) {
-		message ('Cairo failed, using ggsave without cairo instead')
-		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height )
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf  )
 		
 		})
 	}
 	if( !is.null( args$output_svg )) {
 	tryCatch({
-		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf )
+		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height)
 		}, error = function(e) {
-		message ('Cairo failed, using ggsave without cairo instead')
-		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height )
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf  )
 		
 		})	
 	}

@@ -20,7 +20,7 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_fit", type = "character", help = "path to HbS model fit file", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid]_modelfit.rds" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
-	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots", required = TRUE)
+	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
 
 	return(parser$parse_args())
@@ -67,13 +67,9 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 # Enable s2 geometry for spatial operations (required here)
 sf::sf_use_s2(TRUE)
 
-
-################################################################################
-# Define helper functions
-
 ################################################################################
 # Define color settings and projections
-map_projections	<- list(wgs84 = st_crs(4326))	# Common projection for plots
+map_projections	<- list( wgs84 = st_crs(4326) )	# Common projection for plots
 aesthetic = list(
 	map = list(
 		oceancolor		= "transparent",	 # Ocean fill color
@@ -89,9 +85,8 @@ aesthetic = list(
 	HbS = list(
 		# Define common breakpoints and labels for HbS plots
 		# Do we need a first break -0.01 here?
-		breaks = c(0.0005, seq(0.025, 0.175, 0.025)),
-		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", 
-					"12.5%","15%","17.5%")	# \u2030 = per mille
+		breaks  = c(0.0005, seq(0.025, 0.175, 0.025)),
+		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
 	)
 )
 
@@ -183,7 +178,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		flatcrs = map_projections[[1]],
 		features = list(
 			lakes = list(
-				data = lakaf_sf,
+				data = aesthetic$map$lakaf_sf,
 				fill = aesthetic$map$lakecolor,
 				colour = NA
 			)
@@ -214,7 +209,6 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		ptsize = 1.0,
 		pt.thick = 0.1,
 		aesthetic = aesthetic$map
-	
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
@@ -268,10 +262,12 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-		ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-		ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		if( !is.null( args$outdir )) {
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
+			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		}
 		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
 	}
 }
@@ -485,15 +481,19 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			)
 		)
 
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
-		ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		#ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		#ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
 	}
 }
 
 {
-	source( "code/figures/fig1_impl.R" )
+	echo( "++ HSPF plot...\n" )
 	hspf_plot = (
-		plot_hspf( hspfrdspath = args$hspf_fit, locus = "Pfsa1", uncertainty = "lines" )
+		plot_hspf(
+			args$hspf_fit,
+			locus = "Pfsa1",
+			uncertainty = "lines"
+		)
 		+ scale_size_area( max_size = 16, guide = "none" )
 		+ theme_minimal( base_family = "sans" )
 		+ theme(
@@ -505,7 +505,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			plot.margin		= unit( c( 0.1, 0.1, 0.1, 0.1 ), "lines" )
 		)
 	)
-	ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	if( !is.null( args$outdir )) {
+		ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+	}
+	echo( "++ Ok\n" )
 }
 
 {
@@ -535,8 +538,22 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, filename = args$output, width = 8, height = 9, device = cairo_pdf )
-	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
+    #save using cairo if normal save fails
+   	tryCatch({
+		ggsave( z, filename =  args$output, width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
+    #save svg as well when possible
+	tryCatch({
+		ggsave( z, filename =  gsub( ".pdf", ".svg", args$output ), width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
 }
 
 echo("++ End Fig1: plot HbS\n")

@@ -252,7 +252,7 @@ fig1bplot <- function(
 
 	if(inset == TRUE) {
 		bufvalue <- 2.5
-		box.around.country <- sf::st_bbox(suppressMessages(sf::st_buffer(myboundary,bufvalue)))
+		box.around.country <- sf::st_bbox(suppressWarnings(suppressMessages(sf::st_buffer(myboundary,bufvalue))))
 		box.around.country <- sf::st_as_sfc(box.around.country)
 		box.around.country <- sf::st_set_crs(box.around.country, 4326) 
 		hexas <- sf::st_crop(discrete.grid,box.around.country)
@@ -383,7 +383,13 @@ fig1bplot <- function(
 plot_hspf = function(
 	hspfrdspath,
 	locus = "Pfsa1",
-	uncertainty = "lines"
+	uncertainty = "lines",
+	xlim = c( 0, 0.3 ),
+	ylim = c( 0, 0.8 ),
+	at = list(
+		x = seq( from = xlim[1], to = xlim[2], by = 0.05 ),
+		y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
+	)
 ) {
 	hspf <- readRDS(hspfrdspath)
 	hspf$data$grid = hspf$data$centroid = NULL
@@ -444,17 +450,24 @@ plot_hspf = function(
 
 	{
 		country.palette = country.colours()
-		at = list(
-			x = seq( from = 0, to = 0.3, by = 0.05 ),
-			y = seq( from = 0, to = 0.8, by = 0.2 )
-		)
+		if( is.null( at )) {
+			at = list(
+				x = seq( from = xlim[1], to = xlim[2], by = 0.05 ),
+				y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
+			)
+		}
 		ycol = sprintf( "%s_+", locus )
 		ncol = sprintf( "%s_N", locus )
 
+		hspf$data$type = factor( "WGS", levels = c( "WGS", "MIP" ))
+		hspf$data$type[ hspf$data$sources %in% c( 'Verity et al 2021', 'Moser et al 2021' )] = "MIP"
+		# Plot WGS on top, if you need to
+		hspf$data = hspf$data %>% arrange( desc( type ))
+		
         #illustrate 95CI for a location in Tanzania########################
 		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
 		#take 17th row, with HbAS_or_SS of 0.11695021
-		tzadf <- tzadf[17,] 
+		tzadf <- tzadf[tzadf$HbAS_or_SS>0.115 & tzadf$HbAS_or_SS<0.118,] 
 		if(nrow(tzadf)>0) {
 		#print
 		echo(paste0('\nSingle point illustrated in fig1, Tanzania is lon/lat:(',tzadf$longitude,
@@ -487,6 +500,7 @@ plot_hspf = function(
 					y = !!sym(ycol)/!!sym(ncol)
 				)
 			)
+			+ coord_cartesian( clip = "off" )
 			+ geom_segment(
 				data = tibble( x = at$x ),
 				aes(
@@ -510,8 +524,10 @@ plot_hspf = function(
 			+ geom_point(
 				aes(
 					size = `Pfsa1_N`,
-					colour = country
-				)
+					colour = type,
+					fill = country
+				),
+				shape = 21
 			)
 		)
 		if( uncertainty == "lines" ) {
@@ -600,20 +616,24 @@ plot_hspf = function(
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
-				limits = c( -0.01, 0.31 ),
+				limits = xlim + c( -0.01, 0.01 ),
 				labels = sprintf( "%.0f%%", at$x * 100 ),
 				expand = c( 0, 0 )
 			)
 			+ scale_y_continuous(
 				breaks = at$y,
-				limits = c( -0.01, 0.81 ),
+				limits = ylim + c( -0.01, 0.01 ),
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa1+</em> frequency" )
+			+ ylab( "<em>Pfsa1+ </em> frequency" )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
-			+ scale_colour_manual(
+			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
+				guide = "none"
+			)
+			+ scale_colour_manual(
+				values = c( rgb( 0, 0, 0, 0.9 ), rgb( 0, 0, 0, 0.1 ) ),
 				guide = "none"
 			)
 		)
@@ -699,12 +719,13 @@ make.forestplot <- function(
 		+ stat_interval( linewidth = 2 )
 		+ stat_summary( geom = "point", fun = median )
 		+ scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)])
-		+ coord_flip( ylim = xlim, clip = "on" )
+		+ coord_flip( ylim = xlim, clip = "off" )
 		+ guides( col = "none" )
 		+ labs(
 			title = "",
 			x = NULL,
-			y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
+			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ 
+			frequency between values corresponding to sickle allele frequency at 20% and 10%"
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
@@ -716,7 +737,7 @@ make.forestplot <- function(
 			geom = "richtext",	# Allows background
 			fun = median,
 			aes( label = paste0("N = ", scales::comma(N)) ),
-			hjust = 0.5, vjust = -0.1,
+			hjust = 0.5, vjust = 0.001,
 			size = 2,
 		# alpha = 1,#transparency optional
 			family = aesthetic$font_family,

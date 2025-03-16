@@ -171,16 +171,36 @@ fitit <- function(
 		iter.max = 1000
 	)
 ) {
-	fit <- nlminb(
-		tmb_obj$par,
-		tmb_obj$fn,
-		tmb_obj$gr,
-		control = control
-	)
+	fit <- tryCatch(
+    {
+      nlminb(
+        tmb_obj$par,
+        tmb_obj$fn,
+        tmb_obj$gr,
+        control = control
+      )
+    },
+    error = function(e) {
+      num_obs <- if (!is.null(tmb_obj$data)) nrow(tmb_obj$data) else NA  # Extract number of observations
+      num_params <- length(tmb_obj$par)  # Extract number of parameters
+	  message("\n++BYM-tmb.R fitting issue\n")
+      message(sprintf("\nnlminb failed with error: %s", e$message))
+      message(sprintf("\nNumber of observations: %s", ifelse(is.na(num_obs), "Unknown", num_obs)))
+      message(sprintf("\nNumber of parameters: %d", num_params))
+      message("\n nlminb failed so switching to optim with BFGS method.\n")
+      optim(
+        par = tmb_obj$par,
+        fn = tmb_obj$fn,
+        gr = tmb_obj$gr,
+        method = "BFGS",
+        control = list(maxit = control$iter.max)
+      )
+    }
+  )
 
 	report <- sdreport(tmb_obj)
 
-	TMBfixfit = (
+	estimates = (
 		tibble::rownames_to_column(
 			as.data.frame(
 				summary(report, "fixed")
@@ -199,7 +219,7 @@ fitit <- function(
 	return(
 		list(
 			fit = fit,
-			estimates = TMBfixfit,
+			estimates = estimates,
 			report = report
 		)
 	)
