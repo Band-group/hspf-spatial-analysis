@@ -164,7 +164,7 @@ rule aggregate_pf:
 	input:
 		# 8th Feb 2025: we are testing flipping the Verity et al data alleles which seem wron
 		#pf = "input/hbs-pf-v2.sqlite",
-		pf = "input/hbs-pf-v2-flippedDRC.sqlite",
+		pf = "input/hbs-pf-v3.sqlite",
 		polygons = rules.create_grid.output.rds,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
@@ -322,6 +322,7 @@ rule summarise_hspf:
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	run:
+		print('DA.')
 		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['covariates'] == wildcards.covariates) ]:
 			print(x)
