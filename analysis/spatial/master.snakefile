@@ -54,6 +54,10 @@ rule all:
 			"output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figure1.pdf",
 			**config['params'],
 		),
+		figSI = expand(
+			"output/SI/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figSI.svg",
+			**config['params'],
+		),
 		fig2 = expand(
 			"output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.{extension}",
 			**config['params'],

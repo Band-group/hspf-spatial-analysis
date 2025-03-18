@@ -22,7 +22,7 @@ parse_arguments <- function() {
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
-
+    parser$add_argument("--SI", type = "character", help = "Output SI (svg) filename", required = TRUE)
 	return(parser$parse_args())
 }
 
@@ -262,13 +262,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		if( !is.null( args$outdir )) {
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		if(j==1) {
+			ggsave(filename =  args$SI, fig1bhexa[[1]], width = 6, height = 7 )
 		}
-		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
+		echo('FigSI: SI plot Africa hexagons HbS and Pf points completed\n')
 	}
 }
 ################################################################################
@@ -506,7 +503,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 	)
 	if( !is.null( args$outdir )) {
-		ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+		ggsave( hspf_plot, filename = sprintf( "%s/hspf%s.pdf", args$outdir,grid_name ), width = 4, height = 3 )
 	}
 	echo( "++ Ok\n" )
 }
