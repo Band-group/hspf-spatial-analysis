@@ -55,7 +55,7 @@ Type objective_function<Type>::operator() () {
 	// --- Data ---
 	DATA_VECTOR(y);       // Observed successes (binary or counts)
 	DATA_VECTOR(N);       // Number of trials (for binomial)
-	// DATA_VECTOR(x);       // Covariate
+	DATA_VECTOR(x);       // Covariate
 
 	// -- Prior parameters ---
 	DATA_SCALAR( prior_intercept_sd );
