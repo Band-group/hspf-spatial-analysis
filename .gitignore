@@ -26,4 +26,5 @@ logs
 *.o
 *.so
 *.dll
+*.DS_Store
 tmp
