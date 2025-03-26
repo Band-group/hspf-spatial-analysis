@@ -176,10 +176,16 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
+# We compile the C++ code to a directory named by the
+# current system's machine (arm64 or x86_64).
+# This avoids trying to use the wrong .so file if we copy the output directory.
+import platform
+machine = platform.machine()
+
 rule compile_TMB_code:
 	output:
-		cpp = "output/hspf/tmb/{regression_model}.cpp",
-		so = "output/hspf/tmb/{regression_model}.so"
+		cpp = "output/hspf/tmb/{platform}/{regression_model}.cpp".format( platform = machine, regression_model = '{regression_model}' ),
+		so = "output/hspf/tmb/{platform}/{regression_model}.so".format( platform = machine, regression_model = '{regression_model}' ),
 	input:
 		cpp = srcdir( "code/tmb/{regression_model}.cpp" )
 	params:
@@ -200,7 +206,7 @@ rule fit_hspf_in_areas:
 		hbs = rules.aggregate_HbS.output.tsv,
 		survey = "input/cleanHbSdata.csv",
 		world = "geodata/naturalearthdata.Rdata",
-		tmb_model = "output/hspf/tmb/bym2.so"
+		tmb_model = rules.compile_TMB_code.output.so
 	params:
 		#script = srcdir( "code/BYM-inla.R" ),
 		script = srcdir( "code/BYM-tmb.R" ),
