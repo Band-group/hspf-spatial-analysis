@@ -503,18 +503,26 @@ if( 0 ) {#is.null( args )) {
 	}
 
 	pf = (
-	pf %>% group_by( polygon_id )
-	%>% summarise(
-		`Pfsa1_+` = sum(`Pfsa1_+`),
-		Pfsa1_N = sum( Pfsa1_N ),
-		`Pfsa2_+` = sum( `Pfsa2_+` ),
-		Pfsa2_N = sum( Pfsa2_N ),
-		`Pfsa3_+` = sum(`Pfsa3_+`),
-		Pfsa3_N = sum( Pfsa3_N ),
-		`Pfsa4_+` = sum( `Pfsa4_+` ),
-		Pfsa4_N = sum( Pfsa4_N ),
-		sources = paste(sort(unique( source )), collapse = " and " )
-	)
+		pf %>% group_by( polygon_id )
+		%>% summarise(
+			`Pfsa1_+` = sum(`Pfsa1_+`),
+			Pfsa1_N = sum( Pfsa1_N ),
+			`Pfsa2_+` = sum( `Pfsa2_+` ),
+			Pfsa2_N = sum( Pfsa2_N ),
+			`Pfsa3_+` = sum(`Pfsa3_+`),
+			Pfsa3_N = sum( Pfsa3_N ),
+			`Pfsa4_+` = sum( `Pfsa4_+` ),
+			Pfsa4_N = sum( Pfsa4_N ),
+			`Pfsa13--_+` = sum( `Pfsa13_--` ),
+			`Pfsa13--_N` = sum( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++` ),
+			`Pfsa13-+_+` = sum( `Pfsa13_-+` ),
+			`Pfsa13-+_N` = sum( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++` ),
+			`Pfsa13+-_+` = sum( `Pfsa13_+-` ),
+			`Pfsa13+-_N` = sum( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++` ),
+			`Pfsa13++_+` = sum( `Pfsa13_++` ),
+			`Pfsa13++_N` = sum( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++` ),
+			sources = paste(sort(unique( source )), collapse = " and " )
+		)
 	)
 	echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
 
