@@ -22,7 +22,7 @@ parse_arguments <- function() {
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
-
+    parser$add_argument("--SI", type = "character", help = "Output SI (svg) filename", required = TRUE)
 	return(parser$parse_args())
 }
 
@@ -262,13 +262,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )
-		if( !is.null( args$outdir )) {
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.svg", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[2]], width = 6, height = 3)
-			ggsave(filename = sprintf( "%s/fig1bxhex%s.pdf", args$outdir, names(sp.doms)[j] ), fig1bhexa[[1]], width = 6, height = 7)
+		if(j==1) {
+			ggsave(filename =  args$SI, fig1bhexa[[1]], width = 6, height = 7 )
 		}
-		echo('Fig1: Plot Tanzania and Africa hexagons HbS completed\n')
+		echo('FigSI: SI plot Africa hexagons HbS and Pf points completed\n')
 	}
 }
 ################################################################################
@@ -490,7 +487,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	echo( "++ HSPF plot...\n" )
 	hspf_plot = (
 		plot_hspf(
-			readRDS(args$hspf_fit),
+			args$hspf_fit,
 			locus = "Pfsa1",
 			uncertainty = "lines"
 		)
@@ -506,7 +503,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 	)
 	if( !is.null( args$outdir )) {
-		ggsave( hspf_plot, filename = sprintf( "%s/hspf.pdf", args$outdir ), width = 4, height = 3 )
+		ggsave( hspf_plot, filename = sprintf( "%s/hspf%s.pdf", args$outdir,grid_name ), width = 4, height = 3 )
 	}
 	echo( "++ Ok\n" )
 }
@@ -538,8 +535,22 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, filename = args$output, width = 8, height = 9, device = cairo_pdf )
-	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 8, height = 9 )
+    #save using cairo if normal save fails
+   	tryCatch({
+		ggsave( z, filename =  args$output, width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
+    #save svg as well when possible
+	tryCatch({
+		ggsave( z, filename =  gsub( ".pdf", ".svg", args$output ), width = 8, height = 9)
+		}, error = function(e) {
+		message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
+		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		
+		})
 }
 
 echo("++ End Fig1: plot HbS\n")

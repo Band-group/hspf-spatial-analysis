@@ -198,7 +198,8 @@ fitit <- function(
     }
   )
 
-	report <- sdreport(tmb_obj)
+#	report <- sdreport(tmb_obj)
+	report <- sdreport( tmb_obj, getReportCovariance=FALSE )
 
 	estimates = (
 		tibble::rownames_to_column(
@@ -332,7 +333,7 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_mean 	= 0.0,
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
-			prior_sd_rate 			= 10000
+			prior_sd_rate 			= 1000
 		)
 	)[[ model ]]
 
@@ -354,6 +355,9 @@ fitbym_to_posterior_samples <- function(
 			y = countrydfi$y,
 			N = countrydfi$N,
 			x = countrydfi[[sample]]^2 + 2*countrydfi[[sample]]*(1-countrydfi[[sample]]),
+			# z = covariates matrix
+			# We use an empty one for now
+			z = matrix( nrow = nrow( countrydfi ), ncol = 0 ),
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			#Q = Q,
@@ -364,6 +368,7 @@ fitbym_to_posterior_samples <- function(
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd 		= 10.0,
+			prior_gamma_sd 		= 10.0,
 			prior_intercept_sd	= 100.0,
 			# Prior on sd of random effects:
 			prior_sd_rate 				= tmb_config$prior_sd_rate, #-log(0.01)/1,
@@ -374,13 +379,14 @@ fitbym_to_posterior_samples <- function(
 
 		n = length(data$y)
 		parameters <- list(
-			intercept	= 0.1, 
+			intercept		= 0.1, 
 			beta			= 0,
-			log_nu		= 0.0,
+			gamma			= rep( 0, ncol( data$z )),
+			log_nu			= 0.0,
 			u 				= rep(0, n),
 			v 				= rep(0, n), # v is constrained in the TMB model to have mean 0 on each connected component
-			log_tau		= 0.1,       # Specify tau in log space: keeps it +ve
-			logodds_phi = 0          # Specify phi on log odds scale
+			log_tau			= 0.1,       # Specify tau in log space: keeps it +ve
+			logodds_phi 	= 0          # Specify phi on log odds scale
 		)
 
 		print( args$tmb_model )
@@ -527,7 +533,7 @@ if( 0 ) {#is.null( args )) {
 	echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
 
 	pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= 1, ]
-
+	
 	if( !is.null( args$min_N ) & args$min_N > 0 ) {
 		echo( "++ Restricting to points with > %d observations...\n", args$min_N )
 		pf = pf[ pf[,sprintf( "%s_N", args$locus )] >= args$min_N, ]
@@ -626,7 +632,7 @@ result = fitbym_to_posterior_samples(
 
 echo(
 	"++ Success.  Fit %d models with %d parameter samples.\n",
-	nrow( result$fitted.parameters %>% filter( parameter == 'y.intercept' ) ),
+	nrow( result$fitted.parameters %>% filter( parameter == 'beta' ) ),
 	nrow( result$sampled.parameters )
 )
 

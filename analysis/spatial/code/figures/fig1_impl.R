@@ -252,7 +252,7 @@ fig1bplot <- function(
 
 	if(inset == TRUE) {
 		bufvalue <- 2.5
-		box.around.country <- sf::st_bbox(suppressMessages(sf::st_buffer(myboundary,bufvalue)))
+		box.around.country <- sf::st_bbox(suppressWarnings(suppressMessages(sf::st_buffer(myboundary,bufvalue))))
 		box.around.country <- sf::st_as_sfc(box.around.country)
 		box.around.country <- sf::st_set_crs(box.around.country, 4326) 
 		hexas <- sf::st_crop(discrete.grid,box.around.country)
@@ -467,7 +467,7 @@ plot_hspf = function(
         #illustrate 95CI for a location in Tanzania########################
 		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
 		#take 17th row, with HbAS_or_SS of 0.11695021
-		tzadf <- tzadf[tzadf$HbAS_or_SS>0.1169502 & tzadf$HbAS_or_SS<0.1169503,] 
+		tzadf <- tzadf[tzadf$HbAS_or_SS>0.115 & tzadf$HbAS_or_SS<0.118,] 
 		if(nrow(tzadf)>0) {
 		#print
 		echo(paste0('\nSingle point illustrated in fig1, Tanzania is lon/lat:(',tzadf$longitude,
@@ -626,7 +626,7 @@ plot_hspf = function(
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa1+</em> frequency" )
+			+ ylab( "<em>Pfsa1+ </em> frequency" )
 			+ xlab( "Frequency of HbAS/SS genotypes" )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
@@ -724,7 +724,8 @@ make.forestplot <- function(
 		+ labs(
 			title = "",
 			x = NULL,
-			y = bquote("Posterior estimates of the difference (slope) in predicted " * italic(Pfsa) * "+" * " frequency between " ~ f[HbAS/SS] == 20 * "%" ~ " and " ~ f[HbAS/SS] == 10 * "%")
+			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ 
+			frequency between values corresponding to sickle allele frequency at 20% and 10%"
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
@@ -736,7 +737,7 @@ make.forestplot <- function(
 			geom = "richtext",	# Allows background
 			fun = median,
 			aes( label = paste0("N = ", scales::comma(N)) ),
-			hjust = 0.5, vjust = -0.025,
+			hjust = 0.5, vjust = 0.001,
 			size = 2,
 		# alpha = 1,#transparency optional
 			family = aesthetic$font_family,

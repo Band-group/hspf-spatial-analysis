@@ -194,7 +194,7 @@ pfsf = load_pfsf( args$pf )
 		# See master.snakefile for how these are defined
 		area = c( "global", "africa", "waf", "DRC", "eaf" ),
 		Region = c(
-			"Global", "Africa", "West&nbsp;Africa", "DRC", "East&nbsp;Africa"
+			"Global", "Africa", "Western&nbsp;&nbsp;pop.", "DRC", "East&nbsp;&nbsp;pop."
 		),
 		order = c(
 			1, 1, 2, 2, 2
@@ -350,19 +350,19 @@ pfsf = load_pfsf( args$pf )
 	)
 	if( !is.null( args$output_pdf )) {
 		tryCatch({
-		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf )
+		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height)
 		}, error = function(e) {
-		message ('Cairo failed, using ggsave without cairo instead')
-		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height )
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf  )
 		
 		})
 	}
 	if( !is.null( args$output_svg )) {
 	tryCatch({
-		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf )
+		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height)
 		}, error = function(e) {
-		message ('Cairo failed, using ggsave without cairo instead')
-		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height )
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf  )
 		
 		})	
 	}

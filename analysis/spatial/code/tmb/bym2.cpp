@@ -53,9 +53,17 @@ namespace {
 template< typename Type >
 Type objective_function<Type>::operator() () {
 	// --- Data ---
+
+	// y,N = Pfsa+ allele and total allele counts
+	// model is:
+	// y|N,params ~ binomial( N, p )
+	// generalised logodds(p) = mu + beta * x + gamma * z + random effects
+	// where x is the main predictor(HbS frequency) and z are any covariates
+	// Random effects are an independent effect plus a spatial (BYM2 model) effect.
 	DATA_VECTOR(y);       // Observed successes (binary or counts)
 	DATA_VECTOR(N);       // Number of trials (for binomial)
-	DATA_VECTOR(x);       // Covariate
+	DATA_VECTOR(x);       // Main predictor
+	DATA_MATRIX(z);       // covariates.  Can have 0 columns for no covariates.
 
 	// -- Prior parameters ---
 	DATA_SCALAR( prior_intercept_sd );
@@ -64,6 +72,7 @@ Type objective_function<Type>::operator() () {
 	DATA_SCALAR( prior_logodds_phi_mean );
 	DATA_SCALAR( prior_logodds_phi_sd );
 	DATA_SCALAR( prior_log_nu_sd ) ;
+	DATA_SCALAR( prior_gamma_sd ) ;
 
 	DATA_STRING( model_choice ); // "norandom" or "bym2"
 	DATA_STRING( link_choice ); // "logit" or "generalised-logit" or "linear"
@@ -86,12 +95,16 @@ Type objective_function<Type>::operator() () {
 
 	// --- Parameters ---
 	PARAMETER(         intercept ) ; // Fixed intercept
-	PARAMETER(              beta ) ; // Covariate coefficient
+	PARAMETER(              beta ) ; // Main predictor coefficient
+	PARAMETER_VECTOR(      gamma ) ; // Covariate coefficients
 	PARAMETER_VECTOR(          u ) ; // Unstructured random effects
 	PARAMETER_VECTOR(          v ) ; // Structured spatial effects (CAR)
 	PARAMETER(           log_tau ) ; // Log-precision for random effects. Passed as log(tau) so that tau is enforced positive.
 	PARAMETER(       logodds_phi ) ; // Log-odds of mixture proportion of spatial vs independent components.
 	PARAMETER(            log_nu ) ; // nu parameter of generalised logit, encoded as log to keep positive
+
+	// Check covariate effects have the right size.
+	assert( gamma.size() == z.cols() ) ;
 
 	// Q matrix
 	// This should be derived from the adjacency matrix A as
@@ -115,9 +128,8 @@ Type objective_function<Type>::operator() () {
 		<< " - logodds(phi): " << logodds_phi << "\n"
 		<< " -          phi: " << phi << "\n"
 		<< " -         beta: " << beta << "\n"
+		<< " -        gamma: " << gamma << "\n"
 		<< " -    intercept: " << intercept << ".\n" ;
-	std::cerr
-		<< " -     Q[1,1:4]: " << Q.coeff(0,0) << " " << Q.coeff(0,1) << " " << Q.coeff(0,2) << " " << Q.coeff(0,3) << ".\n";
 #endif
 
 	// --- Transforms ---
@@ -139,6 +151,11 @@ Type objective_function<Type>::operator() () {
 	// Priors
 	nll -= log_dN( intercept,  0.0, prior_intercept_sd ) ;		 // Weak 0-centred prior on intercept
 	nll -= log_dN( beta,       0.0, prior_beta_sd      ) ;		 // Weak 0-centred prior on beta
+
+	// Prior on covariate effects
+	for( int i = 0; i < gamma.size(); ++i ) {
+		nll -= log_dN( gamma[i], 0.0, prior_gamma_sd   ) ; // Prior on gamma
+	}
 
 	// Prior on random effect sd
 	// Riebler et al (2016) says this is a "Type 2 Gumbel" distribution on tau,
@@ -167,6 +184,8 @@ Type objective_function<Type>::operator() () {
 
 	// Linear predictor and binomial likelihood
 	vector<Type> predictor = intercept + (beta * x) ;
+	// covariate effects
+	predictor += z * gamma ;
 	if( model_choice == "bym2" ) {
 		predictor += (
 			sd_of_random_effects * sqrt(1-phi)*u
