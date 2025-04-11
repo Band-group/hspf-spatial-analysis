@@ -198,13 +198,8 @@ fitit <- function(
     }
   )
 
-	report <- sdreport(tmb_obj,
-				getReportCovariance=FALSE##we only need sd, not covariance matrix (computationally expensive)
-                )
-	#print the report for debugging
-	# print('Sd report: ',head(as.data.frame(
-	# 			summary(report, "fixed")
-	# 		),10),)
+#	report <- sdreport(tmb_obj)
+	report <- sdreport( tmb_obj, getReportCovariance=FALSE )
 
 	estimates = (
 		tibble::rownames_to_column(
@@ -338,7 +333,7 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_mean 	= 0.0,
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
-			prior_sd_rate 			= 1000#original value Gavin: 10000
+			prior_sd_rate 			= 1000
 		)
 	)[[ model ]]
 
@@ -362,7 +357,7 @@ fitbym_to_posterior_samples <- function(
 			x = countrydfi[[sample]]^2 + 2*countrydfi[[sample]]*(1-countrydfi[[sample]]),
 			# z = covariates matrix
 			# We use an empty one for now
-			z = matrix( rnorm( nrow( countrydfi ) ), nrow = nrow( countrydfi ), ncol = 1 ),
+			z = matrix( nrow = nrow( countrydfi ), ncol = 0 ),
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			#Q = Q,
