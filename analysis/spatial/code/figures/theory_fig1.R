@@ -101,7 +101,8 @@ plotit = function() {
 	conditions = tibble::tribble(
 		~gamma_mS, ~linetype,         ~colour,           ~fill,
   		      0.1,         3,  rgb(0,0,0,0.8),  rgb(0,0,0,0.2),
-  		      0.5,         1,  rgb(0,0,0,0.8),  rgb(0,0,0,0.2)
+  		      0.5,         1,  rgb(0,0,0,0.8),  rgb(0,0,0,0.2),
+  			  0.9,         2,  rgb(0,0,0,0.8),  rgb(0,0,0,0.2)
 	)
 
 	for( i in 1:nrow( conditions )) {

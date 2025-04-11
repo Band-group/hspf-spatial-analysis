@@ -132,8 +132,8 @@ for( name in names(sims)) {
 
 pf.data = (
 	grid
-	%>% dplyr::inner_join( pf,	by = "polygon_id" )
-	%>% filter( `Pfsa1_N` >= 25 )
+	%>% dplyr::inner_join( pf, by = "polygon_id" )
+	%>% dplyr::filter( `Pfsa1_N` >= 25 )
 )
 
 pf.data$area = NA
