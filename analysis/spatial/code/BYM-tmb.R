@@ -198,7 +198,13 @@ fitit <- function(
     }
   )
 
-	report <- sdreport(tmb_obj)
+	report <- sdreport(tmb_obj,
+				getReportCovariance=FALSE##we only need sd, not covariance matrix (computationally expensive)
+                )
+	#print the report for debugging
+	# print('Sd report: ',head(as.data.frame(
+	# 			summary(report, "fixed")
+	# 		),10),)
 
 	estimates = (
 		tibble::rownames_to_column(
@@ -332,7 +338,7 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_mean 	= 0.0,
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
-			prior_sd_rate 			= 10000
+			prior_sd_rate 			= 1000#original value Gavin: 10000
 		)
 	)[[ model ]]
 

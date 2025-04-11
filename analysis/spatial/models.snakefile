@@ -176,10 +176,16 @@ rule aggregate_pf:
 			--output {output.tsv}
 	"""
 
+# We compile the C++ code to a directory named by the
+# current system's machine (arm64 or x86_64).
+# This avoids trying to use the wrong .so file if we copy the output directory.
+import platform
+machine = platform.machine()
+
 rule compile_TMB_code:
 	output:
-		cpp = "output/hspf/tmb/{regression_model}.cpp",
-		so = "output/hspf/tmb/{regression_model}.so"
+		cpp = "output/hspf/tmb/{platform}/{regression_model}.cpp".format( platform = machine, regression_model = '{regression_model}' ),
+		so = "output/hspf/tmb/{platform}/{regression_model}.so".format( platform = machine, regression_model = '{regression_model}' ),
 	input:
 		cpp = srcdir( "code/tmb/{regression_model}.cpp" )
 	params:
@@ -200,7 +206,7 @@ rule fit_hspf_in_areas:
 		hbs = rules.aggregate_HbS.output.tsv,
 		survey = "input/cleanHbSdata.csv",
 		world = "geodata/naturalearthdata.Rdata",
-		tmb_model = "output/hspf/tmb/bym2.so"
+		tmb_model = rules.compile_TMB_code.output.so
 	params:
 		#script = srcdir( "code/BYM-inla.R" ),
 		script = srcdir( "code/BYM-tmb.R" ),
@@ -321,6 +327,7 @@ rule summarise_hspf:
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	run:
+		print('DA.')
 		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['covariates'] == wildcards.covariates) ]:
 			print(x)

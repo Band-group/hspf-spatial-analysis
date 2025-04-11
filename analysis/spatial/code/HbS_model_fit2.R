@@ -135,7 +135,8 @@ echo( "++ Computing prediction area..." )
 		coords = c( "longitude", "latitude" ),
 		crs = st_crs(world_sf)
 	)
-	prediction_locations = sf::st_filter( pred_locs$sf, extents )
+	prediction_locations = suppressWarnings(suppressMessages(sf::st_filter( 
+		pred_locs$sf, extents )))
 	echo( "++ Ok, there are %d prediction locations.", nrow( prediction_locations ))
 }
 
@@ -151,11 +152,11 @@ pt$longitude = sf::st_coordinates(pt)[,1]
 pt$latitude = sf::st_coordinates(pt)[,2]
 {
 	#world <- as(world_sf,"Spatial")
-	mycheck = check.excluded( pt, extents )
+	mycheck = suppressWarnings(suppressMessages(check.excluded( pt, extents )))
 	message( sprintf( "fit_HbS_models.R: number of observations excluded: %d", nrow(mycheck$excluded)))
 	stopifnot( nrow( mycheck$excluded ) == 0 )
 }
-xyt <- sf::st_filter( pt, extents )
+xyt <- suppressWarnings(suppressMessages(sf::st_filter( pt, extents )))
 
 ########################################################
 # Model fitting
@@ -169,7 +170,8 @@ verbose = TRUE
 	xytsf <- sf::st_as_sf(xyt);
 	selected_world <- world_sf[!(world_sf$NAME %in% c('United States of America', 'Canada','Australia')),]
 	# Select polygons that intersect with any points
-	selected_areas <- st_intersects(selected_world, xytsf, sparse = FALSE)
+	selected_areas <- suppressWarnings(suppressMessages(st_intersects(
+		selected_world, xytsf, sparse = FALSE)))
 	# Select polygons that intersect with any points
 	selected_area <- selected_world[apply(selected_areas, 1, any), ]
 

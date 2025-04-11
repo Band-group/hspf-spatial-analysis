@@ -5,6 +5,15 @@
 .snakemake
 analysis/spatial/geodata
 analysis/spatial/output
+analysis/spatial/grids
+analysis/spatial/HbS
+analysis/spatial/figures
+analysis/spatial/HbS_vs_piel
+analysis/spatial/hspf
+analysis/spatial/images
+analysis/spatial/pf
+analysis/spatial/piel
+analysis/spatial/summary
 analysis/spatial/outputgavin
 analysis/spatial/codeold
 analysis/haplotypes/outputs
@@ -18,5 +27,6 @@ logs
 *.o
 *.so
 *.dll
+*.DS_Store
 tmp
 .DS_Store

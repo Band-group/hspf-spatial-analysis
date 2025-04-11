@@ -1,6 +1,7 @@
 rule create_figure1:
 	output:
-		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figure1.pdf"
+		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figure1.pdf",
+		SI = "output/SI/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/figSI.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-division={divide}-area=global.rds",
 		pf = "input/hbs-pf-v3.sqlite",
@@ -24,7 +25,8 @@ rule create_figure1:
 		--hspf_fit {input.hspf_fit} \
 		--pf_prevalence_map {input.pf_prevalence_map} \
 		--outdir {params.outdir} \
-		--output {output.pdf}
+		--output {output.pdf} \
+		--SI {output.SI}
 """
 
 rule create_figure2:
