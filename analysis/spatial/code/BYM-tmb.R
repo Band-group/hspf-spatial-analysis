@@ -70,6 +70,12 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
+		"--covariates",
+		type = "character",
+		help = "path to tsv file(s) of covariate values to include",
+		required = TRUE
+	)
+	parser$add_argument(
 		"--HbS_survey",
 		type = "character",
 		help = "path to cleaned HbS survey points, for filtering.",
