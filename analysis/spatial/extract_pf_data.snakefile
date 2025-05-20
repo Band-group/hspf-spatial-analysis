@@ -2,11 +2,11 @@ data_path = "../../data"
 
 rule all:
 	input:
-		db = "input/hbs-pf-v2.sqlite"
+		db = "input/hbs-pf-v4.sqlite"
 
 rule initialise_db:
 	output:
-		db = temp( "input/tmp/hbs-pf-v2.sqlite" )
+		db = temp( "input/tmp/hbs-pf-v4.sqlite" )
 	input:
 		schema = "input/pf-schema.sql"
 	shell: """
@@ -36,7 +36,7 @@ rule extract_dataset:
 
 rule finalise:
 	output:
-		db = "input/hbs-pf-v2.sqlite"
+		db = "input/hbs-pf-v4.sqlite"
 	input:
 		db = rules.initialise_db.output.db,
 		flags = expand(

@@ -20,6 +20,7 @@ analysis/spatial/codeold
 analysis/haplotypes/outputs
 analysis/haplotypes/logs
 analysis/spatial/.Rproj.user
+analysis/spatial/simulated
 analysis/spatial/code/africa
 analysis/spatial/code/HbS
 analysis/spatial/code/archive
@@ -29,3 +30,4 @@ logs
 *.dll
 *.DS_Store
 tmp
+.DS_Store
