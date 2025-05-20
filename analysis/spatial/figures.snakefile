@@ -89,7 +89,7 @@ rule create_summary_list:
 		HbS_survey = "input/HbS_survey.csv",
 		extended = "input/HbSgooglesheet.csv",
 		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size={size}-area=global.tsv",
-		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
+		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1-cov=none-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	params:
 		output = "summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
