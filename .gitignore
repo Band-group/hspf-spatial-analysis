@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 .snakemake
+analysis/spatial/archives
 analysis/spatial/geodata
 analysis/spatial/output
 analysis/spatial/grids
