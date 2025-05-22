@@ -2217,7 +2217,9 @@ country.colours <- function() {
     "PNG" = "rosybrown4",          # Soft grayish brown
     'South Africa' = "#74C365",
     'eSwatini' = "green",
-    "other" = "#AAAAAA"
+    "other" = "#AAAAAA",
+    "Colombia" = "#A5A5A5",
+    "Peru" = "#353535"
   )
     )
 }
