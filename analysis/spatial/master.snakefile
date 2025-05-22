@@ -72,5 +72,6 @@ rule all:
 			**config['params']
 		)
 
+include: "hbs.snakefile"
 include: "models.snakefile"
 include: "figures.snakefile"

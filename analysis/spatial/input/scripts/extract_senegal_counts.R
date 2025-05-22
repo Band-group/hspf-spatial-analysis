@@ -2,6 +2,10 @@ library( dplyr )
 
 library( argparse )
 
+echo = function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
 parse_arguments <- function() {
 	parser = ArgumentParser(
 		description = 'Extract Pfsa counts'
@@ -72,6 +76,7 @@ result = (
 	%>% inner_join( sites %>% select( site = Site, longitude, latitude ), by = "site" )
 )
 int = as.integer
+echo( "++ Computing by_sample..." )
 by_sample = dplyr::bind_cols(
 	result,
 	t(genotypes)
@@ -80,6 +85,7 @@ by_sample = dplyr::bind_cols(
 	study = "https://doi.org/10.1038/s41467-023-43087-4",
 	datatype = 'WGS',
 	country = "Senegal",
+	year,
 	N = 1,
 	`Pfsa1:ref` = int(`Pf3D7_02_v3:631190:T>A` == 0),
 	`Pfsa1:nonref` = int(`Pf3D7_02_v3:631190:T>A` == 2),
@@ -95,6 +101,7 @@ by_sample = dplyr::bind_cols(
 	study,
 	datatype,
 	country,
+	year,
 	site,
 	latitude,
 	longitude,
@@ -111,12 +118,13 @@ by_sample = dplyr::bind_cols(
 	exclude
 )
 
+echo( "++ Computing by_site..." )
 by_site = (
 	by_sample
 	%>% filter( !is.na( latitude ))
 	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, datatype, country, site, latitude, longitude
+		source, study, datatype, country, year, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
@@ -130,9 +138,16 @@ by_site = (
 options(width=200)
 print( by_site )
 
+echo( "++ Outputting...\n" )
 db = DBI::dbConnect( RSQLite::SQLite(), args$output )
-DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'schaffner_et_al_2023' ")
+tables = DBI::dbGetQuery( db, "SELECT * FROM sqlite_master WHERE type == 'table'" )
+print( tables )
+if( "by_site" %in% tables$name ) {
+	DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'schaffner_et_al_2023' ")
+}
 DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
-DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'schaffner_et_al_2023' ")
+if( "by_sample" %in% tables$name ) {
+	DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'schaffner_et_al_2023' ")
+}
 DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = FALSE, append = TRUE )
 DBI::dbDisconnect( db )

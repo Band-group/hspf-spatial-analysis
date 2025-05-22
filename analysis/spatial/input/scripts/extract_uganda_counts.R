@@ -97,7 +97,7 @@ by_sample = (
 		exclude = "no"
 	)
 	%>% select(
-		source, study, datatype, country, site, latitude, longitude,
+		source, study, datatype, country, year, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -114,7 +114,7 @@ by_site = (
 	%>% filter( !is.na( latitude ))
 	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, datatype, country, site, latitude, longitude
+		source, study, datatype, country, year, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),

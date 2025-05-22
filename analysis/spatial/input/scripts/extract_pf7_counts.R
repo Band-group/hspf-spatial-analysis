@@ -118,6 +118,7 @@ samples = (
 		study = Study,
 		datatype = "WGS",
 		country = Country,
+		year = Year,
 		site = `Admin level 1`,
 		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
 		`Pfsa1:nonref` = `chr2:631190:T>A`,
@@ -138,7 +139,7 @@ by_sample = (
 		N = 1,
 	)
 	%>% select(
-		source, study, datatype, country, site, latitude, longitude,
+		source, study, datatype, country, year, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -153,7 +154,7 @@ by_site = (
 	%>% filter( !is.na( latitude ))
 	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, datatype, country, site, latitude, longitude
+		source, study, datatype, country, year, site, latitude, longitude
 	)
 	%>% summarise(
 		N = sum(N),

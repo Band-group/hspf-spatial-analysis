@@ -18,7 +18,7 @@ parse_arguments <- function() {
 		"--output",
 		type = "character",
 		help = "path to output directory",
-		default = "input/hbs-pf-v2.sqlite",
+		default = "input/hbs-pf-v4.sqlite",
 		required = TRUE
 	)
 	
@@ -103,6 +103,7 @@ samples = (
 			'Uganda' = 'Uganda',
 			'Zambia' = 'Zambia'
 		)[Country],
+		year = Year,
 		site = NA,
 		N = 1,
 		# We have figured out the alleles are encoded the other way round.
@@ -125,7 +126,7 @@ samples = (
 by_sample = (
 	samples
 	%>% select(
-		source, study, datatype, country, site, latitude, longitude,
+		source, study, datatype, country, year, site, latitude, longitude,
 		ID, N,
 		`Pfsa1:ref`, `Pfsa1:nonref`,
 		`Pfsa2:ref`, `Pfsa2:nonref`,
@@ -140,7 +141,7 @@ by_site = (
 	%>% filter( !is.na( latitude ))
 	%>% filter( exclude == 'no' )
 	%>% group_by(
-		source, study, datatype, country, site, latitude, longitude
+		source, study, datatype, country, year, site, latitude, longitude
 	) %>% summarise(
 		N = n(),
 		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),

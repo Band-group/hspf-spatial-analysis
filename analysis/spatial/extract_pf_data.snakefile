@@ -1,5 +1,3 @@
-data_path = "../../data"
-
 rule all:
 	input:
 		db = "input/hbs-pf-v4.sqlite"
@@ -42,8 +40,8 @@ rule finalise:
 		flags = expand(
 			rules.extract_dataset.output.flag,
 			dataset = [
-				"pf7"
-				, "TZ", "DRC",
+				"pf7",
+				"TZ", "DRC",
 				"senegal", "uganda"
 			]
 		)

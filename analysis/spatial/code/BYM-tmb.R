@@ -357,11 +357,18 @@ fitbym_to_posterior_samples <- function(
 	dyn.load( args$tmb_model )
 
 	if( is.null( covariates )) {
-		covariates = tibble::tibble(
-			polygon_id = countrydfi$polygon_id
+		covariates = matrix(
+			nrow = nrow( countrydfi ),
+			ncol = 0
 		)
 	} else {
-		covariates = covariates[, match( countrydfi$polygon_id, covariates$polygon_id )]
+		stopifnot( colnames( covariates )[1] == "polygon_id" )
+		covariates = as.matrix(
+			covariates[
+				match( countrydfi$polygon_id, covariates$polygon_id ),
+				2:ncol(covariates)
+			]
+		)
 	}
 
 	# Run regression for each posterior sample of HbS...
@@ -371,13 +378,7 @@ fitbym_to_posterior_samples <- function(
 			N = countrydfi$N,
 			x = countrydfi[[sample]]^2 + 2*countrydfi[[sample]]*(1-countrydfi[[sample]]),
 			# z = covariates matrix
-			# We use an empty one for now
-			z = ifelseas.matrix(
-				covariates[
-					match( countrydfi$polygon_id, covariates$polygon_id ),
-					-which( colnames( covariats )== 'polygon_id' )
-				]
-			),
+			z = covariates,
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			#Q = Q,
@@ -633,13 +634,15 @@ if( !is.null( args$covariates )) {
 		echo( "!! Expected the file \"%s\" (passed to --covariates)\n", args$covariates )
 		echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
 		stop( "!! Covariates file error." )
+	} else {
+		echo( "++ Loaded covariates with %d rows from \"%s\".\n", nrow( covariates ), args$covariates )
 	}
 }
 
 result = fitbym_to_posterior_samples(
 	grid %>% filter( in_range == 1 ),
 	hbs, pf,
-	covariates
+	covariates,
 	y_name = sprintf( "%s_+", args$locus ),
 	n_name = sprintf( "%s_N", args$locus ),
 	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
