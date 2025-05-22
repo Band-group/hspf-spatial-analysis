@@ -16,10 +16,10 @@ parse_arguments <- function() {
 		default = "input/hbs-pf-v2.sqlite"
 	)
 	parser$add_argument(
-		"--world",
+		"--crs",
 		type = "character",
-		help = "path to world file",
-		default = "geodata/naturalearthdata.Rdata"
+		help = "CRS string to use",
+		default = "+proj=longlat +datum=WGS84 +no_defs"
 	)
 	parser$add_argument(
 		"--polygons",
@@ -44,7 +44,6 @@ source( 'code/functions.R' )
 #install.prerequisites()
 
 polygons = readRDS( args$polygons )
-world_sf = load.entry.from.Rdata( args$world, "world_sf" )
 
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
@@ -110,7 +109,7 @@ echo( "++ Mapping %d points to %d polygons...\n", nrow( aggregation_data ), nrow
 aggregation_data = sf::st_as_sf(
 	aggregation_data,
 	coords = c( "longitude", "latitude" ),
-	crs = sf::st_crs( world_sf )
+	crs = sf::st_crs( args$crs )
 )
 
 joined <- sf::st_join(

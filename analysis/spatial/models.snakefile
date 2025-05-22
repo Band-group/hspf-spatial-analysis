@@ -4,10 +4,9 @@ rule aggregate_pf:
 	input:
 		#pf = "input/hbs-pf-v2.sqlite",
 		pf = "input/hbs-pf-v3.sqlite",
-		polygons = rules.create_grid.output.rds,
-		world = "geodata/naturalearthdata.Rdata"
+		polygons = rules.create_grid.output.rds
 	params:
-		script = srcdir( "code/aggregate_pf_over_polygons.R" )
+		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" )
 	shell: """
 		Rscript --vanilla {params.script} \
 			--pf {input.pf} \
@@ -76,7 +75,7 @@ rule fit_hspf_in_areas:
 
 	params:
 		#script = srcdir( "code/BYM-inla.R" ),
-		script = srcdir( "code/BYM-tmb.R" ),
+		script = srcdir( "code/BYM-tmb-longform.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
 		hspf_covariates = lambda w, input: (
 			"" if w.hspf_covariates == "none" else "--covariates %s" % input.covariates
@@ -88,10 +87,6 @@ rule fit_hspf_in_areas:
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
 		--tmb_model {input.tmb_model} \
-		--size {wildcards.size} \
-		--type {wildcards.type} \
-		--r0 {wildcards.r0} \
-		--sigma0 {wildcards.sigma0} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
 		{params.hspf_covariates} \
@@ -114,7 +109,7 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		survey = "input/cleanHbSdata.csv",
 		world = "geodata/naturalearthdata.Rdata"
 	params:
-		script = srcdir( "code/BYM-tmb.R" ),
+		script = srcdir( "code/BYM-tmb-longform.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
 		source = lambda w: (
 			{
@@ -129,10 +124,6 @@ rule fit_hspf_in_areas_with_restricted_sources:
 		--world {input.world} \
 		--grid {input.grid} \
 		--model {wildcards.regression_model} \
-		--size {wildcards.size} \
-		--type {wildcards.type} \
-		--r0 {wildcards.r0} \
-		--sigma0 {wildcards.sigma0} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
 		--locus {wildcards.locus} \
@@ -150,7 +141,6 @@ rule plot_hspf:
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds,
 		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
 		hbs = rules.aggregate_HbS.output.tsv,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
@@ -160,7 +150,6 @@ rule plot_hspf:
 		Rscript --vanilla {params.script} \
 		--grid {input.grid} \
 		--HbS_aggregated {input.hbs} \
-		--pf_aggregated {input.pf} \
 		--fit {input.fit} \
 		--output {output.pdf}
 	"""
@@ -171,7 +160,6 @@ rule plot_hspf_areas:
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds.replace( "{min_N}", "0" ),
 		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
 		hbs = rules.aggregate_HbS.output.tsv,
 		world = "geodata/naturalearthdata.Rdata"
 	params:

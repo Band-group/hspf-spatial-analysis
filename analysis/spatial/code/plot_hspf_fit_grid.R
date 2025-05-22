@@ -53,17 +53,6 @@ options( width = 300 )
 args = parse_arguments()
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-#pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
-#HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
-
-#echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
-#echo( "   (and grouping by polygon_id)...\n" )
-#pf = readr::read_tsv( pf_aggregated )
-#echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
-
-#echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
-#hbs = readr::read_tsv( HbS_aggregated )
-#echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
 
 echo( "++ Loading polygon grid from %s...\n", args$grid )
 grid = readRDS( args$grid )

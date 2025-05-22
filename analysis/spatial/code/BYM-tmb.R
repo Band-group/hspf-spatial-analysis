@@ -89,7 +89,7 @@ parse_arguments <- function() {
 	)
 	parser$add_argument(
 		"--posterior_samples_per_hbs_sample",
-		type = "character",
+		type = "integer",
 		help = "Number of hs-pf posterior samples to draw, per hbs sample in input file",
 		default = 100
 	)
@@ -356,6 +356,8 @@ fitbym_to_posterior_samples <- function(
 	# compile( sprintf( "%s.cpp", modelfile ) )
 	dyn.load( args$tmb_model )
 
+	print( "COVARIATES" )
+	print( covariates )
 	if( is.null( covariates )) {
 		covariates = matrix(
 			nrow = nrow( countrydfi ),
@@ -433,6 +435,7 @@ fitbym_to_posterior_samples <- function(
 
 		############################################################################
 		#create approx. 95 CI and mode
+		echo( "++ Getting fitted params...\n" )
 		fitted.parameters = bind_rows(
 			fitted.parameters,
 			bind_cols(
@@ -441,6 +444,7 @@ fitbym_to_posterior_samples <- function(
 				fit$estimates
 			)
 		)
+		echo( "++ Getting summary...\n" )
 		summary = bind_rows(
 			summary,
 			tibble(
@@ -455,11 +459,14 @@ fitbym_to_posterior_samples <- function(
 
 		# Approximate posterior as a multivariate gaussian with the
 		# mean and covariance as given in the fit object.
+		echo( "++ Getting %d posterior params...\n", number_of_posterior_samples )
+		print( fit$report )
 		posterior.parameters = mvtnorm::rmvnorm(
-			n = args$posterior_samples_per_hbs_sample,
+			n = number_of_posterior_samples,
 			mean = fit$report$par.fixed,
 			sigma = fit$report$cov.fixed
 		)
+		echo( "++ Getting sampled params...\n" )
 		sampled.parameters = bind_rows(
 			sampled.parameters,
 			bind_cols(
@@ -569,7 +576,7 @@ if( 0 ) {#is.null( args )) {
 	echo( "++ Loading polygon grid from %s...\n", args$grid )
 	grid = readRDS( args$grid )
 	echo( "++ ...ok, %d grid polygons loaded.\n", nrow( grid ))
-	print( grid )
+#	print( grid )
 
 	# FIX ME: this restricts to areas intersecting the specified.
 	# Polygons may overlap surrounding countries: you may want to consider using the

@@ -16,12 +16,6 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
-		"--pf_aggregated",
-		type = "character",
-		help = "path to Pf data, aggregated by grid",
-		required = TRUE
-	)
-	parser$add_argument(
 		"--HbS_aggregated",
 		type = "character",
 		help = "path to per-polygon aggregated HbS data",
@@ -46,20 +40,13 @@ args = parse_arguments()
 if( is.null( args )) {
 	args = list()
 	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=africa.rds"
-	args$pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
 	args$fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=africa-min_N=0.rds"
 }
 source('code/functions.R')
 
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
 HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
-
-echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
-echo( "   (and grouping by polygon_id)...\n" )
-pf = readr::read_tsv( pf_aggregated )
-echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
 
 echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
 hbs = readr::read_tsv( HbS_aggregated )
@@ -70,7 +57,6 @@ fit = readRDS( args$fit )
 echo( "++ ...ok, model is '%s', with %d posterior samples.\n", fit$model, nrow( fit$sampled.parameters ))
 
 echo( "++ Restricting to model fit points...\n")
-pf = pf[ pf$polygon_id %in% fit$data$polygon_id, ]
 hbs = hbs[ hbs$polygon_id %in% fit$data$polygon_id, ]
 hbsm = as.matrix( hbs[,grep("posterior_sample", colnames(hbs))])
 hbs_mean = rowMeans(hbsm)
