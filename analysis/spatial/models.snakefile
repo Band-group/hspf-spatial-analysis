@@ -189,7 +189,7 @@ rule summarise_hspf:
 	run:
 		print('DA.')
 		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
-		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['hbs_covariates'] == wildcards.covariates) ]:
+		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['hbs_covariates'] == wildcards.hbs_covariates) ]:
 			print(x)
 			area = x['area']
 			shell(
