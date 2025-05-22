@@ -18,7 +18,7 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
 	parser$add_argument("--HbS_predictions", type = "character", help = "Path to per-polygon HbS predictions", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid].tsv" )
 	parser$add_argument("--HbS_fit", type = "character", help = "path to HbS model fit file", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/[grid]_modelfit.rds" )
-	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
+	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
@@ -42,13 +42,13 @@ args = NULL
 args <- parse_arguments()
 if( is.null( args )) {
 	args = list()
-	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
+	args$grid = "output/grids/grid-type=hexagon-size=1-area=global.rds"
 	args$pf = "input/hbs-pf-v3.sqlite"
 	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
 	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
-	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
+	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
 }
@@ -187,11 +187,12 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		aesthetic = aesthetic$map
 	#	viridisoption = list( scale = "cividis", direction = 1 )
 	)
-	echo('Fig1: HbS map in Africa at pixel-level generated\n')
+	echo('++ Fig1: HbS map in Africa at pixel-level generated\n')
 }
 
 # Plot worldwide locations of HbS and Pf data
 {
+	echo( "++ Fig1: World map started...\n" )
 	source( "code/figures/fig1_impl.R" )
 	bbox = list(
 		centre = list( x = 25.830923, y = 4.384554),
@@ -212,12 +213,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	)
 	width = 11
 	height = width * ( bbox$bbox['ymax'] - bbox$bbox['ymin']) / ( bbox$bbox['xmax'] - bbox$bbox['xmin'])
+	echo( "++ Fig1: World map completed.\n" )
 }
 
 ################################################################################
 # Create HbS hexagon maps
 # For Africa and Tanzania
 {
+	echo( "++ Fig1: Hexagon map started...\n" )
 	source( "code/figures/fig1_impl.R" )
 	# Compute HbS mean from posterior samples
 	# Note: we are using row means (not medians) as described in the text.
@@ -236,8 +239,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	names(sp.doms) <- c('africa','tza')
 	pfcoltypes <- c('country','pftype')
 	insets <- c(FALSE,TRUE) #make map as inset for Tanzania only
-	for (j in 1:length(sp.doms))
-		{
+	for (j in 1:length(sp.doms)) {
 		sp.domi <- world_sf[world_sf$name %in% sp.doms[[j]], ]
 		sf::sf_use_s2(FALSE)
 		fig1bhexa <- fig1bplot(
@@ -267,12 +269,14 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		}
 		echo('FigSI: SI plot Africa hexagons HbS and Pf points completed\n')
 	}
+	echo( "++ Fig1: Hexagon map completed.\n" )
 }
 ################################################################################
 # Create summary dumbbell plot map aggregating Pf values by location
 
 # Aggregate Pf values at latitude/longitude
 {
+	echo( "++ Fig1: Aggregate plot started...\n" )
 	pfagg <- suppressMessages((
 		pfsf
 		%>% dplyr::mutate(longitude = st_coordinates(.)[,1], latitude = st_coordinates(.)[,2])
@@ -299,6 +303,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			`Pfsa1_+` = sum(`Pfsa1_+`),
 			samples   = sum(`Pfsa1_N`),
 			HbS		  = weighted_average( HbS, `Pfsa1_N` )
+#			HbS		  = weighted_average( HbS, `N` )
 		)
 	))
 
@@ -332,7 +337,8 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		%>% mutate(share = result)
 		%>% arrange(country, -share)
 	)
-
+	echo( "++ FIGURE DATA:\n" )
+	print( head( figure_data ))
 	theme_set( theme_minimal(base_family = "sans", base_size = 22) )
 	theme_update(
 		axis.title = element_blank(),
@@ -471,24 +477,26 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			# Adjust x-axis limits to allow space for both columns
 			+ coord_cartesian( xlim = c(xvs$legend - 0.1, 0.2), clip = "off")
 			+ scale_x_continuous(guide = "none")
-			+ scale_color_manual( values = aesthetic$table$pal_dark)
+			+ scale_color_manual( values = aesthetic$table$pal_dark )
 			+ theme(
 				axis.text.y = element_blank(),
 			 	plot.margin = margin(t = 10, r = 5)#, b = 10, l = 0)
 			)
 		)
 
-		#ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
-		#ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		if( !is.null( args$outdir )) {
+			ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+			ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+		}
 	}
+	echo( "++ Fig1: Aggregate plot completed.\n" )
 }
 
 {
-	echo( "++ HSPF plot...\n" )
+	echo( "++ HSPF plot started...\n" )
 	hspf_plot = (
 		plot_hspf(
 			args$hspf_fit,
-			locus = "Pfsa1",
 			uncertainty = "lines"
 		)
 		+ scale_size_area( max_size = 16, guide = "none" )
@@ -505,7 +513,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	if( !is.null( args$outdir )) {
 		ggsave( hspf_plot, filename = sprintf( "%s/hspf%s.pdf", args$outdir,grid_name ), width = 4, height = 3 )
 	}
-	echo( "++ Ok\n" )
+	echo( "++ HSPF plot completed\n" )
 }
 
 {
@@ -527,7 +535,7 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 	border = theme(plot.background = element_blank())
 	z = grid.arrange(
 		ggplotGrob( world.hbs.pf.map[[1]] + border ) ,
-		ggplotGrob(hbs.map.africa[[1]] + border ),
+		ggplotGrob( hbs.map.africa[[1]] + border ),
 		ggplotGrob( fig1bhexa[[1]] + border + theme( plot.margin = margin(b = 5, l = 5, t = 5, r = 5) )),
 		ggplotGrob( summary_plot  + border), #+ theme( plot.margin = margin(b = 0, l = 1, t = 10, r = 15) )),
 		ggplotGrob( hspf_plot ),
@@ -535,22 +543,25 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		widths = c(0.1, 1, 0.02, 1, 0.02, 1.2, 0.1 ),
 		heights = c( 0.1, 1.2, 0.05, 1, 0.05, 1, 0.1 )
 	)
-    #save using cairo if normal save fails
-   	tryCatch({
-		ggsave( z, filename =  args$output, width = 8, height = 9)
+	#save using cairo if normal save fails
+	tryCatch(
+		{
+			ggsave( z, filename =  args$output, width = 8, height = 9)
+		},
+		error = function(e) {
+			message ('ggsave standard failed, using ggsave with cairo instead')
+			ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		}
+	)
+	#save svg as well when possible
+	tryCatch(
+		{
+			ggsave( z, filename =  gsub( ".pdf", ".svg", args$output ), width = 8, height = 9)
 		}, error = function(e) {
-		message ('ggsave standard failed, using ggsave with cairo instead')
-		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
-		
-		})
-    #save svg as well when possible
-	tryCatch({
-		ggsave( z, filename =  gsub( ".pdf", ".svg", args$output ), width = 8, height = 9)
-		}, error = function(e) {
-		message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
-		   	ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
-		
-		})
+			message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
+			ggsave( z, filename =  args$output, width = 8, height = 9, device = cairo_pdf  )
+		}
+	)
 }
 
 echo("++ End Fig1: plot HbS\n")

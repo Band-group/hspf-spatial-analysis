@@ -382,7 +382,6 @@ fig1bplot <- function(
 
 plot_hspf = function(
 	hspfrdspath,
-	locus = "Pfsa1",
 	uncertainty = "lines",
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
@@ -456,15 +455,15 @@ plot_hspf = function(
 				y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
 			)
 		}
-		ycol = sprintf( "%s_+", locus )
-		ncol = sprintf( "%s_N", locus )
+		ycol = "Pfsa+"
+		ncol = "N"
 
 		hspf$data$type = factor( "WGS", levels = c( "WGS", "MIP" ))
 		hspf$data$type[ hspf$data$sources %in% c( 'Verity et al 2021', 'Moser et al 2021' )] = "MIP"
 		# Plot WGS on top, if you need to
 		hspf$data = hspf$data %>% arrange( desc( type ))
 		
-        #illustrate 95CI for a location in Tanzania########################
+		#illustrate 95CI for a location in Tanzania########################
 		tzadf <- hspf$data[hspf$data$country=='United Republic of Tanzania',]
 		#take 17th row, with HbAS_or_SS of 0.11695021
 		tzadf <- tzadf[tzadf$HbAS_or_SS>0.115 & tzadf$HbAS_or_SS<0.118,] 
@@ -523,7 +522,8 @@ plot_hspf = function(
 			)
 			+ geom_point(
 				aes(
-					size = `Pfsa1_N`,
+#					size = `Pfsa1_N`,
+					size = `N`,
 					colour = type,
 					fill = country
 				),
@@ -592,7 +592,7 @@ plot_hspf = function(
 				col = rgb( 1, 1, 1, 0.97)
 			)
 		)
-		if(nrow(tzadf)>0) {	
+		if( nrow(tzadf) > 0 ) {	
 			hspf_plot = (
 			hspf_plot
 			+ geom_errorbarh(
@@ -645,7 +645,7 @@ substitute <- function( string, replacements ) {
 	result = string
 	for( thing in names( replacements )) {
 		result = stringr::str_replace_all(
-			result,
+			result[],
 			stringr::fixed(sprintf( '{%s}', thing )),
 			replacements[[thing]]
 		)
@@ -671,10 +671,8 @@ load.forestplot.data <- function(
 				sampled.parameters = (
 					X$sampled.parameters
 					%>% mutate(
-						Pfsa1_N = sum( X$data$Pfsa1_N ),
-						Pfsa2_N = sum( X$data$Pfsa2_N ),
-						Pfsa3_N = sum( X$data$Pfsa3_N ),
-						Pfsa4_N = sum( X$data$Pfsa4_N ),
+						N = sum( X$data$N ),
+						`Pfsa+` = sum( X$data$`Pfsa+` ),
 						number_of_hexagons = nrow(X$data)
 					)
 				)

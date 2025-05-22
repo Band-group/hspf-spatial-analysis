@@ -107,13 +107,14 @@ new_labels <- c(
 	"Pfsa3" = "Pfsa3+",
 	"Pfsa4" = "Pfsa4+"
 )
-res <- res %>%
-	mutate(N = case_when(
-		locus == "Pfsa1" ~ Pfsa1_N, 
-		locus == "Pfsa2" ~ Pfsa2_N,	
-		locus == "Pfsa3" ~ Pfsa3_N,	
-		locus == "Pfsa4" ~ Pfsa4_N	
-	))
+print( head( res ))
+#res <- res %>%
+#	mutate(N = case_when(
+#		locus == "Pfsa1" ~ Pfsa1_N, 
+#		locus == "Pfsa2" ~ Pfsa2_N,	
+#		locus == "Pfsa3" ~ Pfsa3_N,	
+#		locus == "Pfsa4" ~ Pfsa4_N	
+#	))
 #to remove strange boxes around text in pdf output
 # library(grid)
 # grid.newpage();grid.draw(roundrectGrob(gp = gpar(lwd = NA)))

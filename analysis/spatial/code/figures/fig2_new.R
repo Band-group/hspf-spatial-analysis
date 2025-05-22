@@ -149,14 +149,13 @@ pfsf = load_pfsf( args$pf )
 	for( locus in loci ) {
 		for( area in areas ) {
 			filename = stringr::str_replace(
-				stringr::str_replace( args$hspf_fit, stringr::fixed('{locus}'), locus ),
+				stringr::str_replace_all( args$hspf_fit, stringr::fixed('{locus}'), locus ),
 				stringr::fixed( '{area}' ), area
 			)
 			print( filename )
 			hspf_plots[[sprintf( "%s-area=%s", locus, area )]] = (
 				plot_hspf(
 					filename,
-					locus = locus,
 					uncertainty = "simple",
 					xlim = c( 0.025, 0.275 ),
 					ylim = c( 0, 1 ),
@@ -208,14 +207,16 @@ pfsf = load_pfsf( args$pf )
 	)
 
 	# Load data and compute the slope
-	filename_template = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
+	filename_template = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
+	print( "UHOH" )
+	print( filename_template )
 	fp_data = (
 		load.forestplot.data( area_mapping$area, template = filename_template )
 		%>% mutate(
 			slope =	gl( 0.2, pick( intercept, beta, log_nu)) - gl( 0.1, pick( intercept, beta, log_nu ))
 		)
 	)
-
+	print( fp_data )
 	fp_data <- (
 		fp_data
 		%>% left_join( area_mapping, by = c("area") )
@@ -228,14 +229,14 @@ pfsf = load_pfsf( args$pf )
 				TRUE ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
 			)
 		)
-		%>% mutate(
-			N = case_when(
-				locus == "Pfsa1" ~ Pfsa1_N, 
-				locus == "Pfsa2" ~ Pfsa2_N,	
-				locus == "Pfsa3" ~ Pfsa3_N,	
-				locus == "Pfsa4" ~ Pfsa4_N	
-			)
-		)
+#		%>% mutate(
+#			N = case_when(
+#				locus == "Pfsa1" ~ Pfsa1_N, 
+#				locus == "Pfsa2" ~ Pfsa2_N,	
+#				locus == "Pfsa3" ~ Pfsa3_N,	
+#				locus == "Pfsa4" ~ Pfsa4_N	
+#			)
+#		)
 	)
 	fp_data$RegionStyled <- factor( fp_data$RegionStyled, levels = rev(unique( fp_data$RegionStyled )) )
 

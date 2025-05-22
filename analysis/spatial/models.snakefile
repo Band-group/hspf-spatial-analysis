@@ -3,14 +3,15 @@ rule aggregate_pf:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}.tsv"
 	input:
 		#pf = "input/hbs-pf-v2.sqlite",
-		pf = "input/hbs-pf-v3.sqlite",
+		pf = "input/hbs-pf-v4.sqlite",
 		polygons = rules.create_grid.output.rds
 	params:
-		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" )
+		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" ),
+		crs = "+proj=longlat +datum=WGS84 +no_defs"
 	shell: """
 		Rscript --vanilla {params.script} \
 			--pf {input.pf} \
-			--world {input.world} \
+			--crs '{params.crs}' \
 			--polygons {input.polygons} \
 			--output {output.tsv}
 	"""

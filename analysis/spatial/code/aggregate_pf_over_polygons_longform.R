@@ -31,7 +31,7 @@ parse_arguments <- function() {
 		type = "character",
 		nargs = "+",
 		help = "Variables to group by, in addition to the grid cell",
-		default = c( "source" )
+		default = c( "source", "year" )
 	)
 	parser$add_argument(
 		"--output",
