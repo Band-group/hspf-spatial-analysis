@@ -9,7 +9,7 @@ rule create_figure1:
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		HbS_predictions = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_predictions.rds",
 		HbS_fit = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_modelfit.rds",
-		hspf_fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa1-cov=none-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		hspf_fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 	params:
 		outdir = "tmp",
@@ -39,7 +39,7 @@ rule create_figure2:
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 		hspf_fit = lambda w: expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
 			r0 = w.r0,
 			sigma0 = w.sigma0,
 			hbs_covariates = w.hbs_covariates,
@@ -55,7 +55,7 @@ rule create_figure2:
 	params:
 		script = srcdir( "code/figures/fig2_new.R" ),
 		hspf_fit_template = lambda w: (
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
 				r0 = w.r0,
 				sigma0 = w.sigma0,
 				hbs_covariates = w.hbs_covariates,
@@ -89,7 +89,7 @@ rule create_summary_list:
 		HbS_survey = "input/HbS_survey.csv",
 		extended = "input/HbSgooglesheet.csv",
 		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size={size}-area=global.tsv",
-		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1-cov=none-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
+		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	params:
 		output = "summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",

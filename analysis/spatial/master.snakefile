@@ -42,7 +42,7 @@ rule all:
 			extension = [ 'pdf', 'tsv.gz' ]
 		),
 		hspf_plots = [
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}-cov={hspf_covariates}-model={regression_model}+fc=none-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
+			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
 			.format(**elt)
 			for elt in master_hspf_analyses
 		],

@@ -23,10 +23,6 @@ params:
       - "Pfsa2"
       - "Pfsa3"
       - "Pfsa4"
-      - "Pfsa13--"
-      - "Pfsa13-+"
-      - "Pfsa13+-"
-      - "Pfsa13++"
    regression_model:
       - "bym2"
    min_km_to_survey_pt:
