@@ -15,21 +15,9 @@ parse_arguments <- function() {
 		help = "path to raster data"
 	)
 	parser$add_argument(
-		"--scaling",
-		type = "numeric",
-		help = "Amount to scale vlaues by",
-		default = 1.0
-	)
-	parser$add_argument(
-		"--world",
+		"--grid",
 		type = "character",
-		help = "path to world file",
-		default = "geodata/naturalearthdata.Rdata"
-	)
-	parser$add_argument(
-		"--polygons",
-		type = "character",
-		help = "path to polygons rds file"
+		help = "path to grid polygons rds file"
 	)
 	parser$add_argument(
 		"--output",
@@ -48,7 +36,7 @@ print( args )
 source( 'code/functions.R' )
 #install.prerequisites()
 
-polygons = readRDS( args$polygons )
+polygons = readRDS( args$grid )
 
 # KLUDGE
 # We assume *for now* that the values are encoded as integers in the range 0..255
@@ -56,14 +44,12 @@ polygons = readRDS( args$polygons )
 method = "terra"
 if( method == "stars" ) {
 	D = stars::read_stars( args$raster )
-	D = D * args$scaling
 	summarised = stars::st_extract(
 		D,
 		polygons
 	)
 } else {
 	D = terra::rast( args$raster )
-	D = D * args$scaling
 	summarised = terra::zonal(
 		D,
 		terra::vect(polygons),

@@ -1,4 +1,9 @@
-rank_metrics <- function( focal_beta, data, fm = 0.05 ) {
+rank_metrics <- function(
+	focal_beta,
+	data,
+	# normalise against variants within 1% freq by default
+	fm = 0.01
+) {
 	colnames( focal_beta )[4:ncol(focal_beta)] = sprintf( "focus_%s", colnames( focal_beta )[4:ncol(focal_beta)] )
 	return(
 		data
@@ -11,7 +16,7 @@ rank_metrics <- function( focal_beta, data, fm = 0.05 ) {
 			focus_pi = min(focus_pi),
 			focus_pi_fraction_between = min(focus_pi_fraction_between),
 			total = n(),
-			# _f suffix means 'within same frequency bin', here taken as up to 2.5% difference in freq
+			# _f suffix means 'within same frequency bin', 
 			total_f = length( which( (frequency >= focus_frequency - fm & frequency <= focus_frequency + fm) )),
 			beta_above = sum( beta >= focus_beta ),
 			beta_above_f = sum( beta >= focus_beta & (frequency >= focus_frequency - fm & frequency <= focus_frequency + fm) ),

@@ -73,7 +73,7 @@ parse_arguments <- function() {
 		"--covariates",
 		type = "character",
 		help = "path to tsv file(s) of covariate values to include",
-		required = TRUE
+		required = FALSE
 	)
 	parser$add_argument(
 		"--HbS_survey",
@@ -234,6 +234,7 @@ fitit <- function(
 
 fitbym_to_posterior_samples <- function(
 	our_grid, hbs, pf,
+	covariates = NULL,
 	y_name = "Pfsa1_+",
 	n_name = "Pfsa1_N",
 	hbs_columns = "posterior_mean",
@@ -355,6 +356,14 @@ fitbym_to_posterior_samples <- function(
 	# compile( sprintf( "%s.cpp", modelfile ) )
 	dyn.load( args$tmb_model )
 
+	if( is.null( covariates )) {
+		covariates = tibble::tibble(
+			polygon_id = countrydfi$polygon_id
+		)
+	} else {
+		covariates = covariates[, match( countrydfi$polygon_id, covariates$polygon_id )]
+	}
+
 	# Run regression for each posterior sample of HbS...
 	for( sample in hbs_columns ) {
 		data = list(
@@ -363,7 +372,12 @@ fitbym_to_posterior_samples <- function(
 			x = countrydfi[[sample]]^2 + 2*countrydfi[[sample]]*(1-countrydfi[[sample]]),
 			# z = covariates matrix
 			# We use an empty one for now
-			z = matrix( nrow = nrow( countrydfi ), ncol = 0 ),
+			z = ifelseas.matrix(
+				covariates[
+					match( countrydfi$polygon_id, covariates$polygon_id ),
+					-which( colnames( covariats )== 'polygon_id' )
+				]
+			),
 			# Test case: estimate slope close to 1, no spatial effect
 			# x = logodds((data$y+0.1) / (data$N+0.2)) 
 			#Q = Q,
@@ -612,9 +626,20 @@ if( 0 ) {#is.null( args )) {
 	threads = args$threads
 }
 
+covariates = NULL
+if( !is.null( args$covariates )) {
+	covariates = readr::read_tsv( args$covariates )
+	if( colnames(covariates)[1] != "polygon_id" ) {
+		echo( "!! Expected the file \"%s\" (passed to --covariates)\n", args$covariates )
+		echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
+		stop( "!! Covariates file error." )
+	}
+}
+
 result = fitbym_to_posterior_samples(
 	grid %>% filter( in_range == 1 ),
 	hbs, pf,
+	covariates
 	y_name = sprintf( "%s_+", args$locus ),
 	n_name = sprintf( "%s_N", args$locus ),
 	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
