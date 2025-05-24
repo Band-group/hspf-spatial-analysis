@@ -382,7 +382,7 @@ fig1bplot <- function(
 
 plot_hspf = function(
 	hspfrdspath,
-	uncertainty = "lines",
+	uncertainty = "lines", # or "areas" or "simple"
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
 	at = list(

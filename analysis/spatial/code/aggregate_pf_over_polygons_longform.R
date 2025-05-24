@@ -58,12 +58,14 @@ data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
 
 stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
+flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
+
 data$year = as.integer( data$year )
 longform = (
 	data
 	%>% mutate(
-		`Pfsa-` = ifelse( locus == "Pfsa4", `nonref`, `ref` ),
-		`Pfsa+` = ifelse( locus == "Pfsa4", `ref`, `nonref` )
+		`Pfsa-` = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
+		`Pfsa+` = ifelse( locus %in% flipped_loci, `ref`, `nonref` )
 	)
 	%>% select(
 		`locus`,

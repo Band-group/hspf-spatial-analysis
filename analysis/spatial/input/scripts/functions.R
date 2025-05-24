@@ -31,6 +31,10 @@ load.genotypes.from.bgen <- function( filename, SNPs ) {
 
 	# Sometimes variants come with longer alleles, with the SNP in the first base
 	# Check this here:
+
+	print( variants )
+	print( G$variants )
+
 	stopifnot(
 		all(
 			stringr::str_extract( G$variants$allele0, "^[A-Z]" ) == G$variants$ref_allele
