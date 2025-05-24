@@ -1,0 +1,13 @@
+chromosome	position	locus	ref_allele	alt_allele	type
+Pf3D7_02_v3	629996	Pfsa1-alt1	C	A	secondary
+Pf3D7_02_v3	630290	Pfsa1-alt2	A	T	secondary
+Pf3D7_02_v3	631190	Pfsa1	T	A	lead
+Pf3D7_02_v3	814288	Pfsa2	C	T	lead
+Pf3D7_02_v3	814329	Pfsa2-alt1	A	G	secondary
+Pf3D7_04_v3	1121472	Pfsa4	T	A	lead
+Pf3D7_04_v3	1122147	Pfsa4-alt1	A	C	secondary
+Pf3D7_11_v3	1057437	Pfsa3-alt1	T	C	lead
+Pf3D7_11_v3	1058035	Pfsa3	T	A	lead
+Pf3D7_03_v3	140167	CLAG3.2	T	G	lead
+Pf3D7_03_v3	79845	FIKK3	G	A	lead
+Pf3D7_09_v3	1428875	REX2	A	T	lead

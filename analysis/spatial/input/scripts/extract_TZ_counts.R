@@ -2,8 +2,9 @@ library( tidyverse )
 library( dplyr )
 library( dbplyr )
 library( rbgen )
-
 library( argparse )
+
+source( "input/scripts/functions.R" )
 
 parse_arguments <- function() {
 	parser = ArgumentParser(
@@ -14,6 +15,12 @@ parse_arguments <- function() {
 		type = "character",
 		help = "path to folder containing Pf7 data",
 		default = "../../../data/tanzania"
+	)
+	parser$add_argument(
+		"--variants",
+		type = "character",
+		help = "path to tsv file containing variants to process.",
+		default = "input/variants.tsv"
 	)
 	parser$add_argument(
 		"--output",
@@ -34,10 +41,6 @@ paths = list(
 	controls = sprintf( "%s/Moser_et_al_2021/list_of_controls", args$indir )
 )
 
-samples = readr::read_tsv( paths$samples )
-controls = scan( paths$controls, what = character() ) 
-samples$is_control = 0
-samples$is_control[ samples$ID %in% controls ] = 1
 # These lat/long values are taken from Google Maps
 # in comparison to the map in Figure 1 of Moser et al 2021 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8088766/
 latlong = list(
@@ -55,121 +58,53 @@ latlong = list(
 	"KYELA" = c( -9.590593, 33.867588 ),
 	"MASASI" = c( -10.729617, 38.806608 )
 )
-samples$latitude = sapply(
-	samples$DISTRICT, function(d) { latlong[[d]][1] ; }
-)
-samples$longitude = sapply(
-	samples$DISTRICT, function(d) { latlong[[d]][2] ; }
-)
-samples$site = samples$DISTRICT
 
-SNPs = tibble(
-	chromosome = sprintf( "chr%d", c( 2, 2, 2, 2, 2, 4, 4, 11, 11 )),
-	position = c(
-		629996, 631190, 630290,
-		814288, 814329,
-		1121472, 1122147,
-		1058035, 1057437
-	),
-	locus = c(
-		rep( "Pfsa1", 3 ),
-		rep( "Pfsa2", 2 ),
-		rep( "Pfsa4", 2 ),
-		rep( "Pfsa3", 2 )
-	),
-	type = c(
-		"secondary", "lead", "secondary",
-		"lead", "secondary",
-		"lead", "secondary",
-		"lead", "lead"
-	)
-)
+get_long <- function( DISTRICT ) { sapply( DISTRICT, function(x) { latlong[[x]][2] } ) }
+get_lat <- function( DISTRICT ) { sapply( DISTRICT, function(x) { latlong[[x]][1] } ) }
 
-load.genotypes <- function( filename, SNPs ) {
-	G = bgen.load(
-		paths$genotypes,
-		ranges = tibble(
-			chromosome = SNPs$chromosome,
-			start = SNPs$position,
-			end = SNPs$position
-		)
-	)
-	# for the sake of this analysis, we ignore mixed calls
-	# or calls of other allels
-	G$data = G$data[,,c(1,3)]
-	G$dosage = G$data[,,2]
-	G$dosage[ rowSums(G$data,dims=2) == 0 ] = NA
-
-	G$variants$ID = sprintf(
-		"chr%s:%d:%s>%s",
-		gsub( "chr", "", G$variants$chromosome ),
-		G$variants$position,
-		G$variants$allele0,
-		G$variants$allele1
-	)
-	return(G)
-}
-G = load.genotypes( paths$genotypes, SNPs )
-samples = samples[ match( G$samples, samples$sample_id ), ]
-for( i in 1:nrow( G$variants )) {
-	samples[,G$variants$ID[i]] = G$dosage[i,]
-}
+controls = scan( paths$controls, what = character() ) 
 
 samples = (
-	samples
+	readr::read_tsv( paths$samples )
+	%>% filter( !is.na( sample_id ))
 	%>% mutate(
+		ID = sample_id,
+		site = DISTRICT,
+		longitude = get_long(DISTRICT),
+		latitude = get_lat(DISTRICT),
 		source = "Moser et al 2021",
 		study = "Moser et al 2021",
 		datatype = 'MIP',
 		country = "Tanzania",
-		N = 1,
-		`Pfsa1:ref` = 1 - `chr2:631190:T>A`,
-		`Pfsa1:nonref` = `chr2:631190:T>A`,
-		`Pfsa2:ref` = 1 - `chr2:814288:C>T`,
-		`Pfsa2:nonref` = `chr2:814288:C>T`,
-		`Pfsa3:ref` = 1 - `chr11:1058035:T>A`,
-		`Pfsa3:nonref` = `chr11:1058035:T>A`,
-		`Pfsa4:ref` = 1 - `chr4:1121472:T>A`,
-		`Pfsa4:nonref` = `chr4:1121472:T>A`,
-		exclude = "no"
+		year = "2017",
+		exclude = 'no'
 	)
-)
-
-by_sample = (
-	samples
 	%>% select(
-		source, study, datatype, country, site, latitude, longitude,
-		ID, N,
-		`Pfsa1:ref`, `Pfsa1:nonref`,
-		`Pfsa2:ref`, `Pfsa2:nonref`,
-		`Pfsa3:ref`, `Pfsa3:nonref`,
-		`Pfsa4:ref`, `Pfsa4:nonref`,
-		`exclude`
+		ID, latitude, longitude, source, study, datatype, country, year, site, exclude
 	)
 )
 
-by_site = (
-	by_sample
-	%>% filter( !is.na( latitude ))
-	%>% filter( exclude == 'no' )
-	%>% group_by(
-		source, study, datatype, country, site, latitude, longitude
-	) %>% summarise(
-		N = sum(N),
-		'Pfsa1:ref' = sum(`Pfsa1:ref`, na.rm = T ), `Pfsa1:nonref` = sum( `Pfsa1:nonref`, na.rm = T ),
-		'Pfsa2:ref' = sum(`Pfsa2:ref`, na.rm = T ), `Pfsa2:nonref` = sum( `Pfsa2:nonref`, na.rm = T ),
-		'Pfsa3:ref' = sum(`Pfsa3:ref`, na.rm = T ), `Pfsa3:nonref` = sum( `Pfsa3:nonref`, na.rm = T ),
-		'Pfsa4:ref' = sum(`Pfsa4:ref`, na.rm = T ), `Pfsa4:nonref` = sum( `Pfsa4:nonref`, na.rm = T ),
-		exclude = max( exclude )
-	)
+echo( "++ Loading data from %s...\n", paths$genotypes )
+variants = readr::read_tsv( args$variants )
+chromosomes = sprintf( "chr%d", 1:14 )
+names(chromosomes) = sprintf( "Pf3D7_%02d_v3", 1:14 )
+variants$chromosome = chromosomes[variants$chromosome]
+genotypes = load.genotypes.from.bgen( paths$genotypes, variants )
+
+target.samples = intersect( samples$ID, genotypes$samples )
+samples = samples[ match( target.samples, samples$ID ), ]
+genotypes$dosage = genotypes$dosage[, target.samples ]
+stopifnot( all( samples$ID == colnames( genotypes$dosage )) )
+
+by_sample = generate_long_form_table(
+	samples,
+	genotypes$variants,
+	genotypes$dosage
 )
 
-options(width=200)
-print( by_site )
+print( by_sample )
 
-db = DBI::dbConnect( RSQLite::SQLite(), args$output )
-DBI::dbExecute( db, "DELETE FROM by_site WHERE source == 'Moser et al 2021' ")
-DBI::dbWriteTable( db, "by_site", by_site, overwrite = FALSE, append = TRUE )
-DBI::dbExecute( db, "DELETE FROM by_sample WHERE source == 'Moser et al 2021' ")
-DBI::dbWriteTable( db, "by_sample", by_sample, overwrite = FALSE, append = TRUE )
-DBI::dbDisconnect( db )
+echo( "++ Outputting to %s...\n", args$output )
+output_to_db( by_sample, 'Moser et al 2021', args$output )
+echo( "++ Success!  Thanks for using extract_TZ_counts.R.\n" )
+

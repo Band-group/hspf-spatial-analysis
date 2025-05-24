@@ -12,8 +12,8 @@ parse_arguments <- function() {
 	parser$add_argument(
 		"--pf",
 		type = "character",
-		help = "path to Pf data",
-		default = "input/hbs-pf-v2.sqlite"
+		help = "path to Pf data"
+		# e.g. default = "input/hbs-pf-v5.sqlite"
 	)
 	parser$add_argument(
 		"--crs",
@@ -58,11 +58,21 @@ data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
 stopifnot( max( data$N ) == 1 )
 
 data$year = as.integer( data$year )
-longform = dplyr::bind_rows(
-	data %>% mutate( locus = "Pfsa1" ) %>% select( `locus`, `source`, `latitude`, `longitude`, `year`, `Pfsa-` = `Pfsa1:ref`, `Pfsa+` = `Pfsa1:nonref` ),
-	data %>% mutate( locus = "Pfsa2" ) %>% select( `locus`, `source`, `latitude`, `longitude`, `year`, `Pfsa-` = `Pfsa2:ref`, `Pfsa+` = `Pfsa2:nonref` ),
-	data %>% mutate( locus = "Pfsa3" ) %>% select( `locus`, `source`, `latitude`, `longitude`, `year`, `Pfsa-` = `Pfsa3:ref`, `Pfsa+` = `Pfsa3:nonref` ),
-	data %>% mutate( locus = "Pfsa4" ) %>% select( `locus`, `source`, `latitude`, `longitude`, `year`, `Pfsa-` = `Pfsa4:nonref`, `Pfsa+` = `Pfsa4:ref` )
+longform = (
+	data
+	%>% mutate(
+		`Pfsa-` = ifelse( locus == "Pfsa4", `nonref`, `ref` ),
+		`Pfsa+` = ifelse( locus == "Pfsa4", `ref`, `nonref` )
+	)
+	%>% select(
+		`locus`,
+		`source`,
+		`latitude`,
+		`longitude`,
+		`year`,
+		`Pfsa-`,
+		`Pfsa+`
+	)
 )
 
 # Now aggregate into polygons...
