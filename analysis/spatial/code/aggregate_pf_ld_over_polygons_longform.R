@@ -43,6 +43,7 @@ parse_arguments <- function() {
 	return( parser$parse_args() )
 }
 
+
 args = parse_arguments()
 print( args )
 
@@ -63,9 +64,27 @@ flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
 data$year = as.integer( data$year )
 longform = (
 	data
+	%>% filter( locus %in% c( 'Pfsa1', 'Pfsa3' ))
 	%>% mutate(
 		`Pfsa-` = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
 		`Pfsa+` = ifelse( locus %in% flipped_loci, `ref`, `nonref` )
+	)
+	%>% tidyr::pivot_wider(
+		id_cols = c(
+			"source", "study", "datatype", "country", "year",
+			"site", "latitude", "longitude", "ID", "exclude"
+		),
+		names_from = "locus",
+		names_sep = ":",
+		values_from = c( "Pfsa-", "mixed", "Pfsa+" )
+	)
+	%>% mutate(
+		`--` = as.integer( `Pfsa-:Pfsa1` + `Pfsa-:Pfsa3` == 2 ),
+		`-+` = as.integer( `Pfsa-:Pfsa1` + `Pfsa+:Pfsa3` == 2 ),
+		`+-` = as.integer( `Pfsa+:Pfsa1` + `Pfsa-:Pfsa3` == 2 ),
+		`++` = as.integer( `Pfsa+:Pfsa1` + `Pfsa+:Pfsa3` == 2 ),
+		`mixed` = as.integer( (`mixed:Pfsa1` + `mixed:Pfsa3` > 0 ) ),
+		locus = "Pfsa1x3"
 	)
 	%>% select(
 		`locus`,
@@ -73,9 +92,11 @@ longform = (
 		`latitude`,
 		`longitude`,
 		`year`,
-		`Pfsa-`,
-		`mixed`,
-		`Pfsa+`
+		`--`,
+		`-+`,
+		`+-`,
+		`++`,
+		`mixed`
 	)
 )
 

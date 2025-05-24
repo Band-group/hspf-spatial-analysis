@@ -2223,3 +2223,40 @@ country.colours <- function() {
   )
     )
 }
+
+aggregate_pf_across_polygons = function(
+	data,
+	polygons,
+	crs,
+	group_by_variables = c( "polygon_id", "longitude", "latitude", "locus" )
+) {
+	echo( "++ Mapping %d points to %d polygons...\n", nrow( longform ), nrow( polygons ))
+	data_sf = sf::st_as_sf(
+		data %>% filter( !is.na( longitude ) & !is.na( latitude )),
+		coords = c( "longitude", "latitude" ),
+		crs = sf::st_crs( crs )
+	)
+
+	joined <- sf::st_join(
+		data_sf,
+		polygons,
+		join = sf::st_intersects
+	) %>% filter( !is.na( polygon_id ))
+
+	# Put back lat / long, which sf removes
+	joined$geometry = NULL
+	joined$longitude = sf::st_coordinates( joined$centroid )[,1]
+	joined$latitude = sf::st_coordinates( joined$centroid )[,2]
+	echo( "++ ...ok, %d points mapped.\n", nrow( joined ))
+
+	# Now aggregated version
+	# pf_adm2_agg <- function( pf_data, ctryname, adm2ctry, adm2polyid ) {
+	echo( "++ Aggregating %d Pf data points into %d polygons,", nrow( data_sf ), nrow( polygons ))
+	echo( "   ... grouped by %s...\n", paste( group_by_variables, collapse = ", " ))
+
+	return(
+		joined
+		%>% group_by( !!!syms( group_by_variables ))
+		%>% summarise( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)) )
+	)
+}
