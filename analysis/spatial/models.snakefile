@@ -2,8 +2,7 @@ rule aggregate_pf:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}.tsv"
 	input:
-		#pf = "input/hbs-pf-v2.sqlite",
-		pf = "input/hbs-pf-v4.sqlite",
+		pf = "input/hbs-pf-v5.sqlite",
 		polygons = rules.create_grid.output.rds
 	params:
 		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" ),

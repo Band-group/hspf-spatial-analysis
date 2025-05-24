@@ -55,7 +55,8 @@ polygons = readRDS( args$polygons )
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
 data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
-stopifnot( max( data$N ) == 1 )
+
+stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
 data$year = as.integer( data$year )
 longform = (
@@ -71,6 +72,7 @@ longform = (
 		`longitude`,
 		`year`,
 		`Pfsa-`,
+		`mixed`,
 		`Pfsa+`
 	)
 )
