@@ -42,8 +42,12 @@ rule all:
 			area = [ 'global' ],
 			extension = [ 'pdf', 'tsv.gz' ]
 		),
+		aggregates = expand(
+			"output/pf/aggregated/grid-type=hexagon-size=1-area={area}-ld-by={by}.tsv",
+			area = config['params']['area'],
+			by = [ 'none', 'year' ]
+		),
 		extras = [
-			"output/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv",
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=waf-3wayld-by=none.tsv",
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=eaf-3wayld-by=none.tsv",
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=none.tsv",

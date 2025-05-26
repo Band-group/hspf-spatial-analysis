@@ -2168,59 +2168,59 @@ aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
 country.colours <- function() {
   	return(
       c(
-    "Morocco" = "#292933",
-    "Mauritania" = "#090953",
-    "Gambia" = "#0c0c83",
-    "Senegal" = "#2323f6",
-    'Guinea-Bissau' = "#0000CD",
-    'Guinea' = "#3a3a9f",
-    "Mali" = "#42426F",
-    "Burkina_Faso" = "#82EEFD",
-    "Burkina Faso" = "#82EEFD",
-    "Sierra Leone" = "#42628D",
-    "Liberia" = "#377EB8",
-    "IvoryCoast" = "#2ecdab",
-    "Ivory Coast" = "#2ecdab",
-    "Cote_dIvoire" = "#2ecdab",
-    "Cote d'Ivoire" = "#2ecdab",
-    "Togo" = "#98FB98",
-    "Ghana" = "#03B4CC",
-    "Benin" = "#03cc53",
-    "Nigeria" = "#708238",
-    "Niger" = "#4B5320",
-    "Chad" = "#1B3421",
-    "Cameroon" = "#007a5e",
-    "Gabon" = "#009E60",
-    "DRC" = "#f94449",
-    "Democratic_Republic_of_the_Congo" = "#f94449",
-    "Democratic Republic of the Congo" = "#f94449",
-    "Congo" = "#FF2800",
-    "Republic of the Congo" = "#dc241f",
-    "Sudan" = "#c59d0f",
-    "Malawi" = "#FEDC56",
-    "United Republic of Tanzania" = "#F08080",
-    "Tanzania" = "#F08080",
-    "Mozambique" = "#780606",
-    "Kenya" = "#FF7F00",
-    "Rwanda" = "#BA8E23", #"#E82A1C",
-    "Uganda" = "#d1cd0c",
-    "Ethiopia" = "#939070",
-    "Zambia" = "#A4081C",
-    "Madagascar" = "#C21807",
-    "Bangladesh" = "chocolate4",
-    "Myanmar" = "#48260D",
-    "Laos" = "#997950",       # Darker golden brown
-    "Thailand" = "saddlebrown",   # Rich reddish-brown
-    "Cambodia" = "#A65628",    # Medium warm brown
-    "Vietnam" = "tan4",           # Deep earthy brown
-    "Indonesia" = "burlywood4",   # Muted sandy brown
-    "PNG" = "rosybrown4",          # Soft grayish brown
-    'South Africa' = "#74C365",
-    'eSwatini' = "green",
-    "other" = "#AAAAAA",
-    "Colombia" = "#A5A5A5",
-    "Peru" = "#353535"
-  )
+        "Morocco" = "#292933",
+        "Mauritania" = "#090953",
+        "Gambia" = "#0c0c83",
+        "Senegal" = "#2323f6",
+        'Guinea-Bissau' = "#0000CD",
+        'Guinea' = "#3a3a9f",
+        "Mali" = "#42426F",
+        "Burkina_Faso" = "#82EEFD",
+        "Burkina Faso" = "#82EEFD",
+        "Sierra Leone" = "#42628D",
+        "Liberia" = "#377EB8",
+        "IvoryCoast" = "#2ecdab",
+        "Ivory Coast" = "#2ecdab",
+        "Cote_dIvoire" = "#2ecdab",
+        "Cote d'Ivoire" = "#2ecdab",
+        "Togo" = "#98FB98",
+        "Ghana" = "#03B4CC",
+        "Benin" = "#03cc53",
+        "Nigeria" = "#708238",
+        "Niger" = "#4B5320",
+        "Chad" = "#1B3421",
+        "Cameroon" = "#007a5e",
+        "Gabon" = "#009E60",
+        "DRC" = "#f94449",
+        "Democratic_Republic_of_the_Congo" = "#f94449",
+        "Democratic Republic of the Congo" = "#f94449",
+        "Congo" = "#FF2800",
+        "Republic of the Congo" = "#dc241f",
+        "Sudan" = "#c59d0f",
+        "Malawi" = "#FEDC56",
+        "United Republic of Tanzania" = "#F08080",
+        "Tanzania" = "#F08080",
+        "Mozambique" = "#780606",
+        "Kenya" = "#FF7F00",
+        "Rwanda" = "#BA8E23", #"#E82A1C",
+        "Uganda" = "#d1cd0c",
+        "Ethiopia" = "#939070",
+        "Zambia" = "#A4081C",
+        "Madagascar" = "#C21807",
+        "Bangladesh" = "chocolate4",
+        "Myanmar" = "#48260D",
+        "Laos" = "#997950",       # Darker golden brown
+        "Thailand" = "saddlebrown",   # Rich reddish-brown
+        "Cambodia" = "#A65628",    # Medium warm brown
+        "Vietnam" = "tan4",           # Deep earthy brown
+        "Indonesia" = "burlywood4",   # Muted sandy brown
+        "PNG" = "rosybrown4",          # Soft grayish brown
+        'South Africa' = "#74C365",
+        'eSwatini' = "green",
+        "other" = "#AAAAAA",
+        "Colombia" = "#A5A5A5",
+        "Peru" = "#353535"
+      )
     )
 }
 
@@ -2254,10 +2254,27 @@ aggregate_pf_across_polygons = function(
 	echo( "++ Aggregating %d Pf data points into %d polygons,", nrow( data_sf ), nrow( polygons ))
 	echo( "   ... grouped by %s...\n", paste( group_by_variables, collapse = ", " ))
 
+  countit <- function(x) {
+    A = table(x)
+    A = sort(A, decreasing = T )
+    paste( sprintf("%s:%d", names(A), A ), collapse = "," )
+  }
+
+  findhighestcount <- function(x) {
+    A = table(x)
+    A = sort(A, decreasing = T )
+    names(A)[1]
+  }
+
 	return(
 		joined
 		%>% group_by( !!!syms( group_by_variables ))
-		%>% summarise( dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE)) )
+		%>% summarise(
+      source_country_counts = countit( source_countries ),
+      majority_country = findhighestcount( source_countries ),
+      dplyr::across(dplyr::where(is.character), function(x) { paste( sort( unique( x )), collapse = "," )}),
+      dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE))
+    )
 	)
 }
 

@@ -70,7 +70,9 @@ pfsa1 = (
 	data
 	%>% filter( locus == 'Pfsa1' )
 	%>% select(
-		source, latitude, longitude, year, ID, `Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+`
+		source, latitude, longitude, year, ID,
+		`Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+`,
+		source_countries = country
 	)
 	
 )
@@ -98,7 +100,8 @@ longform = (
 		`-+`,
 		`+-`,
 		`++`,
-		`mixed`
+		`mixed`,
+		`source_countries`
 	)
 )
 
