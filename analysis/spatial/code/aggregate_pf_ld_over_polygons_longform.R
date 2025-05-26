@@ -7,7 +7,7 @@ echo <- function( message, ... ) {
 
 parse_arguments <- function() {
 	parser = ArgumentParser(
-		description = 'Aggregate Pf genotype counts across polygons'
+		description = 'Aggregate Pf genotype locus pairwise counts across polygons'
 	)
 	parser$add_argument(
 		"--pf",
@@ -30,8 +30,8 @@ parse_arguments <- function() {
 		"--group_by",
 		type = "character",
 		nargs = "+",
-		help = "Variables to group by, in addition to the grid cell",
-		default = c( "source", "year" )
+		help = "Variables to group by, in addition to the grid cell and source",
+		default = c()
 	)
 	parser$add_argument(
 		"--output",
@@ -55,39 +55,41 @@ polygons = readRDS( args$polygons )
 
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
-data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
-
-stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
-
 flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
-
-data$year = as.integer( data$year )
-longform = (
-	data
-	%>% filter( locus %in% c( 'Pfsa1', 'Pfsa3' ))
+data = (
+	tibble::as_tibble( dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" ))
 	%>% mutate(
+		year = as.integer( year ),
 		`Pfsa-` = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
 		`Pfsa+` = ifelse( locus %in% flipped_loci, `ref`, `nonref` )
 	)
-	%>% tidyr::pivot_wider(
-		id_cols = c(
-			"source", "study", "datatype", "country", "year",
-			"site", "latitude", "longitude", "ID", "exclude"
-		),
-		names_from = "locus",
-		names_sep = ":",
-		values_from = c( "Pfsa-", "mixed", "Pfsa+" )
+)
+stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
+
+pfsa1 = (
+	data
+	%>% filter( locus == 'Pfsa1' )
+	%>% select(
+		source, latitude, longitude, year, ID, `Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+`
 	)
+	
+)
+others = data %>% filter( locus != 'Pfsa1' ) %>% select( ID, locus, `locus:-` = `Pfsa-`, `locus:mixed` = `mixed`, `locus:+` = `Pfsa+` )
+
+longform = (
+	pfsa1
+	%>% inner_join( others, by = "ID" )
 	%>% mutate(
-		`--` = as.integer( `Pfsa-:Pfsa1` + `Pfsa-:Pfsa3` == 2 ),
-		`-+` = as.integer( `Pfsa-:Pfsa1` + `Pfsa+:Pfsa3` == 2 ),
-		`+-` = as.integer( `Pfsa+:Pfsa1` + `Pfsa-:Pfsa3` == 2 ),
-		`++` = as.integer( `Pfsa+:Pfsa1` + `Pfsa+:Pfsa3` == 2 ),
-		`mixed` = as.integer( (`mixed:Pfsa1` + `mixed:Pfsa3` > 0 ) ),
-		locus = "Pfsa1x3"
+		`--` = as.integer( `Pfsa1:-` + `locus:-` == 2 ),
+		`-+` = as.integer( `Pfsa1:-` + `locus:+` == 2 ),
+		`+-` = as.integer( `Pfsa1:+` + `locus:-` == 2 ),
+		`++` = as.integer( `Pfsa1:+` + `locus:+` == 2 ),
+		`mixed` = as.integer( (`Pfsa1:mixed` + `locus:mixed` > 0 ) ),
+		locus = sprintf( "Pfsa1x%s", locus )
 	)
 	%>% select(
 		`locus`,
+		`ID`,
 		`source`,
 		`latitude`,
 		`longitude`,
@@ -105,7 +107,40 @@ aggregated = aggregate_pf_across_polygons(
 	longform,
 	polygons,
 	args$crs,
-	c( "polygon_id", "longitude", "latitude", "locus", args$group_by )
+	c( "polygon_id", "longitude", "latitude", "locus", "source", args$group_by )
+)
+
+aggregated = (
+	aggregated
+	%>% mutate(
+		# Total N with non-missing / non-mixed genotypes
+		N = `--` + `-+` + `+-` + `++`,
+		# single allele counts
+		`-.` = `--` + `-+`,
+		`+.` = `+-` + `++`,
+		`.-` = `--` + `+-`,
+		`.+` = `-+` + `++`,
+		# haplotype frequencies
+		`f--` = `--` / `N`,
+		`f-+` = `-+` / `N`,
+		`f+-` = `+-` / `N`,
+		`f++` = `++` / `N`,
+		# single allele frequencies
+		`f-.` = `-.` / `N`,
+		`f+.` = `+.` / `N`,
+		`f.-` = `.-` / `N`,
+		`f.+` = `.+` / `N`,
+		# Lewontin's D
+		`D--` = `f--` - `f-.`*`f.-`,
+		`D-+` = `f-+` - `f-.`*`f.+`,
+		`D+-` = `f+-` - `f+.`*`f.-`,
+		`D++` = `f++` - `f+.`*`f.+`,
+		# Correlation (r)
+		`r--` = `D--` / sqrt(`f+.` * `f-.` * `f.+` * `f.-`),
+		`r-+` = `D-+` / sqrt(`f+.` * `f-.` * `f.+` * `f.-`),
+		`r+-` = `D+-` / sqrt(`f+.` * `f-.` * `f.+` * `f.-`),
+		`r++` = `D++` / sqrt(`f+.` * `f-.` * `f.+` * `f.-`)
+	)
 )
 
 # Remove the geometry column, which ain't needed.

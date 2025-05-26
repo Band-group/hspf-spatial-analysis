@@ -58,11 +58,14 @@ data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
 
 stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
+# For these loci, the Pfsa+ allele is assumed to be the reference allele...
 flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
+# while for others, it's the non-reference allele.
 
 data$year = as.integer( data$year )
 longform = (
 	data
+	%>% filter( exclude == "no" )
 	%>% mutate(
 		`Pfsa-` = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
 		`Pfsa+` = ifelse( locus %in% flipped_loci, `ref`, `nonref` )
