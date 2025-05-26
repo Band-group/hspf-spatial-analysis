@@ -47,6 +47,7 @@ rule all:
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=waf-3wayld-by=none.tsv",
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=eaf-3wayld-by=none.tsv",
 			"output/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=none.tsv",
+			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/CRT/CRT-model=bym2+fc=none-200km-area=africa-min_N=0-clean.pdf",
 			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/CLAG3.2:140167/CLAG3.2:140167-model=bym2+fc=none-200km-area=africa-min_N=0-clean.pdf",
 			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/FIKK3:79845/FIKK3:79845-model=bym2+fc=none-200km-area=africa-min_N=0-clean.pdf"
 		],
