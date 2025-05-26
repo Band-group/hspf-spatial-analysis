@@ -31,7 +31,7 @@ parse_arguments <- function() {
 		type = "character",
 		nargs = "+",
 		help = "Variables to group by, in addition to the grid cell",
-		default = c( "source", "year" )
+		default = c( "source" )
 	)
 	parser$add_argument(
 		"--output",
@@ -78,7 +78,8 @@ longform = (
 		`year`,
 		`Pfsa-`,
 		`mixed`,
-		`Pfsa+`
+		`Pfsa+`,
+		source_countries = country
 	)
 )
 

@@ -69,7 +69,11 @@ stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 pfsa1 = (
 	data
 	%>% filter( locus == 'Pfsa1' )
-	%>% select( source, latitude, longitude, year, ID, `Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+` )
+	%>% select(
+		source, latitude, longitude, year, ID,
+		`Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+`,
+		source_countries = country
+	)
 )
 
 pfsa2 = (
@@ -132,7 +136,8 @@ longform123 = (
 		`.-.`,
 		`.+.`,
 		`..-`,
-		`..+`
+		`..+`,
+		`source_countries`
 	)
 )
 
@@ -178,7 +183,8 @@ longform143 = (
 		`.-.`,
 		`.+.`,
 		`..-`,
-		`..+`
+		`..+`,
+		`source_countries`
 	)
 )
 
