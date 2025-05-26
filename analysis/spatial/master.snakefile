@@ -21,7 +21,8 @@ localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2, 
 
 wildcard_constraints:
 	min_N = "[0-9]+",
-	min_km_to_survey_pt = "[0-9]+"
+	min_km_to_survey_pt = "[0-9]+",
+	area = "[^-]+"
 
 rule all:
 	input:
@@ -41,6 +42,14 @@ rule all:
 			area = [ 'global' ],
 			extension = [ 'pdf', 'tsv.gz' ]
 		),
+		extras = [
+			"output/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv",
+			"output/pf/aggregated/grid-type=hexagon-size=1-area=waf-3wayld-by=none.tsv",
+			"output/pf/aggregated/grid-type=hexagon-size=1-area=eaf-3wayld-by=none.tsv",
+			"output/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=none.tsv",
+			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/CLAG3.2:140167/CLAG3.2:140167-model=bym2+fc=none-200km-area=africa-min_N=0-clean.pdf",
+			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/FIKK3:79845/FIKK3:79845-model=bym2+fc=none-200km-area=africa-min_N=0-clean.pdf"
+		],
 		hspf_plots = [
 			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
 			.format(**elt)
