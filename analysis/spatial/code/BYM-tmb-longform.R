@@ -295,7 +295,7 @@ result = fitbym_to_posterior_samples(
 	covariates,
 	y_name = "Pfsa+",
 	n_name = "N",
-	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T )[1:2],
+	hbs_columns = grep( "posterior_sample", colnames(hbs), value = T ),
 	model = args$model,
 	transform = "identity",
 #	transform = "logit",
