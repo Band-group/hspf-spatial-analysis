@@ -66,33 +66,41 @@ data = (
 )
 stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
-pfsa1 = (
+base = (
 	data
-	%>% filter( locus == 'Pfsa1' )
 	%>% select(
-		source, latitude, longitude, year, ID,
-		`Pfsa1:-` = `Pfsa-`, `Pfsa1:mixed` = `mixed`, `Pfsa1:+` = `Pfsa+`,
+		locus1 = locus,
+		sources = source,
+		sites = site,
+		ID,
+		latitude,
+		longitude,
+		year,
+		`l1:-` = `Pfsa-`,
+		`l1:mixed` = `mixed`,
+		`l1:+` = `Pfsa+`,
 		source_countries = country
 	)
 	
 )
-others = data %>% filter( locus != 'Pfsa1' ) %>% select( ID, locus, `locus:-` = `Pfsa-`, `locus:mixed` = `mixed`, `locus:+` = `Pfsa+` )
+others = data %>% select( ID, locus2 = locus, `l2:-` = `Pfsa-`, `l2:mixed` = `mixed`, `l2:+` = `Pfsa+` )
 
 longform = (
-	pfsa1
-	%>% inner_join( others, by = "ID" )
+	base
+	%>% inner_join( others, by = "ID", relationship = "many-to-many" )
 	%>% mutate(
-		`--` = as.integer( `Pfsa1:-` + `locus:-` == 2 ),
-		`-+` = as.integer( `Pfsa1:-` + `locus:+` == 2 ),
-		`+-` = as.integer( `Pfsa1:+` + `locus:-` == 2 ),
-		`++` = as.integer( `Pfsa1:+` + `locus:+` == 2 ),
-		`mixed` = as.integer( (`Pfsa1:mixed` + `locus:mixed` > 0 ) ),
-		locus = sprintf( "Pfsa1x%s", locus )
+		`--` = as.integer( `l1:-` + `l2:-` == 2 ),
+		`-+` = as.integer( `l1:-` + `l2:+` == 2 ),
+		`+-` = as.integer( `l1:+` + `l2:-` == 2 ),
+		`++` = as.integer( `l1:+` + `l2:+` == 2 ),
+		`mixed` = as.integer( (`l1:mixed` + `l2:mixed` > 0 ) ),
+		locus = sprintf( "%sx%s", locus1, locus2 )
 	)
+	%>% filter( `locus1` < `locus2` )
 	%>% select(
 		`locus`,
-		`ID`,
-		`source`,
+		`sources`,
+		`sites`,
 		`latitude`,
 		`longitude`,
 		`year`,
@@ -110,7 +118,7 @@ aggregated = aggregate_pf_across_polygons(
 	longform,
 	polygons,
 	args$crs,
-	c( "polygon_id", "longitude", "latitude", "locus", "source", args$group_by )
+	c( "polygon_id", "longitude", "latitude", "locus", args$group_by )
 )
 
 aggregated = (

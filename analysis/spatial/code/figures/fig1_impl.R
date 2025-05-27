@@ -380,6 +380,32 @@ fig1bplot <- function(
 	return(list(hbsp, legendfig))
 }
 
+make_hspf_curves = function(
+	sampled.parameters,
+	at = seq( from = 0.05, to = 0.3, by = 0.05 ),
+	link_fn = function( v, parameters ) {
+		x = parameters[['intercept']] + parameters[['beta']]*v
+		nu = exp( parameters[['log_nu']] )
+		return( 1/(1 + exp(-x))^(1/nu))
+	}
+ ) {
+	make_hspf_curve = function( parameters ) {
+		return(
+			tibble(
+				x = at,
+				y = link_fn( at, parameters )
+			)
+		)
+	}
+	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
+	curves = (
+		sampled.parameters
+		%>% group_by( posterior.sample )
+		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
+	)
+	return( curves )	
+}
+
 plot_hspf = function(
 	hspfrdspath,
 	uncertainty = "lines", # or "areas" or "simple"
@@ -410,21 +436,11 @@ plot_hspf = function(
 	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
 	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
 	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
-	xs = seq( from = 0, to = 0.3, by = 0.01 )
-	make_hspf_curve = function( parameters ) {
-		return(
-			tibble(
-				x = xs,
-				y = link_fn( xs, parameters )
-			)
-		)
-	}
-	sampled.parameters = hspf$sampled.parameters %>% slice_sample( n = 1000 )
-	sampled.parameters$posterior.sample = 1:nrow( sampled.parameters )
-	curves = (
-		sampled.parameters
-		%>% group_by( posterior.sample )
-		%>% reframe( make_hspf_curve( pick( intercept, beta, log_nu )) )
+
+	curves = make_hspf_curves(
+		sampled.parameters %>% slice_sample( n = 1000 ),
+		at = seq( from = 0, to = 0.3, by = 0.01 ),
+		link_fn
 	)
 	
 	curves.mean <- (

@@ -62,6 +62,11 @@ stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
 # while for others, it's the non-reference allele.
 
+# HACK
+# GAMCC seems to fall outside all out hexagons.  Put it back now
+data$latitude[ data$source == 'GAMCC' ] = 13.2454
+data$longitude[ data$source == 'GAMCC' ] = -16.40156
+
 data$year = as.integer( data$year )
 longform = (
 	data
@@ -72,7 +77,8 @@ longform = (
 	)
 	%>% select(
 		`locus`,
-		`source`,
+		`sources` = `source`,
+		`sites` = `site`,
 		`latitude`,
 		`longitude`,
 		`year`,
@@ -82,6 +88,7 @@ longform = (
 		source_countries = country
 	)
 )
+
 
 # Now aggregate into polygons...
 aggregated = aggregate_pf_across_polygons(

@@ -3,6 +3,7 @@ library( argparse )
 library( knitr )
 library( kableExtra )
 library( stringr )
+source( "code/fig1_impl.R" )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -45,15 +46,51 @@ for( filename in args$fit ) {
 result = tibble()
 echo( "  ... processing %s...\n", args$fit )
 fit = readRDS( args$fit )
+fit$sampled_parameters$posterior.sample = 1:nrow( fit$sampled.parameters )
 
-gl = function( v, parameters ) {
-	x = parameters[['intercept']] + parameters[['beta']]*v
-	nu = exp( parameters[['log_nu']] )
-	return( 1/(1 + exp(-x))^(1/nu))
+echo( "++ Predicting...\n" )
+predictions = make_hspf_curves(
+	fit$sampled.parameters,
+	at = c( 0.1, 0.2 ),
+	link_fn = list(
+		logit = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( exp(x)/(1+exp(x)) )
+		},
+		`generalised-logit` = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			nu = exp( parameters[['log_nu']] )
+			return( 1/(1 + exp(-x))^(1/nu))
+		},
+		linear = function( v, parameters ) {
+			x = parameters[['intercept']] + parameters[['beta']]*v
+			return( pmax( pmin( x, 0.999 ), 0.001 ))
+		}
+	)[[fit$link]]
+)
+compute.delta = function( x, y ) {
+	return( y[x == 0.2] - y[x == 0.1 ])
 }
+delta_summary = (
+	predictions
+	%>% group_by(
+		posterior.sample
+	)
+	%>% summarise(
+		delta = compute.delta( x, y )
+	)
+	%>% ungroup()
+	%>% summarise(
+		delta_mean = mean(delta),
+		delta_median = median(delta),
+		delta_q2.5 = quantile( delta, p = 0.025 ),
+		delta_q97.5 = quantile( delta, p = 0.975 )
+	)
+)
 
 echo( "++ Summarising...\n" )
-summary = (
+summary = bind_cols(
+	delta_summary,
 	fit$sampled.parameters
 	%>% summarise(
 		pf_at_0.05 = mean( gl( 0.05, pick( intercept, beta, log_nu)), na.rm = T ),
