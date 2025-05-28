@@ -409,6 +409,8 @@ make_hspf_curves = function(
 plot_hspf = function(
 	hspfrdspath,
 	uncertainty = "lines", # or "areas" or "simple"
+	show_fit_line = TRUE,
+	show_tzadf = TRUE,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
 	at = list(
@@ -438,7 +440,7 @@ plot_hspf = function(
 	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
 
 	curves = make_hspf_curves(
-		sampled.parameters %>% slice_sample( n = 1000 ),
+		hspf$sampled.parameters %>% slice_sample( n = 1000 ),
 		at = seq( from = 0, to = 0.3, by = 0.01 ),
 		link_fn
 	)
@@ -591,24 +593,26 @@ plot_hspf = function(
 			)
 		}
 
-		hspf_plot = (
-			hspf_plot
-			+ geom_path(
-				data = curves.mean,
-				aes( x = x, y = y, ),
-				linetype = 1,
-				linewidth = 0.5,
-				col = rgb( 0, 0, 0, 0.55 )
+		if( show_fit_line ) {
+			hspf_plot = (
+				hspf_plot
+				+ geom_path(
+					data = curves.mean,
+					aes( x = x, y = y, ),
+					linetype = 1,
+					linewidth = 0.5,
+					col = rgb( 0, 0, 0, 0.55 )
+				)
+				+ geom_path(
+					data = curves.mean,
+					aes( x = x, y = y, ),
+					linetype = 1,
+					linewidth = 0.05,
+					col = rgb( 1, 1, 1, 0.97)
+				)
 			)
-			+ geom_path(
-				data = curves.mean,
-				aes( x = x, y = y, ),
-				linetype = 1,
-				linewidth = 0.05,
-				col = rgb( 1, 1, 1, 0.97)
-			)
-		)
-		if( nrow(tzadf) > 0 ) {	
+		}
+		if( show_tzadf && nrow(tzadf) > 0 ) {	
 			hspf_plot = (
 			hspf_plot
 			+ geom_errorbarh(

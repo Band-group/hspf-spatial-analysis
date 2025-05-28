@@ -27,6 +27,12 @@ parse_arguments <- function() {
 		help = "Filename (.rds) of hs-pf model fit output"
 	)
 	parser$add_argument(
+		"--show_fit",
+		type = "character",
+		help = "Should I show the fit line and uncertainty?",
+		default = "yes"
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "Filename of pdf file to write"
@@ -49,24 +55,27 @@ fit = readRDS( args$fit )
 p = (
 	plot_hspf(
 		args$fit,
-		uncertainty = "simple"
+		uncertainty = switch( args$show_fit, yes = "simple", no = "none" ),
+		show_fit_line = (args$show_fit == "yes" ),
+		show_tzadf = FALSE
 	)
 	+ scale_size_area( max_size = 16, guide = "none" )
 	+ theme_minimal( 16, base_family = "sans" )
-	+ ylab( sprintf( "%s  \nPfsa+  \nfrequency", fit$locus ))
+	+ ylab( sprintf( "%s+  \nfrequency", fit$locus ))
 	+ theme(
 		axis.title		= ggtext::element_markdown( size = 16, angle = 0 ),
 		axis.title.y	= ggtext::element_markdown( size = 14, angle = 0, hjust = 1, vjust = 0.5 ),
 		axis.text.x		= element_text( size = 12 ),
 		axis.text.y		= element_text( size = 12, hjust = 1, angle = 0 ),
+		legend.spacing.y = unit( 1, "mm" ),
 		panel.spacing	= unit( 0.1, "lines")#,
 		#plot.margin		= unit( c( 0.1, 0.1, 0.5, 0.1 ), "lines" )
 	)
 	+ guides(
-		fill = guide_legend( title = "Country", ncol = 2 ),
-		colour = "legend"
+		fill = guide_legend( title = "Country", ncol = 2, override.aes = list( size = 4 )),
+		colour = "none"
 	)
 )
 
-ggsave( p, file = args$output, width = 12, height = 6 )
+ggsave( p, file = args$output, width = 12, height = 4 )
 quit()
