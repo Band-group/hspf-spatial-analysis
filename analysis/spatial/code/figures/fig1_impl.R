@@ -438,7 +438,7 @@ plot_hspf = function(
 	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
 
 	curves = make_hspf_curves(
-		sampled.parameters %>% slice_sample( n = 1000 ),
+		hspf$sampled.parameters %>% slice_sample( n = 1000 ),
 		at = seq( from = 0, to = 0.3, by = 0.01 ),
 		link_fn
 	)
