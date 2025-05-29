@@ -409,6 +409,8 @@ make_hspf_curves = function(
 plot_hspf = function(
 	hspfrdspath,
 	uncertainty = "lines", # or "areas" or "simple"
+	show_fit_line = TRUE,
+	show_tzadf = TRUE,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
 	at = list(
@@ -591,24 +593,26 @@ plot_hspf = function(
 			)
 		}
 
-		hspf_plot = (
-			hspf_plot
-			+ geom_path(
-				data = curves.mean,
-				aes( x = x, y = y, ),
-				linetype = 1,
-				linewidth = 0.5,
-				col = rgb( 0, 0, 0, 0.55 )
+		if( show_fit_line ) {
+			hspf_plot = (
+				hspf_plot
+				+ geom_path(
+					data = curves.mean,
+					aes( x = x, y = y, ),
+					linetype = 1,
+					linewidth = 0.5,
+					col = rgb( 0, 0, 0, 0.55 )
+				)
+				+ geom_path(
+					data = curves.mean,
+					aes( x = x, y = y, ),
+					linetype = 1,
+					linewidth = 0.05,
+					col = rgb( 1, 1, 1, 0.97)
+				)
 			)
-			+ geom_path(
-				data = curves.mean,
-				aes( x = x, y = y, ),
-				linetype = 1,
-				linewidth = 0.05,
-				col = rgb( 1, 1, 1, 0.97)
-			)
-		)
-		if( nrow(tzadf) > 0 ) {	
+		}
+		if( show_tzadf && nrow(tzadf) > 0 ) {	
 			hspf_plot = (
 			hspf_plot
 			+ geom_errorbarh(
