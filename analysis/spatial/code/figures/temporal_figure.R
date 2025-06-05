@@ -6,7 +6,7 @@ source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
 args = list(
-	pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year.tsv",
+	pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-area=global-by=year.tsv",
 	output = "output/figures/temporal/Pfsa_over_time.pdf"
 )
 
@@ -58,7 +58,7 @@ by_polygon = amalgamate(
 	data %>% group_by( locus, source_countries, polygon_id, year )
 )
 
-# find datasets with at least 10 years span
+# find datasets with at least 5 years span
 longterm = (
 	by_country
 	%>% filter(
@@ -72,10 +72,12 @@ longterm = (
 		length_years = max_year - min_year,
 		n_years = n()
 	)
+	%>% filter( max_year - min_year >= 5 )
 )
 
-logistic = function( data ) {
-	g = glm( (`Pfsa+` / N) ~ year, weight = N, data = data, family = "binomial" )
+logistic = function( data, formula = Y ~ year ) {
+	data = ( data %>% mutate( Y = (`Pfsa+` / N) ))
+	g = glm( formula, weight = N, data = data, family = "binomial" )
 	coeff = summary(g)$coeff
 	colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
 	return(
@@ -91,10 +93,11 @@ temporal = (
 	%>% filter( locus %in% c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4", "CRT" ))
 	%>% filter( source_countries %in% longterm$source_countries[ longterm$length_years >= 5 ] )
 	%>% group_by( locus, source_countries )
-	%>% reframe( logistic( pick( `Pfsa+`, `N`, year )))
+	%>% reframe( logistic( pick( `Pfsa+`, `N`, year ), Y ~ year ))
 	%>% filter( parameter == 'year' )
 	%>% arrange( locus, `pvalue` )
 )
+readr::write_tsv( temporal, file = stringr::str_replace( args$output, ".pdf", ".regression.tsv" ))
 print( temporal, n = 1000 )
 
 temporal_by_polygon = (
@@ -102,12 +105,13 @@ temporal_by_polygon = (
 	%>% filter( locus %in% c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4", "CRT" ))
 	%>% filter( N >= 25 )
 	%>% filter( source_countries %in% longterm$source_countries[ longterm$length_years >= 5 ] )
-	%>% group_by( locus, polygon_id, source_countries )
-	%>% reframe( logistic( pick( `Pfsa+`, `N`, year )))
-	%>% filter( parameter == 'year' )
+	%>% group_by( locus, source_countries )
+	%>% reframe( logistic( pick( `Pfsa+`, `N`, year, polygon_id ), formula = Y ~ year + polygon_id ))
+	%>% filter( parameter %in% c( 'year', 'polygon_id' ))
 	%>% arrange( locus, `pvalue` )
 )
 print( temporal_by_polygon, n = 1000 )
+readr::write_tsv( temporal_by_polygon, file = stringr::str_replace( args$output, ".pdf", ".regression.by-polygon.tsv" ))
 
 offsets = c(
 	Pfsa1 = -0.3, Pfsa2 = 0, Pfsa3 = 0, Pfsa4 = 0.3, CRT = 0.15
@@ -165,7 +169,7 @@ offsets = c(
 			),
 			aes( x = year, y = `f+`, colour = locus, shape = sources )
 		)
-		+ geom_line( aes( x = year, y = `f+`, colour = locus, shape = NA ), linewidth = 1 )
+		+ geom_line( aes( x = year, y = `f+`, shape = NA, group = polygon_id ), colour = "black", linewidth = 1 )
 		+ geom_point( aes( fill = locus ), colour = 'black', size = 2 )
 		+ geom_segment(
 			aes(
@@ -176,13 +180,18 @@ offsets = c(
 			linewidth = 0.5,
 			colour = rgb( 0, 0, 0, 0.2 )
 		)
-		+ facet_grid( source_countries ~ . )
+		+ facet_grid( source_countries ~ locus, scales = "free_x" )
 		+ scale_x_continuous(
 			limits = c( 1984, 2020 ),
 			breaks = seq( from = 1985, to = 2020, by = 5 ),
 			minor_breaks = seq( from = 1984, to = 2020, by = 1 )
 		)
 		+ scale_shape_manual( values = rep( c( 21, 22, 23, 24, 25 ), 9 ) )
+		+ scale_y_continuous(
+			limits = c( 0, 0.9 ),
+			breaks = seq( from = 0, to = 0.9, by = 0.1 ),
+			labels = sprintf( "%.0f%%", seq( from = 0, to = 0.9, by = 0.1 ) * 100 )
+		)
 		+ theme_minimal()
 		+ theme(
 			axis.title.y = element_text( angle = 0, hjust = 1, vjust = 0.5 ),
@@ -193,5 +202,5 @@ offsets = c(
 		)
 	)
 	print(p)
-	ggsave( p, file = "output/figures/temporal/Pfsa_over_time.pdf", width = 8, height = 8 )
+	ggsave( p, file = args$output, width = 12, height = 24 )
 }

@@ -24,50 +24,52 @@ load_grid <- function( filename, as_df = FALSE ) {
 
 load_pfsf = function( filename ) {
 	library( RSQLite )
+	library( dplyr )
 	################################################################################
 	# Load Pf data and create spatial points
 	db <- dbConnect( dbDriver("SQLite"), filename )
-	pfsource <- dbGetQuery(db, "SELECT source, datatype, latitude, longitude, country, ref, mixed, nonref FROM by_sample WHERE exclude == 'no'")\
+	pfsource <- (
+		dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+		%>% mutate( N = `ref` + `nonref` )
+	)
 	dbDisconnect(db)#end connnection when finished the work
 
-	# FIX: the data is now long form, i.e. each variant is in a different row.
-	# For now, I will fix this function to return what it always used to,
-	# but we may want to update downstream code to work with long form data
-	# instead.
-
+	# FIXME: the data is now long form, i.e. each variant is in a different row.
+	# For now, I will fix this function to return what it always used to, i.e. wide form data,
+	# but in future we may want to update downstream code to work with long form data instead.
 	pfsa1 = (
 		pfsource
-		%>% filter( locus == 'Pfsa1' )
-		%>% select(
-			ID, source, datatype, latitude, longitude,
-			`Pfsa1_+` = nonref, `Pfsa1_N` = ref+nonref
+		%>% dplyr::filter( locus == 'Pfsa1' )
+		%>% dplyr::select(
+			ID, source, datatype, latitude, longitude, country,
+			`Pfsa1_+` = `nonref`, `Pfsa1_N` = `N`
 		)
 	)
 
 	pfsa2 = (
 		pfsource
-		%>% filter( locus == 'Pfsa2' )
-		%>% select(
+		%>% dplyr::filter( locus == 'Pfsa2' )
+		%>% dplyr::select(
 			ID,
-			`Pfsa2_+` = nonref, `Pfsa2_N` = ref+nonref
+			`Pfsa2_+` = `nonref`, `Pfsa2_N` = `N`
 		)
 	)
 
-	pfsa2 = (
+	pfsa3 = (
 		pfsource
-		%>% filter( locus == 'Pfsa3' )
-		%>% select(
+		%>% dplyr::filter( locus == 'Pfsa3' )
+		%>% dplyr::select(
 			ID,
-			`Pfsa3_+` = nonref, `Pfsa3_N` = ref+nonref
+			`Pfsa3_+` = `nonref`, `Pfsa3_N` = `N`
 		)
 	)
 
 	pfsa4 = (
 		pfsource
-		%>% filter( locus == 'Pfsa4' )
-		%>% select(
+		%>% dplyr::filter( locus == 'Pfsa4' )
+		%>% dplyr::select(
 			ID,
-			`Pfsa4_+` = ref, `Pfsa4_N` = ref+nonref
+			`Pfsa4_+` = `ref`, `Pfsa4_N` = `N`
 		)
 	)
 

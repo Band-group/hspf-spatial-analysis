@@ -105,3 +105,14 @@ rule create_summary_list:
 		--pf_prevalence_map {input.pf_prevalence_map} \
 		--output {params.output} 
 """
+
+rule temporal_figure:
+	output:
+		pdf = "output/figures/temporal/Pfsa_over_time.pdf"
+	input:
+		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area=global-by=year.tsv"
+	params:
+		script = srcdir( "code/figures/temporal_figure.R" )
+	shell: """
+	Rscript --vanilla {params.script}
+"""
