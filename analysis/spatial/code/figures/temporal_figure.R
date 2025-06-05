@@ -6,7 +6,8 @@ source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
 args = list(
-	output = "tmp/ld.pdf"
+	pf_aggregated = "output/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year.tsv",
+	output = "output/figures/temporal/Pfsa_over_time.pdf"
 )
 
 HbS = load_HbS_mean( "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1.35-area=africa.tsv" )
@@ -39,7 +40,7 @@ amalgamate <- function( grouped_data ) {
 }
 
 data = amalgamate(
-	readr::read_tsv( "output/pf/aggregated/grid-type=hexagon-size=1.35-area=africa-by=year.tsv" )
+	readr::read_tsv( args$pf_aggregated )
 	%>% group_by( polygon_id, locus, source_countries, sources, year )
 )
 

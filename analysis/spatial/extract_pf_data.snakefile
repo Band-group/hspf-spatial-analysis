@@ -1,4 +1,4 @@
-output = "input/hbs-pf-v5.sqlite"
+output = "input/hbs-pf-pf8.sqlite"
 
 rule all:
 	input:
@@ -24,6 +24,7 @@ rule extract_dataset:
 		indir = lambda w: (
 			{
 				"pf7":     "/well/band/projects/pf7",
+				"pf8":     "input/pf8",
 				"TZ":      "input/tanzania",
 				"DRC":     "input/dr_congo",
 				"senegal": "input/senegal",
@@ -43,7 +44,7 @@ rule finalise:
 		flags = expand(
 			rules.extract_dataset.output.flag,
 			dataset = [
-				"pf7",
+				"pf8",
 				"TZ",
 				"DRC",
 				"senegal",

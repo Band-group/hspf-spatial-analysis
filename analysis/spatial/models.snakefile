@@ -2,7 +2,7 @@ rule aggregate_pf:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}.tsv"
 	input:
-		pf = "input/hbs-pf-v5.sqlite",
+		pf = config['data']['pf'],
 		polygons = rules.create_grid.output.rds
 	params:
 		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" ),
@@ -19,7 +19,7 @@ rule aggregate_pf_by:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}-by={by}.tsv"
 	input:
-		pf = "input/hbs-pf-v5.sqlite",
+		pf = config['data']['pf'],
 		polygons = rules.create_grid.output.rds
 	params:
 		script = srcdir( "code/aggregate_pf_over_polygons_longform.R" ),
@@ -40,7 +40,7 @@ rule aggregate_pf_ld:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}-ld-by={by}.tsv"
 	input:
-		pf = "input/hbs-pf-v5.sqlite",
+		pf = config['data']['pf'],
 		polygons = rules.create_grid.output.rds
 	params:
 		script = srcdir( "code/aggregate_pf_ld_over_polygons_longform.R" ),
@@ -61,7 +61,7 @@ rule aggregate_pf_ld_3way:
 	output:
 		tsv = "output/pf/aggregated/grid-type={type}-size={size}-area={area}-3wayld-by={by}.tsv"
 	input:
-		pf = "input/hbs-pf-v5.sqlite",
+		pf = config['data']['pf'],
 		polygons = rules.create_grid.output.rds
 	params:
 		script = srcdir( "code/aggregate_pf_3wayld_over_polygons_longform.R" ),

@@ -4,7 +4,7 @@ rule create_figure1:
 		SI = "output/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
-		pf = "input/hbs-pf-v3.sqlite",
+		pf = config['data']['pf'],
 		HbS_survey = "input/cleanHbSdata.csv",
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		HbS_predictions = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_predictions.rds",
@@ -35,7 +35,7 @@ rule create_figure2:
 		svg = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
-		pf = "input/hbs-pf-v3.sqlite",
+		pf = config['data']['pf'],
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 		hspf_fit = lambda w: expand(
@@ -85,7 +85,7 @@ rule create_summary_list:
 		rds = "output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds"
 	input:
 		grid = "output/grids/grid-type=hexagon-size={size}-area=global.rds",
-		pf = "input/hbs-pf-v3.sqlite",
+		pf = config['data']['pf'],
 		HbS_survey = "input/HbS_survey.csv",
 		extended = "input/HbSgooglesheet.csv",
 		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size={size}-area=global.tsv",

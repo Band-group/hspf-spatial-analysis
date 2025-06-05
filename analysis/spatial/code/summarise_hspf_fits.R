@@ -1,9 +1,10 @@
-library( dplyr )
-library( argparse )
-library( knitr )
-library( kableExtra )
-library( stringr )
-source( "code/fig1_impl.R" )
+suppressMessages( library( dplyr ))
+suppressMessages( library( argparse ))
+suppressMessages( library( knitr ))
+suppressMessages( library( kableExtra ))
+suppressMessages( library( stringr ))
+
+source( "code/figures/fig1_impl.R" )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))

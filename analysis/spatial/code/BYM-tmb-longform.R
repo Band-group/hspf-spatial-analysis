@@ -244,7 +244,7 @@ if( 0 ) {#is.null( args )) {
 		col_types = "cddddddddcdddcdd"
 	)
 	echo( "++ ...ok, %d points loaded.\n", nrow( survey ))
-	survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = 4326 )
+	survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = sf::st_crs( grid$centroid )) # Instead of 4326
 	survey$longitude = sf::st_coordinates(survey)[,1]
 	survey$latitude = sf::st_coordinates(survey)[,2]
 	hbsbuffer = sf::st_buffer( survey, args$min_km_to_survey_pt*1000 )
