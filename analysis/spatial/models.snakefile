@@ -237,26 +237,34 @@ rule plot_hspf_areas:
 
 rule summarise_hspf:
 	output:
+		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-summary.tsv"
+		#tex = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/all_hspf_analyses_summary_r0={r0}-sigma0={sigma0}.tex"
+	input:
+		fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
+	params:
+		script = srcdir( "code/summarise_hspf_fits.R" )
+	shell: """
+		Rscript --vanilla {params.script} --area {wildcards.area} --fit {input.fit} --output {output.tsv}
+	"""
+
+rule combine_hspf_summaries:
+	output:
 		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/all_hspf_analyses_summary.tsv"
 		#tex = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/all_hspf_analyses_summary_r0={r0}-sigma0={sigma0}.tex"
 	input:
-		fits = lambda w: ([
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
+		tsv = lambda w: ([
+			rules.summarise_hspf.output.tsv
 			.format(**elt)
 			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['hbs_covariates'] == w.hbs_covariates) ]
 		])
-	params:
-		script = srcdir( "code/summarise_hspf_fits.R" )
 	run:
-		template = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
-		for x in [ x for x in master_hspf_analyses if (x['r0'] == wildcards.r0) and (x['sigma0'] == wildcards.sigma0) and (x['hbs_covariates'] == wildcards.hbs_covariates) ]:
-			print(x)
-			area = x['area']
-			shell(
-				"""Rscript --vanilla {params.script} --area {area} --fit '%s' --output {output.tsv}""" % (
-					template.format( **x )
-				)
-			)
+		done_header = False
+		for filename in input.tsv:
+			if done_header:
+				shell( """tail -n +2 {filename} >> {output.tsv}""" )
+				done_header = True
+			else:
+				shell( """cat {filename} > {output.tsv}""" )
 
 rule create_forest_plot:
 	output:

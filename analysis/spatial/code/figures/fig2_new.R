@@ -86,7 +86,11 @@ args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed(
 
 hbs.grid.samples <- readr::read_tsv( args$HbS_aggregated,show_col_types = FALSE )
 grid <- load_grid( args$grid )
-pfsf = load_pfsf( args$pf )
+pfsf = df2sf(
+	load_pfsf( args$pf ) %>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0),
+	coords = c('longitude', 'latitude'),
+	crs = 4326
+)
 
 {
 	source( "code/figures/fig1_impl.R" )

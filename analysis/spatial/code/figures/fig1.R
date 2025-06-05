@@ -134,7 +134,11 @@ grid <- readRDS( args$grid )
 grid$longitude = sf::st_coordinates( grid$centroid )[,1]
 grid$latitude = sf::st_coordinates( grid$centroid )[,2]
 
-pfsf = load_pfsf( args$pf )
+pfsf = df2sf(
+	load_pfsf( args$pf ) %>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0),
+	coords = c('longitude', 'latitude'),
+	crs = 4326
+)
 
 ################################################################################
 # Create an ocean polygon for background plotting

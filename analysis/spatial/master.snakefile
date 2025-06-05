@@ -17,7 +17,7 @@ config['areas'] = get_area_definitions( config['params']['area'] )
 master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
+localrules: combine_hspf_summaries, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
 	min_N = "[0-9]+",
