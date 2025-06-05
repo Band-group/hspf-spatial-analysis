@@ -84,7 +84,8 @@ rule all:
 		summary_list = expand(
 			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
 			**config['params']
-		)
+		),
+		temporal = "output/figures/temporal/Pfsa_over_time.pdf"
 
 include: "hbs.snakefile"
 include: "models.snakefile"
