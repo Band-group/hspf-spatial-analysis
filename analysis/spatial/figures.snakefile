@@ -108,11 +108,30 @@ rule create_summary_list:
 
 rule temporal_figure:
 	output:
-		pdf = "output/figures/temporal/Pfsa_over_time.pdf"
+		pdf = "output/figures/temporal/{loci}-temporal-area={area}.pdf"
 	input:
-		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area=global-by=year.tsv"
+		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year.tsv"
 	params:
-		script = srcdir( "code/figures/temporal_figure.R" )
+		script = srcdir( "code/figures/temporal_figure.R" ),
+		loci = lambda w: w.loci.split( "+" ),
+		countries = lambda w: "" if w.area == 'global' else "--countries '%s'"% "' '".join( config['areas'][w.area] ),
+	shell: """
+	Rscript --vanilla {params.script} \
+	--pf_aggregated {input.tsv} \
+	--loci {params.loci} \
+	{params.countries} \
+	--output {output.pdf}
+"""
+
+rule ld_figure:
+	output:
+		pdf = "output/figures/ld/ld.pdf"
+	input:
+		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv",
+		HbS = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv",
+		grid = "output/grids/grid-type=hexagon-size=1-area=africa.rds"
+	params:
+		script = srcdir( "code/figures/ld_figure.R" )
 	shell: """
 	Rscript --vanilla {params.script}
 """

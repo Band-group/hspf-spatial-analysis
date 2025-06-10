@@ -45,6 +45,7 @@ rule finalise:
 			rules.extract_dataset.output.flag,
 			dataset = [
 				"pf8",
+				"GAMCC",
 				"TZ",
 				"DRC",
 				"senegal",

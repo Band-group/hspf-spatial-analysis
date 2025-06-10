@@ -81,11 +81,17 @@ rule all:
 			"output/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']
 		),
-		summary_list = expand(
-			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
-			**config['params']
+# This wasn't working so commented out for now:
+#		summary_list = expand(
+#			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
+#			**config['params']
+#		),
+		temporal = expand(
+			"output/figures/temporal/{loci}-temporal-area={area}.pdf",
+			loci = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4', 'CLAG3.2:140167', 'FIKK3:79845', 'CRT' ],
+			area = [ 'global', 'africa', 'waf', 'eaf' ]
 		),
-		temporal = "output/figures/temporal/Pfsa_over_time.pdf"
+		ld = "output/figures/ld/ld.pdf"
 
 include: "hbs.snakefile"
 include: "models.snakefile"
