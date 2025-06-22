@@ -135,3 +135,37 @@ rule ld_figure:
 	shell: """
 	Rscript --vanilla {params.script}
 """
+
+
+rule create_forest_plot:
+	output:
+		main = "output/figures/forest_plot/forest_plot_main-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+		si = "output/figures/forest_plot/forest_plot_si-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
+	input:
+		fit = expand(
+			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			size = '{size}',
+			model = '{model}',
+			min_km_to_survey_pt = '{min_km_to_survey_pt}',
+			min_N = '{min_N}',
+			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
+			area = config['areas'].keys(),
+			hspf_covariates = "none"
+		)
+	params:
+		script = srcdir( 'code/figures/forest_ggplot.R' ),
+		input_template = lambda w: "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+			size = w.size,
+			model = w.model,
+			min_km_to_survey_pt = w.min_km_to_survey_pt,
+			min_N = w.min_N,
+			locus = '{locus}',
+			area = '{area}',
+			hspf_covariates = "none"
+		)
+	shell: """
+	Rscript --vanilla {params.script} \
+	--input_template {params.input_template} \
+	--output_main {output.main} \
+	--output_si {output.si}
+	"""
