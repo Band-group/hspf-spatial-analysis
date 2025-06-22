@@ -1,4 +1,6 @@
 # Note: all values must be strings, otherwise snakemake gets confused
+data:
+   pf: "input/hbs-pf-pf8.sqlite"
 params:
    r0:
       - "25.0"

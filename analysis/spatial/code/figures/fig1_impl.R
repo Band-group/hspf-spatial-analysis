@@ -24,36 +24,82 @@ load_grid <- function( filename, as_df = FALSE ) {
 
 load_pfsf = function( filename ) {
 	library( RSQLite )
+	library( dplyr )
 	################################################################################
 	# Load Pf data and create spatial points
 	db <- dbConnect( dbDriver("SQLite"), filename )
-	pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+	pfsource <- (
+		dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
+		%>% mutate( N = `ref` + `nonref` )
+	)
 	dbDisconnect(db)#end connnection when finished the work
-	stopifnot( max(pfsource$N) == 1 )
-	pf = (
+
+	# FIXME: the data is now long form, i.e. each variant is in a different row.
+	# For now, I will fix this function to return what it always used to, i.e. wide form data,
+	# but in future we may want to update downstream code to work with long form data instead.
+	pfsa1 = (
 		pfsource
-		%>% dplyr::mutate(
-			`Pfsa1_+` = `Pfsa1:nonref`,
-			`Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
-			`Pfsa2_+` = `Pfsa2:nonref`,
-			`Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
-			`Pfsa3_+` = `Pfsa3:nonref`,
-			`Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
-			`Pfsa4_+` = `Pfsa4:ref`,
-			`Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`	)
+		%>% dplyr::filter( locus == 'Pfsa1' )
 		%>% dplyr::select(
-			source, datatype, latitude, longitude, country,
-			`Pfsa1_+`, `Pfsa1_N`,
-			`Pfsa2_+`, `Pfsa2_N`,
-			`Pfsa3_+`, `Pfsa3_N`,
-			`Pfsa4_+`, `Pfsa4_N`
+			ID, source, datatype, latitude, longitude, country,
+			`Pfsa1_+` = `nonref`, `Pfsa1_N` = `N`
 		)
 	)
 
-	return(
-		df2sf( pf, coords = c('longitude', 'latitude'), crs = 4326)
-		%>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
+	pfsa2 = (
+		pfsource
+		%>% dplyr::filter( locus == 'Pfsa2' )
+		%>% dplyr::select(
+			ID,
+			`Pfsa2_+` = `nonref`, `Pfsa2_N` = `N`
+		)
 	)
+
+	pfsa3 = (
+		pfsource
+		%>% dplyr::filter( locus == 'Pfsa3' )
+		%>% dplyr::select(
+			ID,
+			`Pfsa3_+` = `nonref`, `Pfsa3_N` = `N`
+		)
+	)
+
+	pfsa4 = (
+		pfsource
+		%>% dplyr::filter( locus == 'Pfsa4' )
+		%>% dplyr::select(
+			ID,
+			`Pfsa4_+` = `ref`, `Pfsa4_N` = `N`
+		)
+	)
+
+	pf = (
+		pfsa1
+		%>% left_join( pfsa2, by = "ID" )
+		%>% left_join( pfsa3, by = "ID" )
+		%>% left_join( pfsa4, by = "ID" )
+	)
+#	pf = (
+#		pfsource
+#		%>% dplyr::mutate(
+#			`Pfsa1_+` = `Pfsa1:nonref`,
+#			`Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
+#			`Pfsa2_+` = `Pfsa2:nonref`,
+#			`Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
+#			`Pfsa3_+` = `Pfsa3:nonref`,
+#			`Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
+#			`Pfsa4_+` = `Pfsa4:ref`,
+#			`Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`	)
+#		%>% dplyr::select(
+#			source, datatype, latitude, longitude, country,
+#			`Pfsa1_+`, `Pfsa1_N`,
+#			`Pfsa2_+`, `Pfsa2_N`,
+#			`Pfsa3_+`, `Pfsa3_N`,
+#			`Pfsa4_+`, `Pfsa4_N`
+#		)
+#	)
+
+	return( pf )
 }
 
 # Custom rounding function for Pf sample sizes based on magnitude

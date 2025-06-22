@@ -2,13 +2,14 @@ library( ggplot2 )
 library( gridExtra )
 library( dplyr )
 library( viridis )
+library( gridExtra )
 
 
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
 args = list(
-	output = "output/figures/ld.pdf"
+	output = "output/figures/ld/ld.pdf"
 )
 
 HbS = load_HbS_mean( "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv" )

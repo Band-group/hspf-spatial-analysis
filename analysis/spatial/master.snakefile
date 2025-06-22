@@ -17,7 +17,7 @@ config['areas'] = get_area_definitions( config['params']['area'] )
 master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: summarise_hspf, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list
+localrules: combine_hspf_summaries, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
 	min_N = "[0-9]+",
@@ -81,10 +81,17 @@ rule all:
 			"output/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']
 		),
-		summary_list = expand(
-			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
-			**config['params']
-		)
+# This wasn't working so commented out for now:
+#		summary_list = expand(
+#			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
+#			**config['params']
+#		),
+		temporal = expand(
+			"output/figures/temporal/{loci}-temporal-area={area}.pdf",
+			loci = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4', 'CLAG3.2:140167', 'FIKK3:79845', 'CRT' ],
+			area = [ 'global', 'africa', 'waf', 'eaf' ]
+		),
+		ld = "output/figures/ld/ld.pdf"
 
 include: "hbs.snakefile"
 include: "models.snakefile"

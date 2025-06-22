@@ -53,6 +53,7 @@ args$extended = "input/HbSgooglesheet.csv"
 }
 
 source('code/functions.R')
+source('code/figures/fig1_impl.R')
 
 #get world map to link continent to datasets
 world_sf <- load.entry.from.Rdata('geodata/naturalearthdata.Rdata',"world_sf")
@@ -100,11 +101,8 @@ pfallele.by.group <- function(df, column_name, group_var) {
 data.summary <- list()
 ################################################################################
   
-db <- dbConnect( dbDriver("SQLite"), args$pf )
-#original number of Pf data
-pfsource <- dbGetQuery(db, "SELECT * FROM by_sample ")
-pfsource <- dbGetQuery(db, "SELECT * FROM by_sample WHERE exclude == 'no'")
-dbDisconnect(db)
+pf = load_pfsf( args$pf)
+
 # Replace long country names with shorter versions
 replacements <- c(
   "Burkina_Faso" = "Burkina Faso",
@@ -112,43 +110,22 @@ replacements <- c(
   "Cote_dIvoire" = "Ivory Coast",
   "Papua_New_Guinea" = "Papua New Guinea"
 )
-pfsource = pfsource %>% mutate(
+pf = pf %>% mutate(
   country = if_else(country %in% names(replacements), replacements[country], country)
 )
 
 #save with or without exclude == no
 data.summary$pf <- list()
-data.summary$pf$nbrawpf <- nrow(pfsource)
+data.summary$pf$nbrawpf <- nrow(pf)
 #compute number of distinct sources, datatypes, countries, sites, lat/lon
 # Compute number of unique elements in each column, excluding NA values
-data.summary$pf$pfnbsources <- length(unique(pfsource$source[!is.na(pfsource$source)]))
-data.summary$pf$pfsources <- c(unique(pfsource$source[!is.na(pfsource$source)]))
-data.summary$pf$pftypes <- unique(pfsource$datatype[!is.na(pfsource$datatype)])
-data.summary$pf$pfnbsites <- nrow(unique(pfsource[, c("longitude", "latitude")]) )
-
-pf = (
-  pfsource
-  %>% dplyr::mutate(
-    `Pfsa1_+` = `Pfsa1:nonref`,
-    `Pfsa1_N` = `Pfsa1:nonref` + `Pfsa1:ref`,
-    `Pfsa2_+` = `Pfsa2:nonref`,
-    `Pfsa2_N` = `Pfsa2:nonref` + `Pfsa2:ref`,
-    `Pfsa3_+` = `Pfsa3:nonref`,
-    `Pfsa3_N` = `Pfsa3:nonref` + `Pfsa3:ref`,
-    `Pfsa4_+` = `Pfsa4:ref`,
-    `Pfsa4_N` = `Pfsa4:nonref` + `Pfsa4:ref`	)
-  %>% dplyr::select(
-    source, datatype, latitude, longitude, country,site,
-    `Pfsa1_+`, `Pfsa1_N`,
-    `Pfsa2_+`, `Pfsa2_N`,
-    `Pfsa3_+`, `Pfsa3_N`,
-    `Pfsa4_+`, `Pfsa4_N`
-  )
-)
+data.summary$pf$pfnbsources <- length(unique(pf$source[!is.na(pf$source)]))
+data.summary$pf$pfsources <- c(unique(pf$source[!is.na(pf$source)]))
+data.summary$pf$pftypes <- unique(pf$datatype[!is.na(pf$datatype)])
+data.summary$pf$pfnbsites <- nrow(unique(pf[, c("longitude", "latitude")]) )
 
 data.summary$pf$nbgeopf <- nrow(pf)
-
-pf <- pf  %>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
+pf = pf %>% dplyr::filter(Pfsa1_N > 0 | Pfsa2_N > 0 | Pfsa3_N > 0 | Pfsa4_N > 0)
 
 data.summary$pf$nbgeopfwithsamplesize <- nrow(pf)
 
