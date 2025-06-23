@@ -433,7 +433,9 @@ for( area in c( 'eaf', 'waf' )) {
 		widths = c(0.01, 1, 0.05, 1.3, 0.05, 1.3, 0.01 ),
 		heights = c( 0.1, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, filename = args$output, width = 12, height = 5, device = cairo_pdf  )
+	# fallback device if Cairo is not available
+	safe_device <- if ("cairo_pdf" %in% capabilities()) cairo_pdf else pdf
+	ggsave( z, filename = args$output, width = 12, height = 5, device = safe_device  )
 }
 
 echo("++ End Fig1: plot HbS\n")

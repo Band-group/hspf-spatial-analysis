@@ -489,8 +489,10 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 		)
 
 		if( !is.null( args$outdir )) {
-			ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = cairo_pdf )
-			ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = cairo_pdf )
+			# fallback device if Cairo is not available
+			safe_device <- if ("cairo_pdf" %in% capabilities()) cairo_pdf else pdf
+			ggsave( file = paste0( args$outdir, "/hbspfsummary.pdf"), summary_plot, width = 3, height = 4, device = safe_device )
+			ggsave( file = paste0( args$outdir, "/hbspfsummary.svg"), summary_plot, width = 3, height = 4, device = safe_device )
 		}
 	}
 	echo( "++ Fig1: Aggregate plot completed.\n" )
