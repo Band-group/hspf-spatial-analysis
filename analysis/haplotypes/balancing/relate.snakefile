@@ -124,36 +124,6 @@ rule plot_tree:
 	-o {params.output}
 """
 
-rule compute_stats:
-	output:
-		stats = "outputs/pf7/vcf/07_ancestral/stats.sqlite",
-		flag = touch( "outputs/pf7/vcf/07_ancestral/flag/stats.ok" )
-	input:
-		bgen = expand( rules.convert_to_bgen.output.bgen, chromosome = chromosomes )
-	params:
-		chromosomes = chromosomes
-	run:
-		for chromosome in params.chromosomes:
-			filename = rules.convert_to_bgen.output.bgen.format( chromosome = chromosome )
-			print( "++ Computing snp stats for %s..." % filename )
-			shell( """qctool_v2.2.4 -g %s -snp-stats -threshold 0.9 -osnp sqlite://{output.stats}:SnpStats -analysis-name {chromosome}""" % filename )
-
-rule compute_stats_stratified:
-	output:
-		flag = touch( "outputs/pf7/vcf/07_ancestral/flag/stratified_stats.ok" )
-	input:
-		bgen = expand( rules.convert_to_bgen.output.bgen, chromosome = chromosomes ),
-		samples = "outputs/pf7/samples/filtered_samples.sample",
-		stats = rules.compute_stats.output.stats
-	params:
-		chromosomes = chromosomes,
-		stats = rules.compute_stats.output.stats
-	run:
-		for chromosome in params.chromosomes:
-			filename = rules.convert_to_bgen.output.bgen.format( chromosome = chromosome )
-			print( "++ Computing snp stats for %s..." % filename )
-			shell( """qctool_v2.2.4 -s {input.samples} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{params.stats}:by_country -analysis-name by_country:{chromosome} -stratify Country""" % filename )
-
 rule estimate_pop_size:
 	output:
 		pdf = "outputs/pf7/relate/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.popsize.pdf",

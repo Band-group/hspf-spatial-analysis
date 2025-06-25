@@ -1,20 +1,34 @@
+rule filter_samples_by_country_and_year:
+	output:
+		list = "outputs/pf7/selscan/input/pf7.country={country}.years={years}.samples.list"
+	input:
+		samples = "outputs/pf7/samples/filtered_samples.tsv",
+	params:
+		countries = lambda w: country_sets.get(w.country, [w.country])
+	run:
+		import pandas
+		X = pandas.read_csv( input.samples, sep = "\t" )
+		years = year_sets[wildcards.years]
+		included = X[ X.Country.isin( params.countries ) & (X.Year >= years['start']) & (X.Year <= years['end']) ]
+		o = open( output.list, "wt" )
+		o.writelines(
+			[ "%s\n" % sample for sample in included.Sample.tolist() ]
+		)
+		o.close()
+
 rule prepare_to_run_selscan:
 	output:
-		hap = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.hap.gz",
-		haptmp = "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.haptmp.gz",
-		map = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.map.gz",
-		qctool = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.qctool.tsv.gz" ),
-		cM = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.cM" )
+		hap    = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.years={years}.hap.gz",
+		haptmp = "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.years={years}.haptmp.gz",
+		map    = "outputs/pf7/selscan/input/pf7.{chromosome}.country={country}.years={years}.map.gz",
+		qctool = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.years={years}.qctool.tsv.gz" ),
+		cM     = temp( "outputs/pf7/selscan/input/tmp/pf7.{chromosome}.country={country}.years={years}.cM" )
 	input:
 		vcf = rules.remove_ancestral_hets.output.vcf,
 		samples = "outputs/pf7/samples/filtered_samples.sample",
+		filter = rules.filter_samples_by_country_and_year.output.list,
 		cM = "ancestral/pf_simple_genetic_map_0.017Mb_per_cM.txt"
 	params:
-		thefilter = lambda w: (
-			' '.join(
-				[ '-incl-samples-where Country=%s' % country for country in country_sets.get(w.country, [w.country]) ]
-			)
-		),
 		transpose = srcdir( "scripts/transpose_matrix.py" ),
 		sed_cmd = ' '.join(
 			[
@@ -37,7 +51,7 @@ rule prepare_to_run_selscan:
 		qctool_v2.2.4 \
 		-g {input.vcf} \
 		-s {input.samples} \
-		{params.thefilter} \
+		-incl-samples {input.filter} \
 		-og - | \
 		grep -v '^#' | \
 		cut -f10- | \
@@ -62,46 +76,51 @@ rule prepare_to_run_selscan:
 
 rule run_selscan:
 	output:
-		selscan = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.out.gz" ),
-		log = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan.{mode}.log.gz" )
+		selscan = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.years={years}.selscan.{mode}.out.gz" ),
+		log = temp( "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.years={years}.selscan.{mode}.log.gz" )
 	input:
 		hap = rules.prepare_to_run_selscan.output.hap,
-		map = rules.prepare_to_run_selscan.output.map
+		map = rules.prepare_to_run_selscan.output.map,
+		filter = rules.filter_samples_by_country_and_year.output.list
 	params:
 		selscan = "/well/band/shared/software/selscan-v2.0.1",
 		mode = lambda w: ({"ihs": "--ihs --ihs-detail", "ihh12": "--ihh12" }[w.mode]),
-		output_stub = "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.selscan"
+		output_stub = "outputs/pf7/selscan/output/tmp/pf7.{chromosome}.country={country}.years={years}.selscan"
 	threads: 2
-	shell: """
-		{params.selscan} \
-		--threads {threads} \
-		--hap {input.hap} \
-		--map {input.map} \
-		--pmap \
-		{params.mode} \
-		--maf 0.05 \
-		--out {params.output_stub}
-
-		gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.selscan.{wildcards.mode}.out"
-		gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.selscan.{wildcards.mode}.log"
-	"""
+	run:
+		o = open( input.filter, "rt" ).readlines()
+		if len(o) == 0:
+			shell( """touch "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.years={wildcards.years}.selscan.{wildcards.mode}.out" """ )
+			shell( """touch "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.years={wildcards.years}.selscan.{wildcards.mode}.log" """ )
+		else:
+			shell( """{params.selscan} \
+--threads {threads} \
+--hap {input.hap} \
+--map {input.map} \
+--pmap \
+{params.mode} \
+--maf 0.05 \
+--out {params.output_stub}"""
+		)
+		shell( """gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.years={wildcards.years}.selscan.{wildcards.mode}.out" """ )
+		shell( """gzip "outputs/pf7/selscan/output/tmp/pf7.{wildcards.chromosome}.country={wildcards.country}.years={wildcards.years}.selscan.{wildcards.mode}.log" """ )
 
 rule combine_selscan:
 	output:
-		tmp = temp( "outputs/pf7/selscan/output/tmp/pf7.selscan.{mode}.bins={bins}.tsv" ),
-		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.bins={bins}.tsv.gz"
+		tmp = "outputs/pf7/selscan/output/tmp/pf7.selscan.{mode}.bins={bins}.tsv"
 	input:
 		selscan = expand(
 			rules.run_selscan.output.selscan,
 			chromosome = chromosomes,
 			country = countries + list(country_sets.keys()),
 			mode = '{mode}',
-			bins = '{bins}'
+			bins = '{bins}',
+			years = year_sets.keys()
 		)
 	params:
 		header = lambda w: ({
-			"ihs": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tihh1\\tihh0\\tuIHS\\tihh1_left\\tihh1_right\\tihh0_left\\tihh0_right",
-			"ihh12": "country\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tuiHH12"
+			"ihs": "country\\tyears\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tihh1\\tihh0\\tuIHS\\tihh1_left\\tihh1_right\\tihh0_left\\tihh0_right",
+			"ihh12": "country\\tyears\\tchromosome\\tlocus_id\\tposition\\tfrequency\\tuiHH12"
 		}[w.mode]),
 		stats = lambda w: ({"ihh12": "uiHH12", "ihs": "uIHS"}[w.mode]),
 		breaks = lambda w: (
@@ -111,18 +130,39 @@ rule combine_selscan:
 				'5%': [ -0.01 ] + list( elt/20.0 for elt in range( 1, 21, 1 ))
 			}[w.bins]
 		),
-		areas = countries + list(country_sets.keys())
+		areas = countries + list(country_sets.keys()),
+		year_sets = year_sets.keys()
 	run:
 		shell( """echo -e '{params.header}' > {output.tmp}""" )
 		for chromosome in chromosomes:
 			for country in params.areas:
-				print( "Doing country %s, chromosome %s..." % ( country, chromosome ))
-				filename = rules.run_selscan.output.selscan.format( chromosome = chromosome, country = country, mode = wildcards.mode )
-				shell( """zcat {filename} | tail -n +2 | awk '{{printf( "{country}\\t{chromosome}\\t%s\\n", $0 )}}' >> {output.tmp}""" )
-		shell( """Rscript --vanilla balancing/scripts/normalise.R \
---input {output.tmp} \
+				for years in params.year_sets:
+					print( "Doing country %s, years %s, chromosome %s..." % ( country, years, chromosome ))
+					filename = rules.run_selscan.output.selscan.format( chromosome = chromosome, country = country, years = years, mode = wildcards.mode )
+					print( "Filename is %s..." % filename )
+					shell( """zcat {filename} | tail -n +2 | awk '{{printf( "{country}\\t{years}\\t{chromosome}\\t%s\\n", $0 )}}' >> {output.tmp}""" )
+
+
+rule normalise_selscan:
+	output:
+		tsv = "outputs/pf7/selscan/output/pf7.selscan.{mode}.bins={bins}.tsv.gz"
+	input:
+		selscan = rules.combine_selscan.output.tmp
+	params:
+		stats = lambda w: ({"ihh12": "uiHH12", "ihs": "uIHS"}[w.mode]),
+		breaks = lambda w: (
+			{
+				'1%': [ -0.01 ] + list( elt/100.0 for elt in range( 1, 101, 1 )),
+				'2.5%': [ -0.01 ] + list( elt/40.0 for elt in range( 1, 41, 1 )),
+				'5%': [ -0.01 ] + list( elt/20.0 for elt in range( 1, 21, 1 ))
+			}[w.bins]
+		)
+	shell: """
+Rscript --vanilla balancing/scripts/normalise.R \
+--input {input.selscan} \
 --statistics {params.stats} \
---frequency frequency \
+--frequency 'frequency' \
+--strata country years \
 --breaks {params.breaks} \
 --output {output.tsv} \
-""" )
+"""

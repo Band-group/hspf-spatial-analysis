@@ -24,7 +24,8 @@ parse_arguments <- function() {
 	parser$add_argument(
 		"--strata",
 		type = "character",
-		help = "name of column containing country or other stratification column",
+		nargs = "+",
+		help = "name of columns containing country or other stratification columns",
 		default = "country"
 	)
 	parser$add_argument(
@@ -64,6 +65,9 @@ X[[frequency]] = as.numeric( X[[frequency]])
 X[[frequency_bin]] = cut( X[[frequency]], breaks = args$breaks )
 options(width=300)
 print( head( X ))
+group_by_variables = c( strata, frequency_bin )
+print( group_by_variables )
+print( args$statistics )
 for( column in args$statistics ) {
 	echo( "++ Normalising %s...\n", column )
 	X[[column]] = as.numeric( X[[column]] )
@@ -73,17 +77,19 @@ for( column in args$statistics ) {
 	normalised_column = sprintf( "%s:norm", column )
 	normalised = (
 		X
-		%>% group_by( !!sym(strata), frequency_bin )
+		%>% group_by( across( all_of( group_by_variables )))
 		%>% summarise(
 			mean = mean( !!sym( column )),
 			sd = sd( !!sym( column )),
-			n = n()
+			n = n(),
+			.groups = "drop" # Turns out summarise leaves the df grouped, this turns it off.
 		)
 	)
-	colnames(normalised)[3:5] = c( mean_column, sd_column, n_column )
+	colnames(normalised)[ colnames(normalised) == 'mean' ] = mean_column
+	colnames(normalised)[ colnames(normalised) == 'sd' ] = sd_column
+	colnames(normalised)[ colnames(normalised) == 'n' ] = n_column
 	X = X %>% inner_join( normalised, by = c( strata, frequency_bin ))
 	X[[ normalised_column ]] = (X[[column]] - X[[mean_column]]) / X[[sd_column]]
 }
 
 readr::write_tsv( X, file = args$output )
-
