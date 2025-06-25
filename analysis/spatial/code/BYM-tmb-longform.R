@@ -207,11 +207,12 @@ if( 0 ) {#is.null( args )) {
 	pf = (
 		pf
 		%>% filter( locus == args$locus )
-		%>% group_by( polygon_id, majority_country, source_country_counts )
-		%>% summarise(
-			`Pfsa+` = sum(`Pfsa+`),
-			`Pfsa-` = sum(`Pfsa-`)
-		)
+		# TODO: get rid of this group by and just use the grouping in the aggregated input data
+		#%>% group_by( polygon_id, majority_country, source_country_counts, datatype_counts, majority_datatype )
+		#%>% summarise(
+		#	`Pfsa+` = sum(`Pfsa+`),
+		#	`Pfsa-` = sum(`Pfsa-`)
+		#)
 		%>% mutate(
 			`N` = `Pfsa+` + `Pfsa-`
 		)
