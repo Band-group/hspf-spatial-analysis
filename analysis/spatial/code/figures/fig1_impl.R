@@ -456,6 +456,7 @@ plot_hspf = function(
 	hspfrdspath,
 	uncertainty = "lines", # or "areas" or "simple"
 	show_fit_line = TRUE,
+	show_size_legend = TRUE,
 	show_tzadf = TRUE,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
@@ -676,7 +677,25 @@ plot_hspf = function(
 				linewidth = 0.25
 				)
 			)
-		}	
+		}
+		if( show_size_legend ) {
+			legend_data = tibble::tibble(
+				x = 0.25,
+				y = 0.15,
+				N = c( 10, 100, 1000 )
+			)
+			hspf_plot = (
+				hspf_plot
+				+ geom_point(
+					data = legend_data,
+					aes( x = x, y = y, size = N ),
+					shape = 21,
+					colour = 'black',
+					fill = rgb(0,0,0,0)
+				)
+			)
+		}
+
 		hspf_plot = (
 			hspf_plot
 			+ coord_cartesian( clip = "off" )
