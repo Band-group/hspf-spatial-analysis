@@ -88,7 +88,7 @@ rule all:
 #		),
 		temporal = expand(
 			"output/figures/temporal/{loci}-temporal-area={area}.pdf",
-			loci = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4', 'CLAG3.2:140167', 'FIKK3:79845', 'CRT' ],
+			loci = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4', 'CLAG3.2:140167', 'FIKK3:79845', 'CRT', 'REX2:1428875' ],
 			area = [ 'global', 'africa', 'waf', 'eaf' ]
 		),
 		ld = "output/figures/ld/ld.pdf"
