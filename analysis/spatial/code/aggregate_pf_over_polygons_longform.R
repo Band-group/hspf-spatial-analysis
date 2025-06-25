@@ -82,6 +82,7 @@ longform = (
 		`latitude`,
 		`longitude`,
 		`year`,
+		`datatypes` = `datatype`,
 		`Pfsa-`,
 		`mixed`,
 		`Pfsa+`,
