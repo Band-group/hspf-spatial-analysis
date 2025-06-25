@@ -483,7 +483,7 @@ plot_hspf = function(
 	)[[hspf$link]]
 	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
 	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
-	hspf$data$country = factor( hspf$data$SOVEREIGNT, levels = unique(hspf$data$SOVEREIGNT))
+	hspf$data$country = factor( hspf$data$majority_country, levels = unique(hspf$data$majority_country))
 
 	curves = make_hspf_curves(
 		hspf$sampled.parameters %>% slice_sample( n = 1000 ),

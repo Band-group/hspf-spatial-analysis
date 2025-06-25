@@ -94,5 +94,6 @@ rule all:
 		ld = "output/figures/ld/ld.pdf"
 
 include: "hbs.snakefile"
-include: "models.snakefile"
+include: "pf.snakefile"
+include: "hspf.snakefile"
 include: "figures.snakefile"

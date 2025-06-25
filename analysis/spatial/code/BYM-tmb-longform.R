@@ -194,10 +194,20 @@ if( 0 ) {#is.null( args )) {
 	# Filter to the locus of interest.
 	# Also source data may be grouped differently - or not grouped!
 	# Let's group by polygon now.
+
+	#sanity check (each polygon_id should only lies within a specific country)
+	
+	stopifnot(
+		nrow(
+			pf %>% group_by(polygon_id) %>% summarise(n = length(unique(majority_country))) %>% filter(n != 1)
+		) == 0
+	)
+
+
 	pf = (
 		pf
 		%>% filter( locus == args$locus )
-		%>% group_by( polygon_id )
+		%>% group_by( polygon_id, majority_country, source_country_counts )
 		%>% summarise(
 			`Pfsa+` = sum(`Pfsa+`),
 			`Pfsa-` = sum(`Pfsa-`)

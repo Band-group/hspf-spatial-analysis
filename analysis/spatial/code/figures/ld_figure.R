@@ -1,7 +1,9 @@
 library( ggplot2 )
+library( gridExtra )
 library( dplyr )
 library( viridis )
 library( gridExtra )
+
 
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
@@ -30,6 +32,7 @@ ld2 = (
 		by = "polygon_id"
 	)
 	%>% mutate(
+		country = majority_country,
 		dprime = `D++` / (`f++` - `f++`^2)
 	)
 )
@@ -183,7 +186,6 @@ plots$r2way = (
 	)
 )
 
-
 longform2 = (
 	ld2[, c( "polygon_id", "country", "N", "f++", "HbAS_or_SS", "f-+", "f+-" )]
 	%>% tidyr::pivot_longer(
@@ -248,6 +250,41 @@ config = list(
 	)
 )
 
+rdirichlet = function( n, alpha ) {
+	result = matrix(
+		NA,
+		nrow = n,
+		ncol = length(alpha)
+	)
+	for( i in 1:nrow(result)) {
+		result[i,] = rgamma( n = length(alpha), shape = alpha, rate = 1 )
+		result[i,] = result[i,] / sum(result[i,])
+	}
+	return( result )
+}
+
+`compute_max_Dm` = function( `f+++`, N = 10000 ) {
+	samples = cbind(
+		rdirichlet( N, c( 10, 1, 1, 1, 1, 1, 1 )) * ( 1 - `f+++` ),
+		`f+++`
+	)
+	colnames(samples) = c(
+		'---', '--+', '-+-', '-++',
+		'+--', '+-+', '++-', '+++'
+	)
+	`f-..` = rowSums( samples[,1:4] )
+	`f.-.` = rowSums( samples[,c(1,2,5,6)] )
+	`f..-` = rowSums( samples[,c(1,3,5,7)] )
+	Dm = samples[,1] - `f-..` * `f.-.` * `f..-`
+	w = which.max(Dm)
+	return(
+		cbind(
+			tibble::as_tibble(samples[w,,drop=F]),
+			tibble::tibble( `D---` = Dm[w] )
+		)
+	)
+}
+
 for( area in c( 'eaf', 'waf' )) {
 	relevant_locus = config[[area]]$locus
 	ld3 = (
@@ -257,12 +294,15 @@ for( area in c( 'eaf', 'waf' )) {
 			HbS %>% select( polygon_id, HbS, HbAS_or_SS ),
 			by = "polygon_id"
 		)
+		%>% mutate(
+			country = majority_country
+		)
 	)
 
 	longform3 = (
-		ld3[, c( "polygon_id", "N", "f+++", "HbAS_or_SS", grep( "^D[-+]*", colnames(ld3), value = T ))]
+		ld3[, c( "polygon_id", "country", "N", "f+++", "HbAS_or_SS", grep( "^D[-+]*", colnames(ld3), value = T ))]
 		%>% tidyr::pivot_longer(
-			cols = !c( "polygon_id", "f+++", "HbAS_or_SS", "N" ),
+			cols = !c( "polygon_id", "f+++", "HbAS_or_SS", "N", "country" ),
 			names_to = "genotype",
 			values_to = "D"
 		)
@@ -282,22 +322,33 @@ for( area in c( 'eaf', 'waf' )) {
 	) %>% mutate(
 		`f---` = 1 - `f+++`,
 		`max_D_+++` = `f+++` - `f+++`^3,
-		`max_D_---` = `f---` - `f---`^3
+		`perfect_LD_D_---` = `f---` - `f---`^3,
+		`perfect_LD_D_++-` = 0 - `f+++`^2 * `f---`,
+		`perfect_LD_D_+--` = 0 - `f+++` * `f---`^2
 	)
-
 	plots[[area]] = (
 		ggplot(
-			data = longform3 %>% filter( N >= 25 )
+			data = longform3 %>% filter( N >= 50 )
 		)
-		+ geom_point( aes( x = `f+++`, y = D, shape = genotype, fill = genotype ), size = 2)
+		+ geom_point( aes( x = `f+++`, y = D, shape = genotype, fill = genotype, size = genotype, colour = country ) )
 		+ geom_line(
 			data = lines,
 			aes( x = `f+++`, y = `max_D_+++`),
+			linetype = 1
+		)
+		+ geom_line(
+			data = lines,
+			aes( x = `f+++`, y = `perfect_LD_D_---`),
+			linetype = 4
+		)
+		+ geom_line(
+			data = lines,
+			aes( x = `f+++`, y = `perfect_LD_D_++-`),
 			linetype = 2
 		)
 		+ geom_line(
 			data = lines,
-			aes( x = `f+++`, y = `max_D_---`),
+			aes( x = `f+++`, y = `perfect_LD_D_+--`),
 			linetype = 3
 		)
 		+ theme_minimal()
@@ -306,11 +357,14 @@ for( area in c( 'eaf', 'waf' )) {
 		)
 		+ xlab( config[[area]]$genotype_label )
 		+ ylab( "Obs. - exp.\nfrequency\n(D)")
-		+ scale_fill_manual(
+		+ scale_colour_manual( values = palette )
+		+ scale_fill_manual( values = c( rgb( 0, 0, 0, 0.5 ), rep( rgb( 0, 0, 0, 0.1 ), 6 ), rgb( 0, 0, 0, 0.5 ) ) )
+		+ scale_size_manual( values = c( 3, rep( 1, 6 ), 3 ))
+		+ scale_shape_manual(
 			values = c(
-				"red",
-				rep( "white", 6 ),
-				"blue"
+				25,
+				0, 1, 3, 5, 4, 8,
+				24
 			)
 		)
 		+ annotate(
@@ -320,13 +374,6 @@ for( area in c( 'eaf', 'waf' )) {
 			label = config[[area]]$panel_label,
 			hjust = 0,
 			vjust = 1
-		)
-		+ scale_shape_manual(
-			values = c(
-				25,
-				0, 1, 3, 4, 5, 6,
-				24
-			)
 		)
 	)
 }
@@ -368,7 +415,7 @@ for( area in c( 'eaf', 'waf' )) {
 #		nrow = 1,
 #		rel_widths = c( 1.4, 2, 1 )
 #	)
-	z = grid.arrange(
+	z = arrangeGrob(
 		grobs = list(
 			left,
 			(
@@ -383,10 +430,12 @@ for( area in c( 'eaf', 'waf' )) {
 			right
 		),
 		layout_matrix = layout.m,
-		widths = c(0.1, 1, 0.05, 1.3, 0.05, 1.1, 0.1 ),
+		widths = c(0.01, 1, 0.05, 1.3, 0.05, 1.3, 0.01 ),
 		heights = c( 0.1, 1, 0.05, 1, 0.1 )
 	)
-	ggsave( z, filename =  args$output, width = 12, height = 6, device = cairo_pdf  )
+	# fallback device if Cairo is not available
+	safe_device <- if ("cairo_pdf" %in% capabilities()) cairo_pdf else pdf
+	ggsave( z, filename = args$output, width = 12, height = 5, device = safe_device  )
 }
 
 echo("++ End Fig1: plot HbS\n")
