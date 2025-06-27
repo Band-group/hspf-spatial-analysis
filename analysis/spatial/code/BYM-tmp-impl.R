@@ -203,6 +203,7 @@ fitbym_to_posterior_samples <- function(
 	}
 
 	# Run regression for each posterior sample of HbS...
+	echo( "++ Fitting BYM model for %d HbS samples...\n   : ", length(hbs_columns) )
 	for( sample in hbs_columns ) {
 		data = list(
 			y = countrydfi$y,
@@ -257,7 +258,7 @@ fitbym_to_posterior_samples <- function(
 			),
 			silent = TRUE
 		)
-		echo( "++ Fitting %s...\n", sample )
+		cat( "." )
 		fit = fitit( obj ) ;
 		if( sample == hbs_columns[1] ) {
 			print( fit$estimates )
@@ -267,7 +268,7 @@ fitbym_to_posterior_samples <- function(
 		#create approx. 95 CI and mode
 		fitted.parameters = bind_rows(
 			fitted.parameters,
-			bind_cols(
+			bind_cols[(
 				hbs.sample = sample,
 				model = model,
 				fit$estimates
