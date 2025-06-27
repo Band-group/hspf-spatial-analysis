@@ -268,7 +268,7 @@ fitbym_to_posterior_samples <- function(
 		#create approx. 95 CI and mode
 		fitted.parameters = bind_rows(
 			fitted.parameters,
-			bind_cols[(
+			bind_cols(
 				hbs.sample = sample,
 				model = model,
 				fit$estimates
