@@ -29,7 +29,7 @@ params:
       # - "CLAG3.2:140167"
       # - "FIKK3:79845"
       # - "REX2:1428875"
-      - "CRT"
+      #- "CRT"
    regression_model:
       - "bym2"
    min_km_to_survey_pt:
