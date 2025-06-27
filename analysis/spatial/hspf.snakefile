@@ -177,9 +177,6 @@ rule combine_hspf_summaries:
 			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['hbs_covariates'] == w.hbs_covariates) ]
 		])
 	run:
-		print( "HELLO!")
-		print( output.tsv )
-		print( "HELLO!")
 		done_header = False
 		for filename in input.tsv:
 			print( filename )
