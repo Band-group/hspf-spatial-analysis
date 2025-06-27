@@ -21,8 +21,8 @@ load.plasmodb.genes <- function( gff, gaf ) {
 		)
 		result = readr::read_tsv( filename, col_names = columns, comment = '!' )
 	}
-	gff = gmsgff::parse_gff3_to_dataframe( "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7.gff.gz" )
-	gaf = read.gaf( "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz" )
+	gff = gmsgff::read_gff( gff )
+	gaf = read.gaf( gaf )
 	gaf = unique( gaf[,c("ID", "symbol")])
 	gff = (
 		gff
