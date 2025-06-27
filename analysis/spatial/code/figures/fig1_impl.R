@@ -681,8 +681,8 @@ plot_hspf = function(
 		if( show_size_legend ) {
 			legend_data = tibble::tibble(
 				x = 0.2875,
-				y = 0.1,
-				text_y = c( 0.001, 0.13, 0.17 ),
+				y = 0.11,
+				text_y = c( 0.04, 0.15, 0.21 ),
 				N = c( 25, 250, 2500 ),
 				display = c( "25", "250", "2,500" )
 			)
@@ -705,11 +705,11 @@ plot_hspf = function(
 				+ geom_segment(
 					data = tibble::tibble(
 						x = 0.2875,
-						y = 0.02,
+						y = 0.065,
 						yend = 0.095
 					),
 					aes( x = x, xend = x, y = y, yend = yend ),
-					linewidth=0.05,color='darkgrey'
+					linewidth=0.05,color='gray05'
 				)
 			)
 		}
