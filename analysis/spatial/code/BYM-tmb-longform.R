@@ -214,7 +214,7 @@ if( 0 ) {#is.null( args )) {
 		#	`Pfsa-` = sum(`Pfsa-`)
 		#)
 		%>% mutate(
-			`N` = `Pfsa+` + `Pfsa-`
+			`N` = (`Pfsa+` + `Pfsa-`)
 		)
 		%>% filter( N >= args$min_N )
 	)
