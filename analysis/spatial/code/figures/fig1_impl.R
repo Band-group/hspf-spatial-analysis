@@ -682,7 +682,7 @@ plot_hspf = function(
 			legend_data = tibble::tibble(
 				x = 0.2875,
 				y = 0.11,
-				text_y = c( 0.4, 0.15, 0.21 ),
+				text_y = c( 0.04, 0.15, 0.21 ),
 				N = c( 25, 250, 2500 ),
 				display = c( "25", "250", "2,500" )
 			)
