@@ -7,7 +7,7 @@ library( ggplot2 ) # Needed for theme()
 # %.3f = float to 3dp
 # E.g. echo( "This is the number %d!", 100 ) and so on.
 echo <- function( text, ... ) {
-	message( sprintf( text, ... ))
+	cat( sprintf( text, ... ))
 }
 
 install.prerequisites <- function() {
