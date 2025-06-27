@@ -1,7 +1,5 @@
 suppressMessages( library( dplyr ))
 suppressMessages( library( argparse ))
-suppressMessages( library( knitr ))
-suppressMessages( library( kableExtra ))
 suppressMessages( library( stringr ))
 
 source( "code/figures/fig1_impl.R" )
@@ -145,6 +143,8 @@ readr::write_tsv( result, args$output, append = file.exists( args$output ))
 
 use_tex = FALSE
 if( use_tex ) {
+	suppressMessages( library( knitr ))
+	suppressMessages( library( kableExtra ))
 
 	echo( "++ Ok, %d rows read.\n", nrow( updatedresult ))
 	# Save table as latex
