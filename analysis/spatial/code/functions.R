@@ -2272,6 +2272,8 @@ aggregate_pf_across_polygons = function(
 		%>% summarise(
       source_country_counts = countit( source_countries ),
       majority_country = findhighestcount( source_countries ),
+      datatype_counts = countit( datatypes ),
+      majority_datatype = findhighestcount( datatypes ),
       dplyr::across(dplyr::where(is.character), function(x) { paste( sort( unique( x )), collapse = "," )}),
       dplyr::across(dplyr::where(is.numeric),  \(x) sum(x, na.rm = TRUE))
     )
