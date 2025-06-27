@@ -24,6 +24,8 @@ analysis/spatial/simulated
 analysis/spatial/code/africa
 analysis/spatial/code/HbS
 analysis/spatial/code/archive
+analysis/spatial/output/figures/figure_1/manuscript
+analysis/spatial/output/figures/figure_2/manuscript
 logs
 *.o
 *.so
