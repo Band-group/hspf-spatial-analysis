@@ -241,7 +241,6 @@ fitbym_to_posterior_samples <- function(
 			logodds_phi 	= 0          # Specify phi on log odds scale
 		)
 
-		print( args$tmb_model )
 		obj <- TMB::MakeADFun(
 			data = data,
 			parameters = parameters,
@@ -260,7 +259,9 @@ fitbym_to_posterior_samples <- function(
 		)
 		echo( "++ Fitting %s...\n", sample )
 		fit = fitit( obj ) ;
-		print( fit$estimates )
+		if( sample == hbs_columns[1] ) {
+			print( fit$estimates )
+		}
 
 		############################################################################
 		#create approx. 95 CI and mode
@@ -301,8 +302,8 @@ fitbym_to_posterior_samples <- function(
 				log_nu = posterior.parameters[,'log_nu']
 			)
 		)
-		echo( "... ++ Ok, successfully fit model for %s..\n", sample )
 	}
+	echo( "... ++ Ok, successfully fit model for %d HbS map samples..\n", length(hbs_columns) )
 	# fix parameter name for the transform
 	fitted.parameters$parameter = gsub( "^transform[.]fn[(]", sprintf( "%s(", transform ), fitted.parameters$parameter )
 	return(
