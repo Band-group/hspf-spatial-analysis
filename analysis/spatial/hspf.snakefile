@@ -181,7 +181,7 @@ rule combine_hspf_summaries:
 		for filename in input.tsv:
 			print( filename )
 			if not done_header:
-				shell( """tail -n +2 {filename} >> {output.tsv}""" )
+				shell( """cat {filename} > {output.tsv}""" )
 				done_header = True
 			else:
-				shell( """cat {filename} > {output.tsv}""" )
+				shell( """tail -n +2 {filename} >> {output.tsv}""" )
