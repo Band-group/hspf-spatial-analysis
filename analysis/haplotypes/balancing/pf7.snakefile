@@ -152,11 +152,25 @@ rule beagle_phase:
 		chrom={params.chromosome}
 	"""
 
+# TODO: normalising before phasing would make more sense, I reckon.
+# Not doing this now because would require re-phasing, which takes time.
+rule vt_normalise:
+	output:
+		vcf = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.normalised.vcf.gz",
+		tbi = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.normalised.vcf.gz.tbi"
+	input:
+		vcf = rules.beagle_phase.output.vcf,
+		fasta = "/well/band/projects/pfsa/data/assemblies/Pf3D7_v3/Pf3D7_v3.fasta"
+	shell: """
+		vt normalize -r {input.fasta} -o {output.vcf} {input.vcf}
+		tabix -p vcf {output.vcf}
+	"""
+
 rule count_phased_hets:
 	output:
 		txt = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.counts.txt"
 	input:
-		vcf = rules.beagle_phase.output.vcf
+		vcf = rules.vt_normalise.output.vcf
 	shell: """
 		zcat {input.vcf} | tr '\\t' '\\n' | sort | uniq -c | grep '[01][|][01]' > {output.txt}
 	"""
@@ -186,7 +200,7 @@ rule subset_and_flip_to_ancestral_alleles:
 		strand = rules.generate_qctool_files.output.strand,
 		pos = rules.generate_qctool_files.output.pos,
 		map = rules.generate_qctool_files.output.map,
-		vcf = rules.beagle_phase.output.vcf.format( chromosome = '{chromosome}', beagle_version = "v5.4" )
+		vcf = rules.vt_normalise.output.vcf.format( chromosome = '{chromosome}', beagle_version = "v5.4" )
 	shell: """
 		qctool_v2.2.4 \
 		-g {input.vcf} \
@@ -253,13 +267,12 @@ rule compute_stats_stratified:
 		samples = "outputs/pf7/samples/filtered_samples.sample",
 		stats = rules.compute_stats.output.stats
 	params:
-		chromosomes = chromosomes,
-		stats = rules.compute_stats.output.stats
+		chromosomes = chromosomes
 	run:
 		for chromosome in params.chromosomes:
 			filename = rules.convert_to_bgen.output.bgen.format( chromosome = chromosome )
 			print( "++ Computing snp stats for %s..." % filename )
-			shell( """qctool_v2.2.4 -s {input.samples} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{params.stats}:by_country -analysis-name by_country:{chromosome} -stratify Country""" % filename )
+			shell( """qctool_v2.2.4 -s {input.samples} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{input.stats}:by_country -analysis-name by_country:{chromosome} -stratify Country""" % filename )
 
 rule find_similar_freq_mutations:
 	output:
