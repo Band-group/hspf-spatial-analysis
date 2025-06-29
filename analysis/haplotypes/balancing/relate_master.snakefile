@@ -1,5 +1,6 @@
 
-chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 15 )]
+#chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 15 )]
+chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 5 )]
 
 data = {
 	"pf7": "/well/band/projects/pf7"
@@ -107,69 +108,37 @@ regions = {
 		]
 	}
 }
-
-countries = [
-	"Gambia",
-	"Senegal",
-#	"Guinea",
-#	"Mauritania",
-#	"Cote_dIvoire",
-	"Mali",
-#	"Burkina_Faso",
-	"Ghana",
-	"Benin",
-#	"Nigeria",
-#	"Gabon",
-	"Cameroon",
-	"Democratic_Republic_of_the_Congo",
-#	"Sudan",
-#	"Uganda",
-	"Malawi",
-	"Tanzania",
-#	"Mozambique",
-	"Kenya",
-#	"Ethiopia",
-#	"Madagascar
-]
-
-country_sets = {
-	'east': [ 'Kenya', 'Malawi', 'Tanzania', 'Uganda', 'Mozambique' ],
-	'west': [ 'Gambia', 'Senegal', 'Guinea', 'Mauritania', 'Cote_dIvoire', 'Burkina_Faso', 'Ghana', 'Benin', 'Mali' ],
-	'central_west': [ 'Nigeria', 'Cameroon', 'Gabon', 'Democratic_Republic_of_the_Congo' ],
-	'north_east': [ 'Sudan', 'Ethiopia' ]
-}
-
-year_sets = {
-	'1980-1999': { 'start': 1960, 'end': 1999 },
-	'2000-2009': { 'start': 2000, 'end': 2009 },
-	'2010-2025': { 'start': 2010, 'end': 2026 },
-	'all': { 'start': 1960, 'end': 2026 }
-}
-
 wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
 	Ne = '[0-9]+'
 
-include: "pf7.snakefile"
-include: "selscan.snakefile"
-include: "betascan.snakefile"
+include: "relate.snakefile"
 
-localrules: combine_selscan
+mutation_rates = [
+	# Otto et al says average mutation rate is 9.57x10-11 per mitosis
+	# (which comes from the average 3.83x10^-10 per erythrocyte cycle from Claessens et al clone tree paper, and 4 mitoses per erythrocyte cycle.)
+	# The table then says between 66 and 336 mitosis (i.e. about 16-84 erythocyte cycles) per generation
+	# so the mutation rate per site per generation this is:
+	'6.3162e-9', '3.21552e-8'
+	# We previously used 4.35e-9 which is evidently on the low side.
+]
 
 rule all:
 	input:
-		vcf = expand( "outputs/pf7/vcf/06_phased/{chromosome}.phased.v5.4.vcf.gz", chromosome = chromosomes ),
-		counts = expand( "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.counts.txt", chromosome = chromosomes, beagle_version = [ "v5.4" ]),
-		ancestral = expand( "outputs/pf7/vcf/07_ancestral/{chromosome}.{extension}", chromosome = chromosomes, extension = [ 'bgen', 'vcf.gz' ] ),
-		polarised = expand( "outputs/pf7/relate/input/{chromosome}.shapeit.gz", chromosome = chromosomes ),
-		samples = "outputs/pf7/relate/input/relate_input.sample",
-		betascan = expand(
-			"outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz",
-			window = [ "5000", "10000" ],
-			p = [ "20", "50" ]
+		relate = expand(
+			"outputs/pf7/relate/output/pf7.relate.{chromosome}.Ne=100000.mu={mu}.mut",
+			chromosome = chromosomes,
+			# Otto et al says average mutation rate is 9.57x10-11 per mitosis
+			# (which comes from the average 3.83x10^-10 per erythrocyte cycle from Claessens et al clone tree paper, and 4 mitoses per erythrocyte cycle.)
+			# The table then says between 66 and 336 mitosis (i.e. about 16-84 erythocyte cycles) per generation
+			# so the mutation rate per site per generation this is:
+			mu = mutation_rates
+			# We previously used 4.35e-9 which is evidently on the low side.
 		),
-		selscan = expand(
-			"outputs/pf7/selscan/output/pf7.selscan.{mode}.bins={bins}.tsv.gz",
-			mode = [ 'ihs', 'ihh12' ],
-			bins = [ '1%', '2.5%', '5%' ]
+		#regions = expand( "outputs/pf7/relate/input/{region}.shapeit.gz", region = regions.keys() ),
+		popsize = expand(
+			"outputs/pf7/relate/output/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize.pdf",
+			chromosome_or_region = chromosomes,
+			mu = mutation_rates,
+			Ne = [ "100000" ]
 		)
