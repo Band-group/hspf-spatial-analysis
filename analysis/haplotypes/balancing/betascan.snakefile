@@ -19,7 +19,7 @@ rule create_betascan_file:
 
 rule run_betascan:
 	output:
-		tsv = temp( "outputs/pf7/betascan/output/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv" )
+		tsv = temp( "outputs/pf7/betascan/output/original_betascan/tmp/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv" )
 	input:
 		counts = rules.create_betascan_file.output.tsv
 	params:
@@ -43,7 +43,7 @@ rule run_betascan:
 
 rule combine_betascan:
 	output:
-		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz"
+		tsv = "outputs/pf7/betascan/output/original_betascan/pf7.betascan.window={window}.p={p}.tsv.gz"
 	input:
 		tsv = lambda w: (
 			expand(
@@ -68,7 +68,7 @@ rule combine_betascan:
 
 rule run_my_betascan:
 	output:
-		tsv = "outputs/pf7/betascan/advanced/tmp/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv"
+		tsv = "outputs/pf7/betascan/output/tmp/pf7.{chromosome}.country={country}.betascan.window={window}.p={p}.tsv"
 	input:
 		haplotypes = rules.convert_to_bgen.output.bgen,
 		samples = rules.filter_samples.output.samples
@@ -87,7 +87,7 @@ rule run_my_betascan:
 
 rule combine_my_betascan:
 	output:
-		tsv = "outputs/pf7/betascan/advanced/pf7.betascan.window={window}.p={p}.tsv.gz"
+		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz"
 	input:
 		tsv = lambda w: (
 			expand(
