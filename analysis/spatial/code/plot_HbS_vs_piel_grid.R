@@ -90,6 +90,25 @@ print( table( grid$country ))
 
 grid = grid[ sample( 1:nrow( grid )), ]
 
+# TODO: implement this:
+# {
+#	echo( "++ Finding grid cells within %d km of HbS survey points...\n", args$min_km_to_survey_pt )
+#	echo( "++ Loading HbS survey data from %s...\n", args$HbS_survey )
+#	survey = readr::read_csv(
+#		args$HbS_survey,
+#		col_types = "cddddddddcdddcdd"
+#	)
+#	echo( "++ ...ok, %d points loaded.\n", nrow( survey ))
+#	survey = survey %>% sf::st_as_sf( coords = c("longitude", "latitude"), crs = sf::st_crs( grid$centroid )) # Instead of 4326
+#	survey$longitude = sf::st_coordinates(survey)[,1]
+#	survey$latitude = sf::st_coordinates(survey)[,2]
+#	hbsbuffer = sf::st_buffer( survey, args$min_km_to_survey_pt*1000 )
+#	in_range_grid = sf::st_filter( grid, hbsbuffer )
+#	grid$in_range = 0
+#	grid$in_range[ grid$polygon_id %in% in_range_grid$polygon_id ] = 1
+#	echo( "++ ...%d (of %d) grid cells are in range and will be used in the analysis.\n", length( which( grid$in_range == 1 )), nrow( grid ))
+# }
+
 echo( "++ Plotting to %s...\n", args$output )
 library(ggplot2)
 library(stats)  # To calculate R-squared and p-value

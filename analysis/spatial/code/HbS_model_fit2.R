@@ -67,7 +67,7 @@ parse_arguments <- function() {
 		"--number_of_posterior_samples",
 		type = "numeric",
 		help = "Number of posterior samples to output.",
-		default = 50
+		default = 100
 	)
 	parser$add_argument(
 		"--outdir",

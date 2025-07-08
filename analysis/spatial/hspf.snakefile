@@ -40,15 +40,15 @@ rule extract_hspf_covariates:
 
 rule fit_hspf_in_areas:
 	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
+		rds = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+		pdf = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.pdf"
 	input:
-		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
-		hbs = rules.aggregate_HbS.output.tsv,
-		survey = "input/cleanHbSdata.csv",
-		world = "geodata/naturalearthdata.Rdata",
-		tmb_model = rules.compile_TMB_code.output.so,
+		grid       = rules.create_grid.output.rds,
+		pf         = rules.aggregate_pf.output.tsv,
+		hbs        = rules.aggregate_HbS.output.tsv,
+		survey     = "input/cleanHbSdata.csv",
+		world      = "geodata/naturalearthdata.Rdata",
+		tmb_model  = rules.compile_TMB_code.output.so,
 		covariates = lambda w: ([
 			# This funny bit of code is to make sure this rule depends on the appropriate
 			# covariates file, UNLESS hspf_covariates="none"
@@ -63,7 +63,8 @@ rule fit_hspf_in_areas:
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
 		hspf_covariates = lambda w, input: (
 			"" if w.hspf_covariates == "none" else "--covariates %s" % input.covariates
-		)
+		),
+		posterior_samples_per_hbs_sample = 100
 	threads: 1
 	shell: """
 		Rscript --vanilla {params.script} \
@@ -73,6 +74,7 @@ rule fit_hspf_in_areas:
 		--tmb_model {input.tmb_model} \
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
+		--posterior_samples_per_hbs_sample {params.posterior_samples_per_hbs_sample} \
 		{params.hspf_covariates} \
 		--locus {wildcards.locus} \
 		{params.areas} \
@@ -85,17 +87,17 @@ rule fit_hspf_in_areas:
 
 rule fit_hspf_in_areas_with_restricted_sources:
 	output:
-		rds = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-source={source}.rds"
+		rds = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-source={source}.rds"
 	input:
-		grid = rules.create_grid.output.rds,
-		pf = rules.aggregate_pf.output.tsv,
-		hbs = rules.aggregate_HbS.output.tsv,
-		survey = "input/cleanHbSdata.csv",
-		world = "geodata/naturalearthdata.Rdata"
+		grid    = rules.create_grid.output.rds,
+		pf      = rules.aggregate_pf.output.tsv,
+		hbs     = rules.aggregate_HbS.output.tsv,
+		survey  = "input/cleanHbSdata.csv",
+		world   = "geodata/naturalearthdata.Rdata"
 	params:
-		script = srcdir( "code/BYM-tmb-longform.R" ),
-		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
-		source = lambda w: (
+		script  = srcdir( "code/BYM-tmb-longform.R" ),
+		areas   = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
+		source  = lambda w: (
 			{
 				"pf7": ["MalariaGEN Pf7"],
 				"moser": ["Moser et al 2021"],
@@ -121,11 +123,11 @@ rule fit_hspf_in_areas_with_restricted_sources:
 
 rule plot_hspf:
 	output:
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
+		pdf = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf"
 	input:
-		fit = rules.fit_hspf_in_areas.output.rds,
-		grid = rules.create_grid.output.rds,
-		hbs = rules.aggregate_HbS.output.tsv,
+		fit   = rules.fit_hspf_in_areas.output.rds,
+		grid  = rules.create_grid.output.rds,
+		hbs   = rules.aggregate_HbS.output.tsv,
 		world = "geodata/naturalearthdata.Rdata"
 	params:
 		script = srcdir( "code/plot_hspf_fit.R" )
@@ -139,7 +141,7 @@ rule plot_hspf:
 
 rule plot_hspf_areas:
 	output:
-		pdf = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}.areas.pdf"
+		pdf = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf"
 	input:
 		fit = rules.fit_hspf_in_areas.output.rds.replace( "{min_N}", "0" ),
 		grid = rules.create_grid.output.rds,
@@ -158,9 +160,9 @@ rule plot_hspf_areas:
 
 rule summarise_hspf:
 	output:
-		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-summary.tsv"
+		tsv = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-summary.tsv"
 	input:
-		fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
+		fit = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds"
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	shell: """
@@ -169,13 +171,9 @@ rule summarise_hspf:
 
 rule combine_hspf_summaries:
 	output:
-		tsv = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/all_hspf_analyses_summary.tsv"
+		tsv = "output/all_hspf_analyses_summary.tsv"
 	input:
-		tsv = lambda w: ([
-			rules.summarise_hspf.output.tsv
-			.format(**elt)
-			for elt in [ x for x in master_hspf_analyses if (x['r0'] == w.r0) and (x['sigma0'] == w.sigma0) and (x['hbs_covariates'] == w.hbs_covariates) ]
-		])
+		tsv = expand( rules.summarise_hspf.output.tsv, **config['params'] )
 	run:
 		done_header = False
 		for filename in input.tsv:

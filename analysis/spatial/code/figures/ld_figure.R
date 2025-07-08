@@ -3,17 +3,23 @@ library( gridExtra )
 library( dplyr )
 library( viridis )
 library( gridExtra )
-
+library( argparse )
 
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
-args = list(
-	output = "output/figures/ld/ld.pdf"
-)
+parse_arguments <- function() {
+	parser <- ArgumentParser( description = 'Create elements for Figure 1' )
+	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE )
+	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
+	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", required = TRUE )
+	parser$add_argument("--ld2way", type = "character", help = "Path to ld input file", required = TRUE )
+	parser$add_argument("--ld3way", type = "character", help = "Path to 3-way ld input file, include '{area}' for area", required = TRUE )
+}
 
-HbS = load_HbS_mean( "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv" )
-grid = readRDS( "output/grids/grid-type=hexagon-size=1-area=africa.rds" )
+
+HbS = load_HbS_mean( args$HbS_aggregated )
+grid = readRDS( args$grid )
 grid$grid = grid$centroid = NULL
 grid = (
 	tibble::as_tibble(grid)
@@ -21,7 +27,7 @@ grid = (
 )
 
 ld2 = (
-	readr::read_tsv( "output/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv" )
+	readr::read_tsv( args$ld2way )
 	%>% filter( locus == "Pfsa1xPfsa3" )
 	%>% left_join(
 		grid,
@@ -288,7 +294,7 @@ rdirichlet = function( n, alpha ) {
 for( area in c( 'eaf', 'waf' )) {
 	relevant_locus = config[[area]]$locus
 	ld3 = (
-		readr::read_tsv( sprintf( "output/pf/aggregated/grid-type=hexagon-size=1-area=%s-3wayld-by=none.tsv", area ))
+		readr::read_tsv( gsub( '{area}', area, args$ld3way, fixed = T ) )
 		%>% filter( locus == relevant_locus )
 		%>% left_join(
 			HbS %>% select( polygon_id, HbS, HbAS_or_SS ),

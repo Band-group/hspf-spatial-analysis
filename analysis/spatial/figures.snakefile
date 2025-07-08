@@ -1,15 +1,15 @@
 rule create_figure1:
 	output:
-		pdf = "output/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1.pdf",
-		SI = "output/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg"
+		pdf = "output/pf={pf_data_version}/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1.pdf",
+		SI = "output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
-		pf = config['data']['pf'],
+		pf = lambda w: config['data']['pf'][w.pf_data_version],
 		HbS_survey = "input/cleanHbSdata.csv",
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		HbS_predictions = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_predictions.rds",
 		HbS_fit = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_modelfit.rds",
-		hspf_fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		hspf_fit = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 	params:
 		outdir = "tmp",
@@ -31,15 +31,16 @@ rule create_figure1:
 
 rule create_figure2:
 	output:
-		pdf = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf",
-		svg = "output/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.svg"
+		pdf = "output/pf={pf_data_version}/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.pdf",
+		svg = "output/pf={pf_data_version}/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.svg"
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
-		pf = config['data']['pf'],
+		pf = lambda w: config['data']['pf'][w.pf_data_version],
 		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 		hspf_fit = lambda w: expand(
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			pf_data_version = w.pf_data_version,
 			r0 = w.r0,
 			sigma0 = w.sigma0,
 			hbs_covariates = w.hbs_covariates,
@@ -55,7 +56,8 @@ rule create_figure2:
 	params:
 		script = srcdir( "code/figures/fig2_new.R" ),
 		hspf_fit_template = lambda w: (
-			"output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+				pf_data_version = w.pf_data_version,
 				r0 = w.r0,
 				sigma0 = w.sigma0,
 				hbs_covariates = w.hbs_covariates,
@@ -82,14 +84,14 @@ rule create_figure2:
 
 rule create_summary_list:
 	output:
-		rds = "output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds"
+		rds = "output/pf={pf_data_version}/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds"
 	input:
 		grid = "output/grids/grid-type=hexagon-size={size}-area=global.rds",
-		pf = config['data']['pf'],
+		pf = lambda w: config['data']['pf'][w.pf_data_version],
 		HbS_survey = "input/HbS_survey.csv",
 		extended = "input/HbSgooglesheet.csv",
 		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size={size}-area=global.tsv",
-		hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
+		hspf_fit = "output/pf={pf_data_version}/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-{min_km_to_survey_pt}km-area=global-min_N={min_N}.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	params:
 		output = "summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
@@ -108,9 +110,9 @@ rule create_summary_list:
 
 rule temporal_figure:
 	output:
-		pdf = "output/figures/temporal/{loci}-temporal-area={area}.pdf"
+		pdf = "output/pf={pf_data_version}/figures/temporal/{loci}-temporal-area={area}.pdf"
 	input:
-		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year.tsv"
+		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year.tsv"
 	params:
 		script = srcdir( "code/figures/temporal_figure.R" ),
 		loci = lambda w: w.loci.split( "+" ),
@@ -125,25 +127,41 @@ rule temporal_figure:
 
 rule ld_figure:
 	output:
-		pdf = "output/figures/ld/ld.pdf"
+		pdf = "output/pf={pf_data_version}/figures/ld/ld.pdf"
 	input:
-		tsv = "output/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv",
-		HbS = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv",
-		grid = "output/grids/grid-type=hexagon-size=1-area=africa.rds"
+		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv",
+		grid           = "output/grids/grid-type=hexagon-size=1-area=africa.rds",
+		ld = expand(
+			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-{what}-by={what}.tsv",
+			pf_data_version = config['params']['pf_data_version'],
+			area = [ 'global', 'africa', 'eaf', 'waf' ],
+			what = [ 'ld', '3wayld' ],
+			by = [ 'none', 'year' ]
+		),
+		ld2way = "output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv",
+		ld3way = [
+			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area=eaf-3wayld-by=none.tsv",
+			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area=waf-3wayld-by=none.tsv"
+		]
 	params:
 		script = srcdir( "code/figures/ld_figure.R" )
 	shell: """
-	Rscript --vanilla {params.script}
+	Rscript --vanilla {params.script} \
+	--HbS_aggregated {input.HbS_aggregated} \
+	--ld2way {input.ld2way} \
+	--ld3way "output/pf={wildcards.pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={{area}}-3wayld-by=none.tsv" \
+	--grid {input.grid} \
+	--output {output.pdf}
 """
-
 
 rule create_forest_plot:
 	output:
-		main = "output/figures/forest_plot/forest_plot_main-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
-		si = "output/figures/forest_plot/forest_plot_si-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
+		main = "output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+		si = "output/pf={pf_data_version}/figures/forest_plot/forest_plot_si-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
 	input:
 		fit = expand(
-			"output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			"output/pf={pf_data_version}/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
+			pf_data_version = '{pf_data_version}',
 			size = '{size}',
 			model = '{model}',
 			min_km_to_survey_pt = '{min_km_to_survey_pt}',
@@ -154,7 +172,8 @@ rule create_forest_plot:
 		)
 	params:
 		script = srcdir( 'code/figures/forest_ggplot.R' ),
-		input_template = lambda w: "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+		input_template = lambda w: "output/pf={pf_data_version}/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
+			pf_data_version = w.pf_data_version,
 			size = w.size,
 			model = w.model,
 			min_km_to_survey_pt = w.min_km_to_survey_pt,

@@ -1,12 +1,18 @@
 # Note: all values must be strings, otherwise snakemake gets confused
 data:
-   pf: "input/hbs-pf-v5.sqlite"
-#   pf: "input/hbs-pf-pf8.sqlite" # uncomment for pf8 version
+   pf:
+      v5: "input/hbs-pf-v5.sqlite"
+      pf8-version: "input/hbs-pf-pf8.sqlite"
 params:
+   pf_data_version:
+      - "pf8-version"
    r0:
+      - "5.0"
+      - "10.0"
       - "25.0"
    sigma0:
       - "0.6"
+      - "1.0"
    type:
       - "hexagon"
    hbs_covariates:
