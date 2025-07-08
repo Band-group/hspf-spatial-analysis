@@ -132,7 +132,7 @@ rule ld_figure:
 		HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv",
 		grid           = "output/grids/grid-type=hexagon-size=1-area=africa.rds",
 		ld = expand(
-			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-{what}-by={what}.tsv",
+			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-{what}-by={by}.tsv",
 			pf_data_version = config['params']['pf_data_version'],
 			area = [ 'global', 'africa', 'eaf', 'waf' ],
 			what = [ 'ld', '3wayld' ],
