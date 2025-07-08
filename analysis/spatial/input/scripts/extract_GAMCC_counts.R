@@ -54,7 +54,8 @@ samples = (
 		exclude = case_match(
 			status,
 			"Severe_malaria" ~ "yes",
-			"Mild_malaria" ~ "no"
+			"Mild_malaria" ~ "no",
+			NA ~ "yes"
 		)
 	)
 	%>% select(
