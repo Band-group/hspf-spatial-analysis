@@ -39,7 +39,7 @@ args = parse_arguments()
 
 paths = list(
 	samples = sprintf( "%s/Pf8_samples.txt", args$indir ),
-	genotypes = sprintf( "%s/clean.snps.bgen", args$indir )
+	genotypes = sprintf( "%s/data.bgen", args$indir )
 )
 
 samples = (

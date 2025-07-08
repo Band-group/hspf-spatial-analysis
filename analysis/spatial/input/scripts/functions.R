@@ -10,7 +10,7 @@ load.genotypes.from.bgen <- function( filename, SNPs ) {
 			start = SNPs$position,
 			end = SNPs$position
 		),
-		max_entries = 10
+		max_entries = 28
 	)
 
 	# Compute a dosage as 0/1/2.

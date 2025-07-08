@@ -39,7 +39,7 @@ args = parse_arguments()
 
 paths = list(
 	samples = sprintf( "%s/GAMCC.samples.tsv", args$indir ),
-	genotypes = sprintf( "%s/GAMCC.bgen", args$indir )
+	genotypes = sprintf( "%s/data.bgen", args$indir )
 )
 
 samples = (
@@ -49,6 +49,13 @@ samples = (
 		study = "GAMCC",
 		site = "Banjul",
 		datatype = "WGS"
+	)
+	%>% mutate(
+		exclude = case_match(
+			status,
+			"Severe_malaria" ~ "yes",
+			"Mild_malaria" ~ "no"
+		)
 	)
 	%>% select(
 		ID,
