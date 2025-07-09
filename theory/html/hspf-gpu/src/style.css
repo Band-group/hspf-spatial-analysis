@@ -24,10 +24,13 @@ body > #title > h2 {
 }
 
 nav {
-	position: absolute ;
+	position: fixed ;
 	left: 10px ;
 	top: 80px ;
 	width: 350px ;
+	max-height: calc( 100vh - 80px ) ;
+	padding-right: 10px ;
+	overflow-y: auto ;
 }
 section {
 	display: block ;
