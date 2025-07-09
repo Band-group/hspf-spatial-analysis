@@ -69,85 +69,70 @@ export default class TiffDisplay {
 				return vec4f(0,0,0,1) ;
 			}
 
-			struct VertexInput {
-			@location(0) pos: vec2f,
-			@builtin(instance_index) instance: u32,
-		  };
-  
-		  struct VertexOutput {
-			@builtin(position) pos: vec4f,
-			@location(0) cell: vec2f,
-			@location(1) uv: vec2f,
-		  };
-		  @group(0) @binding(0) var<uniform> grid: vec2f;
-		  @group(0) @binding(1) var textureSampler: sampler;
-		  @group(0) @binding(2) var data: texture_2d<f32>;
-		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
-		  @group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
-  
-		  @vertex
-		  fn vertexMain( input: VertexInput ) -> VertexOutput {
-			let index = f32(input.instance) ;
-			let cell = vec2f(
-			  index % grid.x,
-			  floor( index / grid.x )
-			);
-			let cellOffset = cell / grid * 2;
-			let gridPos = (input.pos + 1) / grid - 1 + cellOffset;
-			var output: VertexOutput ;
-			output.pos = vec4f(gridPos, 0, 1) ;
-			output.cell = cell ;
-			output.uv = gridPos * 0.5 + 0.5;
-			output.uv.y = 1. - output.uv.y ;
-			return output ;
-		  }
-		  @fragment
-		  fn fragmentMain(
-			@location(0) cell: vec2f,
-			@location(1) uv: vec2f,
-		  ) -> @location(0) vec4f {
-			let a = textureSample(data, textureSampler, uv).r ;
-			// contour lines / clipping
-			// Let's work out the palette colour, then adjust it.
-			let paletteLevels = f32(${paletteLevels}) ;
-			let q = u32(
-				clamp(
-					a,
-					f32( palette_breaks[0] ),
-					f32( palette_breaks[${paletteLevels}] )
-				)
-				* paletteLevels
-			) ;
-			var result = binned_colour( a, palette, palette_breaks ) ;
-			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
-			let w = fwidth(a) ;
-			// NB. smoothstep(low, high, x) = Hermite interpolation
-			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
-			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
-			// TODO: brittle: this assumes evenly-spaced breaks!
-			var wa = 0.0 ;
-			if( contour_width > 0.0 && w > 0.00001 ) {
-				let val = (a*paletteLevels) % 1.0;
-				let width = clamp(contour_width * w, 0.0, 0.5); // ensure width is not too large
-				
-				let c1 = 1.0 - smoothstep(0.0, width, val);
-				let c2 = smoothstep(1.0 - width, 1.0, val);
-				
-				wa = c1 + c2;
+			struct VertexOutput {
+				@builtin(position) pos: vec4f,
+				@location(1) uv: vec2f,
+			};
+			@group(0) @binding(0) var<uniform> grid: vec2f;
+			@group(0) @binding(1) var textureSampler: sampler;
+			@group(0) @binding(2) var data: texture_2d<f32>;
+			@group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
+			@group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
+
+			@vertex
+			fn vertexMain( @location(0) pos: vec2f ) -> VertexOutput {
+				var output: VertexOutput;
+				output.pos = vec4f(pos, 0.0, 1.0);
+				output.uv = pos * 0.5 + 0.5;
+				output.uv.y = 1.0 - output.uv.y;
+				return output;
 			}
-			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
-			// Fix off-map colours to background...
-			result = mix(
-				mix(
-					result,
-					vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
-					1.0 - smoothstep(-0.01, 0.0, a)
-				),
-				vec4f( 1.0, 1.0, 1.0, 0.5 ),
-				1.0 - smoothstep( -2.01, -1.0, a )
-			) ;
-			return result ;
-		  }
+			@fragment
+			fn fragmentMain(
+				@location(1) uv: vec2f
+			) -> @location(0) vec4f {
+				let a = textureSample(data, textureSampler, uv).r ;
+				// contour lines / clipping
+				// Let's work out the palette colour, then adjust it.
+				let paletteLevels = f32(${paletteLevels}) ;
+				let q = u32(
+					clamp(
+						a,
+						f32( palette_breaks[0] ),
+						f32( palette_breaks[${paletteLevels}] )
+					)
+					* paletteLevels
+				) ;
+				var result = binned_colour( a, palette, palette_breaks ) ;
+				// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
+				let w = fwidth(a) ;
+				// NB. smoothstep(low, high, x) = Hermite interpolation
+				// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
+				let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
+				// TODO: brittle: this assumes evenly-spaced breaks!
+				var wa = 0.0 ;
+				if( contour_width > 0.0 && w > 0.00001 ) {
+					let val = (a*paletteLevels) % 1.0;
+					let width = clamp(contour_width * w, 0.0, 0.5); // ensure width is not too large
+					
+					let c1 = 1.0 - smoothstep(0.0, width, val);
+					let c2 = smoothstep(1.0 - width, 1.0, val);
+					
+					wa = c1 + c2;
+				}
+				result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
+				// Fix off-map colours to background...
+				result = mix(
+					mix(
+						result,
+						vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
+						1.0 - smoothstep(-0.01, 0.0, a)
+					),
+					vec4f( 1.0, 1.0, 1.0, 0.5 ),
+					1.0 - smoothstep( -2.01, -1.0, a )
+				) ;
+				return result ;
+			}
 		`
 		});
 		this.layout = this.device.createBindGroupLayout({
@@ -263,7 +248,7 @@ export default class TiffDisplay {
 		pass.setPipeline(this.pipeline);
 		pass.setVertexBuffer(0, this.vertexBuffer);
 		pass.setBindGroup(0, bindGroup);
-		pass.draw(this.vertices.length / 2, mapgrid[0] * mapgrid[1]); // 6 vertices
+		pass.draw(this.vertices.length / 2);
 		pass.end();
 		this.device.queue.submit([encoder.finish()]);
 	}
