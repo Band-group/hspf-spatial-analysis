@@ -116,7 +116,7 @@ export default class SimulationControls {
 				+ '</fieldset>'
 				+ '<fieldset>'
 				+ '<legend>Weights</legend>'
-				+ '<input type="checkbox" id="weights_checkbox" name="weights" />'
+				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
 				+ '<label for="weights_checkbox">Weight by prevalence?</label>'
 				+ '</fieldset>'
 				+ '<fieldset>'
