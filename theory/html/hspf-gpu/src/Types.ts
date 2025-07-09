@@ -34,6 +34,8 @@ export interface PfsaCounts {
 	pfsa13mp: number,
 	pfsa13pm: number,
 	pfsa13pp: number,
-	pfsa13N: number
+	pfsa13N: number,
+	// in lieu of fancier types for now
+	[key: string]: any
 } ;
 

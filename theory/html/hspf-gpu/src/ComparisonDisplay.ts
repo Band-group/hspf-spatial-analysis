@@ -4,6 +4,7 @@ import Geom from './Geom.js' ;
 import GridData from './GridData.js' ;
 
 interface PlotPt {
+	index: number,
 	country: string,
 	admin1: string,
 	latlong: LatLong,
@@ -16,7 +17,7 @@ interface PlotPt {
 interface Scales {
 	x: d3.ScaleLinear<number, number>,
 	y: d3.ScaleLinear<number, number>,
-	fill: d3.ScaleThreshold<number, string>
+	fill: (d: string) => string
 } ;
 
 export default class ComparisonDisplay {
@@ -106,16 +107,13 @@ export default class ComparisonDisplay {
 		} ;
 		let self = this ;
 		this.scales = {
-			// @ts-ignore 
-			x: new d3.scaleLinear()
+			x: d3.scaleLinear()
 				.domain( [0,limit] )
 				.range( [ this.geom.margins.left, this.geom.width - this.geom.margins.right]),
-			// @ts-ignore 
-			y: new d3.scaleLinear()
+			y: d3.scaleLinear()
 				.domain( [0,limit] )
 				.range( [ this.geom.height - this.geom.margins.bottom, this.geom.margins.top ]),
-			// @ts-ignore 
-			fill: function( country ) { return self.colours[country] }
+			fill: (country: string) => self.colours[country] || self.colours['other']
 			//fill: new d3.scaleThreshold(
 			//	[ -5, 3, 11, 19, 27 ],
 			//	[ '#0500ce', '#06b4cd', '#30504e', '#34cc33', '#2f3dc1', '#db624d' ]
@@ -230,11 +228,8 @@ export default class ComparisonDisplay {
 				admin1: pt.admin1,
 				latlong: pt.latlong,
 				xy: pt.xy,
-				// @ts-ignore
 				N: pt[self.names.N],
-				// @ts-ignore
 				modelled: this.sample( pt.xy, pfsa, layer ),
-				// @ts-ignore
 				observed: pt[self.names.y] / pt[self.names.N]
 			} as PlotPt )
 		) ;
@@ -247,16 +242,12 @@ export default class ComparisonDisplay {
 			.append( 'circle' )
 			.attr( 'class', 'comparison' ) ;
 
-		svg.selectAll( 'circle' )
-			// @ts-ignore 
-			.attr( 'cx', (pt:PlotPt) => this.scales.x(pt.observed) )
-			// @ts-ignore 
-			.attr( 'cy', (pt:PlotPt) => this.scales.y(pt.modelled) )
-			// @ts-ignore 
-			.attr( 'r', ((pt:PlotPt) => Math.sqrt( pt.N ) / 2 ) )
+		svg.selectAll<SVGCircleElement, PlotPt>( 'circle' )
+			.attr( 'cx', (pt) => this.scales.x(pt.observed) )
+			.attr( 'cy', (pt) => this.scales.y(pt.modelled) )
+			.attr( 'r', (pt) => Math.sqrt( pt.N ) / 2 )
 			.attr( "stroke", 'black' )
-			// @ts-ignore 
-			.attr( "fill", (pt:PlotPt) => this.scales.fill(pt.country)) ;
+			.attr( "fill", (pt) => this.scales.fill(pt.country)) ;
 
 			/*
 		svg.selectAll( 'text.label' )
@@ -266,11 +257,8 @@ export default class ComparisonDisplay {
 			.attr( 'class', 'label' ) ;
 
 		svg.selectAll( 'text.label' )
-			// @ts-ignore 
 			.attr( 'x', (pt:PlotPt) => this.scales.x(pt.observed) + 5 )
-			// @ts-ignore 
 			.attr( 'y', (pt:PlotPt) => this.scales.y(pt.modelled) )
-			// @ts-ignore 
 			.text( (pt:PlotPt) => pt.country.replace( "Democratic Republic of the Congo", "DRC" ) )
 			.attr( 'alignment-baseline', 'middle' )
 			.attr( 'font-size', '4pt' )
