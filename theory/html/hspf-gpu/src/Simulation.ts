@@ -268,7 +268,7 @@ export class Simulation {
 				section.appendChild( container ) ;
 				//@ts-ignore
 				this.comparisons = [] ;
-				let left = 20 ;
+				let left = 10 ;
 				let countries =  ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Uganda', 'Democratic Republic of the Congo', 'United Republic of Tanzania', 'Kenya' ] ;
 				interface Genotypes {
 					name: string,
@@ -315,7 +315,7 @@ export class Simulation {
 								left
 							)
 						} ) ;
-						left += 10 ;
+						// left += 10 ;
 					}
 				) ;
 			}
