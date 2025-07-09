@@ -156,17 +156,26 @@ export default class TiffDisplay {
 					
 					wa = c1 + c2;
 				}
-				result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
+				result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa*0.75)) ;
+				
 				// Fix off-map colours to background...
+				let land_water_transition_color = vec4f( 0, 33.0/256, 71.0/256, 0.5 );
+				let nodata_color = vec4f( 1.0, 1.0, 1.0, 0.5 );
+
+				// Mix from result to a transition color (e.g. for ocean)
 				result = mix(
-					mix(
-						result,
-						vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
-						1.0 - smoothstep(-0.01, 0.0, a)
-					),
-					vec4f( 1.0, 1.0, 1.0, 0.5 ),
-					1.0 - smoothstep( -2.01, -1.0, a )
-				) ;
+					result,
+					land_water_transition_color,
+					1.0 - smoothstep(-0.01, 0.0, a)
+				);
+				
+				// Mix from that to a "no data" color for very low values
+				result = mix(
+					result,
+					nodata_color,
+					1.0 - smoothstep(-2.01, -1.0, a)
+				);
+
 				return result ;
 			}
 		`
