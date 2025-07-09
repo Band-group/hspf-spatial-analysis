@@ -125,8 +125,16 @@ export default class TiffDisplay {
 			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
 			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
 			// TODO: brittle: this assumes evenly-spaced breaks!
-			var wa = smoothstep( contour_width*w, 0., (a*paletteLevels) % 1. ) ;
-			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
+			var wa = 0.0 ;
+			if( contour_width > 0.0 && w > 0.00001 ) {
+				let val = (a*paletteLevels) % 1.0;
+				let width = clamp(contour_width * w, 0.0, 0.5); // ensure width is not too large
+				
+				let c1 = 1.0 - smoothstep(0.0, width, val);
+				let c2 = smoothstep(1.0 - width, 1.0, val);
+				
+				wa = c1 + c2;
+			}
 			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
 			// Fix off-map colours to background...
 			result = mix(
