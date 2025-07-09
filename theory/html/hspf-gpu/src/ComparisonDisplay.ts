@@ -142,14 +142,15 @@ export default class ComparisonDisplay {
 			.attr( 'font-size', '10pt' ) ;
 		;
 
-		svg
-			.append( 'g' )
-			.attr( 'transform', 'translate(' + (this.geom.margins.left + 5) + ' ' + (this.geom.margins.top + 10) + ')' )
-			.append( 'text' )
-			.text( this.names.title )
-			.attr( 'font-size', '12pt' )
-			.attr( 'font-weight', 'bold' )
-		;
+		// title is redundant now they are inside map containers
+		// svg
+		// 	.append( 'g' )
+		// 	.attr( 'transform', 'translate(' + (this.geom.margins.left + 5) + ' ' + (this.geom.margins.top + 10) + ')' )
+		// 	.append( 'text' )
+		// 	.text( this.names.title )
+		// 	.attr( 'font-size', '12pt' )
+		// 	.attr( 'font-weight', 'bold' )
+		// ;
 
 		svg
 			.append( 'g' )
