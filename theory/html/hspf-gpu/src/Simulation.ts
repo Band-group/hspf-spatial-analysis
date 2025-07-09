@@ -79,10 +79,16 @@ export class Simulation {
 			throw new Error("No appropriate GPUAdapter found.");
 		}
 		//console.log( "ADAPTER INFO", adapter.requestAdapterInfo() ) ;
-		let device = await adapter.requestDevice() ;
+		const hasFloatFiltering = adapter.features.has( "float32-filterable" ) ;
+		let device = await adapter.requestDevice( {
+			requiredFeatures: hasFloatFiltering ? [ "float32-filterable" ] : []
+		} ) ;
 		if (!device) {
 			throw new Error("No appropriate GPUDevice found.");
 		}
+		device.lost.then( (info) => {
+			console.error( "device lost", info ) ;
+		} ) ;
 	
 		let tiffs = {
 			HbS: await Tiff.load( map_urls['HbS'] ),

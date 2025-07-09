@@ -378,7 +378,7 @@ export default class HsPfSim {
 			//const weight = betaPDF( distance01, 1, concentration ) ;
 			const distance01 = beta( 1, concentration ) ;
 			const weight = 1.0 ;
-			console.log( "MOZZIE", distance01, weight, concentration ) ;
+			// console.log( "MOZZIE", distance01, weight, concentration ) ;
 			const distanceInCells = distance01 * maxDistanceInKm / cellWidthInKm ;
 			let dx = Math.round( Math.cos(direction) * distanceInCells ) ;
 			let dy = Math.round( Math.sin(direction) * distanceInCells ) ;
