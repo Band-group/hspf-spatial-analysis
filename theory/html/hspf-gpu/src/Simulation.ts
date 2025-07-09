@@ -302,8 +302,8 @@ export class Simulation {
 								a.N,
 								a.limit,
 								{
-									width: 320,
-									height: 240,
+									width: 240,
+									height: 180,
 									// bottom: 0,
 									margins: {
 										'bottom': 50,

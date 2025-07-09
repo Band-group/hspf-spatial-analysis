@@ -168,8 +168,8 @@ svg.palette_legend {
 }
 svg.comparison_display {
 	display: inline-block ;
-	position: relative ;
-	/*bottom: 20px ;*/
+	position: absolute ;
+	bottom: 0px ;
 	/*left: 20px ;*/
 	background:  rgb( 256, 256, 256, 0.5 ) ;
 } 

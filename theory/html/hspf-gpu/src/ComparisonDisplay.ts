@@ -138,7 +138,7 @@ export default class ComparisonDisplay {
 		svg
 			.append( 'g' )
 			.attr( 'transform', 'translate(' + (this.geom.margins.left - 5) + ' 0 )' )
-			.call( d3.axisLeft(this.scales.y))
+			.call( d3.axisLeft(this.scales.y).ticks(5) )
 			.attr( 'font-size', '10pt' ) ;
 		;
 
@@ -147,17 +147,17 @@ export default class ComparisonDisplay {
 			.attr( 'transform', 'translate(' + (this.geom.margins.left + 5) + ' ' + (this.geom.margins.top + 10) + ')' )
 			.append( 'text' )
 			.text( this.names.title )
-			.attr( 'font-size', '16pt' )
+			.attr( 'font-size', '12pt' )
 			.attr( 'font-weight', 'bold' )
 		;
 
 		svg
 			.append( 'g' )
-			.attr( 'transform', 'translate(' + (this.geom.margins.left + (this.geom.width - this.geom.margins.left - this.geom.margins.right)/2) + ' ' + (this.geom.height) + ')' )
+			.attr( 'transform', 'translate(' + (this.geom.margins.left + (this.geom.width - this.geom.margins.left - this.geom.margins.right)/2) + ' ' + (this.geom.height - 10) + ')' )
 			.append( 'text' )
 			.text( "Observed" )
 			.attr( 'text-anchor', 'middle' )
-			.attr( 'font-size', '16pt' )
+			.attr( 'font-size', '12pt' )
 			.attr( 'font-weight', 'bold' )
 		;
 
