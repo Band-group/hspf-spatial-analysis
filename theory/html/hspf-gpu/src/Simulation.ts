@@ -286,7 +286,7 @@ export class Simulation {
 					( a: Genotypes ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
-						container.appendChild( overlay ) ;
+						this.displays['pf' + a.name].container.appendChild( overlay ) ;
 						this.comparisons.push({
 							spec: {
 								title: a.name,
@@ -304,6 +304,7 @@ export class Simulation {
 								{
 									width: 320,
 									height: 240,
+									// bottom: 0,
 									margins: {
 										'bottom': 50,
 										'left': 40,
