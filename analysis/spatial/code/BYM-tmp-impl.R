@@ -64,7 +64,7 @@ fitit <- function(
 }
 
 fitbym_to_posterior_samples <- function(
-	our_grid, hbs, pf,
+	pf, hbs, 
 	covariates = NULL,
 	y_name = "Pfsa+",
 	n_name = "N",
@@ -85,14 +85,16 @@ fitbym_to_posterior_samples <- function(
 	threads = 1
 ) {
 	countrydfi = (
-		our_grid
-		%>% dplyr::inner_join( pf, by = "polygon_id" )
+		pf
 		%>% dplyr::mutate(
 			y = !!rlang::sym(y_name),
 			N = !!rlang::sym(n_name)
 		)
 		%>% dplyr::filter(!is.na(y) & !is.na(N))
-		%>% dplyr::inner_join( hbs, by = "polygon_id" )
+		%>% dplyr::inner_join(
+			# Avoid repeated lat / long variables
+			hbs %>% select( !c(longitude, latitude)),
+			by = "polygon_id" )
 	)
 	echo( "++ data for fitting is:\n" )
 	print( table( countrydfi$sources ) )

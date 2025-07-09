@@ -263,11 +263,18 @@ if( 0 ) {#is.null( args )) {
 	grid$in_range = 0
 	grid$in_range[ grid$polygon_id %in% in_range_grid$polygon_id ] = 1
 	echo( "++ ...%d (of %d) grid cells are in range and will be used in the analysis.\n", length( which( grid$in_range == 1 )), nrow( grid ))
+
+	stopifnot( length( which( !pf$polygon_id %in% grid$polygon_id )) == 0 )
+	pf = (
+		grid %>% select( polygon_id, grid, in_range )
+		%>% inner_join(
+			pf, by = "polygon_id"
+		)
+	)
 }
 
 # For testing purposes
 {
-	our_grid = grid
 	y_name = "Pfsa+"
 	n_name = "N"
 	hbs_columns = "posterior_sample_1"
@@ -301,8 +308,8 @@ if( !is.null( args$covariates )) {
 }
 
 result = fitbym_to_posterior_samples(
-	grid %>% filter( in_range == 1 ),
-	hbs, pf,
+	pf %>% filter( in_range == 1 ),
+	hbs, 
 	covariates,
 	y_name = "Pfsa+",
 	n_name = "N",

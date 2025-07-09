@@ -17,7 +17,7 @@ config['areas'] = get_area_definitions( config['params']['area'] )
 # master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: combine_hspf_summaries, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
+localrules: combine_hspf_summaries, summarise_HbS_fits, plot_hspf_areas, create_figure1, create_figure2, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
 	min_N = "[0-9]+",
@@ -59,8 +59,9 @@ rule all:
 			area = [ 'global', 'africa', 'eaf', 'waf' ]
 		),
 		hspf_area_plots = expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
-			**config['params']
+			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
+			**( remove_keys( config['params'], keys_to_remove = [ 'locus' ] )),
+			locus = [ 'Pfsa1' ]
 		),
 		hspf_summary = "output/all_hspf_analyses_summary.tsv",
 		fig1 = expand(
