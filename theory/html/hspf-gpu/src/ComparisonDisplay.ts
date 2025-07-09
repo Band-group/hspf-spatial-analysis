@@ -131,7 +131,7 @@ export default class ComparisonDisplay {
 		svg
 			.append( 'g' )
 			.attr( 'transform', 'translate(0 ' + (this.geom.height - this.geom.margins.bottom + 5) + ')' )
-			.call( d3.axisBottom(this.scales.x))
+			.call( d3.axisBottom(this.scales.x).ticks(5) )
 			.attr( 'font-size', '10pt' )
 		;
 
@@ -162,24 +162,24 @@ export default class ComparisonDisplay {
 		;
 
 		svg.selectAll( 'line.vertical' )
-			.data( d3.range( 0, 1, 0.1 ))
+			.data( this.scales.x.ticks(10) )
 			.enter()
 			.append( 'line' )
 			.attr( 'class', 'vertical' )
 			.attr( 'x1', d => this.scales.x(d) )
 			.attr( 'x2', d => this.scales.x(d) )
 			.attr( 'y1', this.scales.y(0) - 5 )
-			.attr( 'y2', this.scales.y(1) + 5 )
+			.attr( 'y2', this.scales.y(limit) + 5 )
 			.attr( 'stroke', 'rgba(0,0,0,0.2)' )
 		;
 
 		svg.selectAll( 'line.horizontal' )
-			.data( d3.range( 0, 1, 0.1 ))
+			.data( this.scales.y.ticks(10) )
 			.enter()
 			.append( 'line' )
 			.attr( 'class', 'horizontal' )
 			.attr( 'x1', this.scales.x(0) - 5 )
-			.attr( 'x2', this.scales.x(1) + 5 )
+			.attr( 'x2', this.scales.x(limit) + 5 )
 			.attr( 'y1', d => this.scales.y(d) )
 			.attr( 'y2', d => this.scales.y(d) )
 			.attr( 'stroke', 'rgba(0,0,0,0.2)' )
@@ -192,8 +192,8 @@ export default class ComparisonDisplay {
 			.attr( 'class', 'diagonal' )
 			.attr( 'x1', this.scales.x(0) )
 			.attr( 'y1', this.scales.y(0) )
-			.attr( 'x2', this.scales.x(1) )
-			.attr( 'y2', this.scales.y(1) )
+			.attr( 'x2', this.scales.x(limit) )
+			.attr( 'y2', this.scales.y(limit) )
 			.attr( 'stroke-width', '10' )
 			.attr( 'stroke', 'rgba(0,0,0,0.1)' )
 		;
