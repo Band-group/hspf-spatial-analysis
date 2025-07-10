@@ -145,6 +145,12 @@ export default class SimulationControls {
 				+ '<label for="overdominant">No selection</label>'
 				+ '<br/>'
 				+ '</fieldset>'
+				+ '<fieldset id="immunity_control">'
+				+ '<legend>Immunity contribution:</legend>'
+				+ '<input type="number" id="immunity" name="lambda"  value = 0.0 min = 0.0 max = 1.0 step=0.1 />'
+				+ '<label for="immunity">Lambda</label>'
+				+ '</fieldset>'
+
 			) ;
 		}
 		{
@@ -155,7 +161,7 @@ export default class SimulationControls {
 				[ 'value' ],
 				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 				{
-					'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
+					'value:twoBiteRate%': { value: 15, min: 0.0, max: 100.0, step: 1 },
 					'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
 					'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
@@ -323,7 +329,8 @@ export default class SimulationControls {
 		let fitness_mode = <HTMLInputElement> document.querySelector( 'input[name="fitness_mode"]:checked' ) ;
 		let stop_every = <HTMLInputElement> document.querySelector( 'input[name="stop_every"]' ) ;
 		let use_weights = <HTMLInputElement> document.querySelector( 'input[name="weights"]' ) ;
-		let values = [ 0.0, 0.0, 0.0, 0.0 ] ;
+		let lambda = <HTMLInputElement> document.querySelector( 'input[name="lambda"]' ) ;
+		let values = [ 0.0, 0.0, 0.0, 0.0, 0.0 ] ;
 		if( checkbox ) {
 			values[0] = checkbox.checked ? 1.0 : 0.0 ;
 		}
@@ -342,7 +349,10 @@ export default class SimulationControls {
 		if( use_weights ) {
 			values[3] = use_weights.checked ? 1.0 : 0.0 ;
 		}
-		return new GridData( [1,4], values ) ;
+		if( lambda ) {
+			values[4] = 0.0 + parseFloat(lambda.value) ;
+		}
+		return new GridData( [1,5], values ) ;
 	}
 
 	getResetValues( value_choice: string ): GridData {

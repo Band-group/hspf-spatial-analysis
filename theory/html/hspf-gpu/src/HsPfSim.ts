@@ -71,6 +71,7 @@ export default class HsPfSim {
 	barriers: GridData = new GridData( [this.max_barriers,4] ) ;
 	m_iteration: number ;
 	twoBiteRate: number = 0.0 ;
+	immunity_lambda: number = 0.0 ;
 	offspringTable: GridData ;
 
 	// pipeline-related variables
@@ -155,7 +156,7 @@ export default class HsPfSim {
 				nbhd_size: u32,
 				number_of_barriers: u32,
 				twoBiteRate: u32,
-				unused1: u32,
+				immunity_lambda: u32,
 				unused2: u32,
 				unused3: u32
 			} ;
@@ -193,7 +194,7 @@ export default class HsPfSim {
 			}
 
 			// background data and parameters
-			@group(0) @binding(0) var<uniform> parameters: Parameters ; // width, height, number of nbhd points, number of barriers, two-bite rate in %
+			@group(0) @binding(0) var<uniform> parameters: Parameters ; // width, height, number of nbhd points, number of barriers, two-bite rate in %, immunity lambda
 			@group(0) @binding(1) var<uniform> fitness: array< vec4f, 2 > ;
 			@group(0) @binding(2) var<storage> nbhd: array<NbhdPoint> ;
 			@group(0) @binding(3) var<storage> HbS: array<f32> ;
@@ -213,35 +214,41 @@ export default class HsPfSim {
 			) {
 				// Use the global id to compute the pixel location.
 				// 
-				let celly = id[0] + ${this.outerPadding} ;
-				let cellx = id[1] + ${this.outerPadding} ;
+				let target_y = id[0] + ${this.outerPadding} ;
+				let target_x = id[1] + ${this.outerPadding} ;
 				let height = parameters.width ;
 				let width = parameters.height ;
 				let size = width * height ;
-				let cellidx = celly * parameters.height + cellx ;
+				let target_idx = target_y * parameters.height + target_x ;
 				let twoBiteRate: f32 = f32(parameters.twoBiteRate)/100.0 ;
 
 				let n = parameters.nbhd_size ; // number of nbhd points or 'mosquitos'
 				var value: vec4f = vec4(0.0) ;
 				var denominator: f32 = 0.0 ;
 				var totalWeight: f32 = 0.0 ;
-				let fs = HbS[cellidx] ; 
+				let fs = HbS[target_idx] ; 
 				let s = fs*fs + 2*fs*(1-fs) ;
 				let a = 1 - s ;
-
+				
 				for( var i: u32 = 0; i < n; i++ ) {
-					let x = u32(nbhd[i].dx + f32(cellx)) ;
-					let y = u32(nbhd[i].dy + f32(celly)) ;
-					let bite_idx = y*width + x ;
-					let bite_fs = HbS[bite_idx] ; 
-					let bite_weight = weights[bite_idx] ;
+					let x = u32(nbhd[i].dx + f32(target_x)) ;
+					let y = u32(nbhd[i].dy + f32(target_y)) ;
+					let source_idx = y*width + x ;
+					let bite_fs = HbS[source_idx] ; 
+					let bite_weight = weights[source_idx] ;
 					let pf = vec4(
-						pfsa[0*size + bite_idx],
-						pfsa[1*size + bite_idx],
-						pfsa[2*size + bite_idx],
-						pfsa[3*size + bite_idx]
+						pfsa[0*size + source_idx],
+						pfsa[1*size + source_idx],
+						pfsa[2*size + source_idx],
+						pfsa[3*size + source_idx]
 					) ;
-
+					let lambda: f32 = f32(parameters.immunity_lambda)/100.0 ;
+					let target_susceptibility = vec4(
+						1.0 - lambda * pfsa[0*size + target_idx],
+						1.0 - lambda * pfsa[1*size + target_idx],
+						1.0 - lambda * pfsa[2*size + target_idx],
+						1.0 - lambda * pfsa[3*size + target_idx]
+					) ;
 					var weight = nbhd[i].weight * bite_weight ;
 
 					// Implement geographical barriers.
@@ -252,7 +259,7 @@ export default class HsPfSim {
 						if(
 							segments_overlap(
 								barriers[j].xy, barriers[j].zw,
-								vec2f(f32(cellx),f32(celly)), vec2f(f32(x),f32(y))
+								vec2f(f32(target_x),f32(target_y)), vec2f(f32(x),f32(y))
 							)
 						) {
 							weight *= 0.1 ;
@@ -268,8 +275,8 @@ export default class HsPfSim {
 							let v = (
 								pf
 								* (
-									(a * fitness[0])
-									+ (s * fitness[1])
+									(a * fitness[0] * target_susceptibility )
+									+ (s * fitness[1] * target_susceptibility )
 								)
 							) ;
 							denominator += (1.0 - twoBiteRate) * weight * (v[0]+v[1]+v[2]+v[3]) ;
@@ -295,17 +302,17 @@ export default class HsPfSim {
 				value /= denominator ;
 
 				if( fs < 0 ) {
-					pfsanew[ 0*size + cellidx ] = fs ;
-					pfsanew[ 1*size + cellidx ] = fs ;
-					pfsanew[ 2*size + cellidx ] = fs ;
-					pfsanew[ 3*size + cellidx ] = fs ;
-					pfsanew[ 4*size + cellidx ] = fs ;
+					pfsanew[ 0*size + target_idx ] = fs ;
+					pfsanew[ 1*size + target_idx ] = fs ;
+					pfsanew[ 2*size + target_idx ] = fs ;
+					pfsanew[ 3*size + target_idx ] = fs ;
+					pfsanew[ 4*size + target_idx ] = fs ;
 				} else {
 					// unpack values into the four map layers
-					pfsanew[ 0*size + cellidx ] = value[0] ;
-					pfsanew[ 1*size + cellidx ] = value[1] ;
-					pfsanew[ 2*size + cellidx ] = value[2] ;
-					pfsanew[ 3*size + cellidx ] = value[3] ;
+					pfsanew[ 0*size + target_idx ] = value[0] ;
+					pfsanew[ 1*size + target_idx ] = value[1] ;
+					pfsanew[ 2*size + target_idx ] = value[2] ;
+					pfsanew[ 3*size + target_idx ] = value[3] ;
 
 					// compute ld
 					let f1_ = value[2] + value[3] ;
@@ -315,7 +322,7 @@ export default class HsPfSim {
 						d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)),
 						-1.0, 1.0
 					) ;
-					pfsanew[ 4*size + cellidx ] = r ;
+					pfsanew[ 4*size + target_idx ] = r ;
 				}
 			}`
 		});
@@ -446,7 +453,8 @@ export default class HsPfSim {
 				this.hs.width,
 				this.nbhd.height,
 				this.use_barriers == 1 ? this.number_of_barriers : 0,
-				this.twoBiteRate
+				this.twoBiteRate,
+				this.immunity_lambda * 100
 			])
 		) ;
 	}
@@ -464,6 +472,7 @@ export default class HsPfSim {
 
 	setFeatures( values: GridData ) {
 		this.use_barriers = values.at([0,0]) ;
+		this.immunity_lambda = values.at([0,4]) ;
 		this.paramsToGPU() ;
 	}
 
