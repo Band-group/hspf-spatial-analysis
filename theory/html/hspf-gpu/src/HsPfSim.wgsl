@@ -24,7 +24,12 @@ struct Parameters {
 fn between( x: f32, a: f32, b: f32 ) -> bool {
   return sign(x-a) != sign(x-b) ;
 }
-
+// not sure if this is working as expected
+// fn isNaN(x: f32) -> bool {
+//   let lowVal = -1000000.0;
+//   let x2 = max(x, lowVal);
+//   return x2 == lowVal;
+// }
 // does line segment a->b intersect line segment p->q?
 /*
   R code:
@@ -85,7 +90,17 @@ fn step(
   var value: vec4f = vec4(0.0) ;
   var denominator: f32 = 0.0 ;
   var totalWeight: f32 = 0.0 ;
-  let fs = HbS[cellidx] ; 
+  var fs = HbS[cellidx] ; 
+  // if( isNaN(fs) ) {
+  if( fs < 0.0 ) {
+    // exit early - non-uniform flow nowhere near as bad as ~3x as many simulations
+    pfsanew[ 0*size + cellidx ] = fs ;
+    pfsanew[ 1*size + cellidx ] = fs ;
+    pfsanew[ 2*size + cellidx ] = fs ;
+    pfsanew[ 3*size + cellidx ] = fs ;
+    pfsanew[ 4*size + cellidx ] = fs ;
+    return ;
+  }
   let s = fs*fs + 2*fs*(1-fs) ;
   let a = 1 - s ;
 
@@ -154,27 +169,20 @@ fn step(
   }
   value /= denominator ;
 
-  if( fs < 0 ) {
-    pfsanew[ 0*size + cellidx ] = fs ;
-    pfsanew[ 1*size + cellidx ] = fs ;
-    pfsanew[ 2*size + cellidx ] = fs ;
-    pfsanew[ 3*size + cellidx ] = fs ;
-    pfsanew[ 4*size + cellidx ] = fs ;
-  } else {
-    // unpack values into the four map layers
-    pfsanew[ 0*size + cellidx ] = value[0] ;
-    pfsanew[ 1*size + cellidx ] = value[1] ;
-    pfsanew[ 2*size + cellidx ] = value[2] ;
-    pfsanew[ 3*size + cellidx ] = value[3] ;
+  // note, we exit early if fs < 0.0, so we don't need to check for that here
+  // unpack values into the four map layers
+  pfsanew[ 0*size + cellidx ] = value[0] ;
+  pfsanew[ 1*size + cellidx ] = value[1] ;
+  pfsanew[ 2*size + cellidx ] = value[2] ;
+  pfsanew[ 3*size + cellidx ] = value[3] ;
 
-    // compute ld
-    let f1_ = value[2] + value[3] ;
-    let f_1 = value[1] + value[3] ;
-    let d = value[3] - f1_ * f_1 ;
-    let r = clamp(
-      d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)),
-      -1.0, 1.0
-    ) ;
-    pfsanew[ 4*size + cellidx ] = r ;
-  }
+  // compute ld
+  let f1_ = value[2] + value[3] ;
+  let f_1 = value[1] + value[3] ;
+  let d = value[3] - f1_ * f_1 ;
+  let r = clamp(
+    d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)),
+    -1.0, 1.0
+  ) ;
+  pfsanew[ 4*size + cellidx ] = r ;
 }
