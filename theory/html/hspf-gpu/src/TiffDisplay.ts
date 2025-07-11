@@ -19,11 +19,16 @@ export default class TiffDisplay {
 	paletteBuffer: GPUBuffer ;
 	paletteBreaksBuffer: GPUBuffer ;
 	options: MapOptions ;
+	sampleCount: number;
+	multisampleTexture: GPUTexture | undefined;
+	hasFloatFiltering: boolean;
 
-	constructor( palette: PaletteScale, device: any, options: MapOptions ) {
+	constructor( palette: PaletteScale, device: GPUDevice, options: MapOptions ) {
 		this.palette = palette ;
 		this.device = device ;
 		this.options = options ;
+		this.sampleCount = 4;
+		this.hasFloatFiltering = device.features.has( "float32-filterable" ) ;
 		this.canvasFormat = navigator.gpu.getPreferredCanvasFormat() ;
 		console.log( "TiffDisplay.palette", this.palette ) ;
 		this.vertices = new Float32Array([
@@ -69,85 +74,118 @@ export default class TiffDisplay {
 				return vec4f(0,0,0,1) ;
 			}
 
-			struct VertexInput {
-			@location(0) pos: vec2f,
-			@builtin(instance_index) instance: u32,
-		  };
-  
-		  struct VertexOutput {
-			@builtin(position) pos: vec4f,
-			@location(0) cell: vec2f,
-			@location(1) uv: vec2f,
-		  };
-		  @group(0) @binding(0) var<uniform> grid: vec2f;
-		  @group(0) @binding(1) var textureSampler: sampler;
-		  @group(0) @binding(2) var data: texture_2d<f32>;
-		  @group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
-		  @group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
-  
-		  @vertex
-		  fn vertexMain( input: VertexInput ) -> VertexOutput {
-			let index = f32(input.instance) ;
-			let cell = vec2f(
-			  index % grid.x,
-			  floor( index / grid.x )
-			);
-			let cellOffset = cell / grid * 2;
-			let gridPos = (input.pos + 1) / grid - 1 + cellOffset;
-			var output: VertexOutput ;
-			output.pos = vec4f(gridPos, 0, 1) ;
-			output.cell = cell ;
-			output.uv = gridPos * 0.5 + 0.5;
-			output.uv.y = 1. - output.uv.y ;
-			return output ;
-		  }
-		  @fragment
-		  fn fragmentMain(
-			@location(0) cell: vec2f,
-			@location(1) uv: vec2f,
-		  ) -> @location(0) vec4f {
-			let a = textureSample(data, textureSampler, uv).r ;
-			// contour lines / clipping
-			// Let's work out the palette colour, then adjust it.
-			let paletteLevels = f32(${paletteLevels}) ;
-			let q = u32(
-				clamp(
+			struct VertexOutput {
+				@builtin(position) pos: vec4f,
+				@location(1) uv: vec2f,
+			};
+			@group(0) @binding(0) var<uniform> grid: vec2f;
+			@group(0) @binding(1) var textureSampler: sampler;
+			@group(0) @binding(2) var data: texture_2d<f32>;
+			@group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
+			@group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
+
+			@vertex
+			fn vertexMain( @location(0) pos: vec2f ) -> VertexOutput {
+				var output: VertexOutput;
+				output.pos = vec4f(pos, 0.0, 1.0);
+				output.uv = pos * 0.5 + 0.5;
+				output.uv.y = 1.0 - output.uv.y;
+				return output;
+			}
+			@fragment
+			fn fragmentMain(
+				@location(1) uv: vec2f
+			) -> @location(0) vec4f {
+			 ${this.hasFloatFiltering ? `
+				let a = textureSample(data, textureSampler, uv).r;
+			 ` : `
+				let tex_size = grid;
+				let inv_tex_size = 1.0 / tex_size;
+
+				// Manual bilinear filtering
+				// Shift to pixel center
+				let st_center = uv * tex_size - 0.5;
+				let iuv = floor(st_center);
+				let fuv = fract(st_center);
+
+				// Sample 4 surrounding texels
+				let v00 = textureSample(data, textureSampler, (iuv + vec2(0.5, 0.5)) * inv_tex_size).r;
+				let v10 = textureSample(data, textureSampler, (iuv + vec2(1.5, 0.5)) * inv_tex_size).r;
+				let v01 = textureSample(data, textureSampler, (iuv + vec2(0.5, 1.5)) * inv_tex_size).r;
+				let v11 = textureSample(data, textureSampler, (iuv + vec2(1.5, 1.5)) * inv_tex_size).r;
+
+				// Interpolate
+				let v0 = mix(v00, v10, fuv.x);
+				let v1 = mix(v01, v11, fuv.x);
+				let a = mix(v0, v1, fuv.y);
+				`}
+				// contour lines / clipping
+				// Let's work out the palette colour, then adjust it.
+				let paletteLevels = f32(${paletteLevels}) ;
+				let clamped_a = clamp(
 					a,
 					f32( palette_breaks[0] ),
 					f32( palette_breaks[${paletteLevels}] )
-				)
-				* paletteLevels
-			) ;
-			var result = binned_colour( a, palette, palette_breaks ) ;
-			// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
-			let w = fwidth(a) ;
-			// NB. smoothstep(low, high, x) = Hermite interpolation
-			// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
-			let contour_width = ${this.options.contours ? '15.0' : '0.0'} ;
-			// TODO: brittle: this assumes evenly-spaced breaks!
-			var wa = smoothstep( contour_width*w, 0., (a*paletteLevels) % 1. ) ;
-			wa = 1.-max( smoothstep(1-w, 1, wa), smoothstep(w, 0, wa) ) ;
-			result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa)) ;
-			// Fix off-map colours to background...
-			result = mix(
-				mix(
+				) ;
+				var result = binned_colour( clamped_a, palette, palette_breaks ) ;
+				// fwidth = 1-norm of gradient, abs(da/dx)+abs(da/dy), I think. 
+				let w = fwidth(a) ;
+				// NB. smoothstep(low, high, x) = Hermite interpolation
+				// i.e. interpolate between 0 and 1 in the range low..high with df/dx=0 at the endpoints.
+				let contour_width = ${this.options.contours ? '18.0' : '0.0'} ;
+				// TODO: review whether non-evenly-spaced breaks are handled correctly.
+				var wa = 0.0 ;
+				if( contour_width > 0.0 && w > 0.00001 ) {
+					var val = 0.0;
+					// Find which bin we are in, and what the fractional position is.
+					for( var i = 0u; i < u32(${paletteLevels}); i++ ) {
+						if( clamped_a <= palette_breaks[i+1u] ) {
+							let lower = palette_breaks[i];
+							let upper = palette_breaks[i+1u];
+							// Avoid division by zero if breaks are not distinct
+							if (upper > lower) {
+								val = (clamped_a - lower) / (upper - lower);
+							}
+							break; // Found the bin
+						}
+					}
+					let width = clamp(contour_width * w, 0.0, 0.5); // ensure width is not too large
+					
+					let c1 = 1.0 - smoothstep(0.0, width, val);
+					let c2 = smoothstep(1.0 - width, 1.0, val);
+					
+					wa = c1 + c2;
+				}
+				result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa*0.75)) ;
+				
+				// Fix off-map colours to background...
+				let land_water_transition_color = vec4f( 0, 33.0/256, 71.0/256, 0.5 );
+				let nodata_color = vec4f( 1.0, 1.0, 1.0, 0.5 );
+
+				// Mix from result to a transition color (e.g. for ocean)
+				result = mix(
 					result,
-					vec4f( 0, 33.0/256, 71.0/256, 0.5 ),
+					land_water_transition_color,
 					1.0 - smoothstep(-0.01, 0.0, a)
-				),
-				vec4f( 1.0, 1.0, 1.0, 0.5 ),
-				1.0 - smoothstep( -2.01, -1.0, a )
-			) ;
-			return result ;
-		  }
+				);
+				
+				// Mix from that to a "no data" color for very low values
+				result = mix(
+					result,
+					nodata_color,
+					1.0 - smoothstep(-2.01, -1.0, a)
+				);
+
+				return result ;
+			}
 		`
 		});
 		this.layout = this.device.createBindGroupLayout({
 			entries: [
 			  { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
 			//   { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }},
-			  { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'non-filtering' } },
-			  { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: "unfilterable-float", viewDimension: "2d" }},
+			  { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: this.hasFloatFiltering ? 'filtering' : 'non-filtering' } },
+			  { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: this.hasFloatFiltering ? "float" : "unfilterable-float", viewDimension: "2d" }},
 			  { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
 			  { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" }} // using storage because not 16-byte aligned.
 			],
@@ -169,7 +207,10 @@ export default class TiffDisplay {
 				targets: [{
 					format: this.canvasFormat
 				}]
-			}
+			},
+			multisample: {
+				count: this.sampleCount,
+			},
 		});
 	}
 
@@ -219,8 +260,10 @@ export default class TiffDisplay {
 
 		// there are issues with making R32F textures filterable, so we are using a sampler with nearest filtering
 		const sampler = this.device.createSampler({
-			magFilter: "nearest",
-			minFilter: "nearest",
+			magFilter: this.hasFloatFiltering ? "linear" : "nearest",
+			minFilter: this.hasFloatFiltering ? "linear" : "nearest",
+			addressModeU: 'clamp-to-edge',
+			addressModeV: 'clamp-to-edge',
 		});
 
 		const bindGroup = this.device.createBindGroup({
@@ -244,18 +287,37 @@ export default class TiffDisplay {
 			}]
 		});
 		const encoder = this.device.createCommandEncoder();
+
+		const canvasTexture = context.getCurrentTexture();
+		if (
+			!this.multisampleTexture ||
+			this.multisampleTexture.width !== canvasTexture.width ||
+			this.multisampleTexture.height !== canvasTexture.height
+		) {
+			if (this.multisampleTexture) {
+				this.multisampleTexture.destroy();
+			}
+			this.multisampleTexture = this.device.createTexture({
+				size: [canvasTexture.width, canvasTexture.height],
+				sampleCount: this.sampleCount,
+				format: this.canvasFormat,
+				usage: GPUTextureUsage.RENDER_ATTACHMENT,
+			});
+		}
+
 		const pass = encoder.beginRenderPass({
 			colorAttachments: [{
-				view: context.getCurrentTexture().createView(),
+				view: this.multisampleTexture.createView(),
+				resolveTarget: canvasTexture.createView(),
 				loadOp: "clear",
-				storeOp: "store",
+				storeOp: "discard",
 				clearValue: { r: 0, g: 0, b: 0.4, a: 1 }, // New line
 			}]
 		});
 		pass.setPipeline(this.pipeline);
 		pass.setVertexBuffer(0, this.vertexBuffer);
 		pass.setBindGroup(0, bindGroup);
-		pass.draw(this.vertices.length / 2, mapgrid[0] * mapgrid[1]); // 6 vertices
+		pass.draw(this.vertices.length / 2);
 		pass.end();
 		this.device.queue.submit([encoder.finish()]);
 	}

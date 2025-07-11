@@ -100,8 +100,7 @@ export default class MapDisplay {
 		let elts = svg.selectAll( 'circle.sample' )
 			.data( counts ) ;
 		let scales = {
-			// @ts-ignore 
-			fill: new d3.scaleThreshold(
+			fill: d3.scaleThreshold(
 				[ -5, 3, 11, 19, 27 ],
 				[ '#0500ce', '#06b4cd', '#30504e', '#34cc33', '#2f3dc1', '#db624d' ]
 			)

@@ -116,7 +116,7 @@ export default class SimulationControls {
 				+ '</fieldset>'
 				+ '<fieldset>'
 				+ '<legend>Weights</legend>'
-				+ '<input type="checkbox" id="weights_checkbox" name="weights" />'
+				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
 				+ '<label for="weights_checkbox">Weight by prevalence?</label>'
 				+ '</fieldset>'
 				+ '<fieldset>'
@@ -228,8 +228,7 @@ export default class SimulationControls {
 
 		this.resetControl.addEventListener(
 			'click', function( _elt ) {
-				// @ts-ignore
-				self.startingCondition = _elt.target.getAttribute( "id" ) ;
+				self.startingCondition = (_elt.target as HTMLDivElement).getAttribute( "id" )! ;
 				self.trigger( 'reset' ) ;
 			} 
 		) ;
@@ -356,7 +355,7 @@ export default class SimulationControls {
 	}
 
 	getResetValues( value_choice: string ): GridData {
-		let starting_values = {
+		const starting_values = {
 			'flat_10pc_pp': new GridData( [ 1, 4 ], [ 0.9, 0.0, 0.0, 0.1 ] ),
 			'flat_20pc_pp': new GridData( [ 1, 4 ], [ 0.8, 0.0, 0.0, 0.2 ] ),
 			'flat_1pc_ind': new GridData( [ 1, 4 ], [ 0.99*0.99, 0.99*0.01, 0.01*0.99, 0.01*0.01 ] ),
@@ -364,8 +363,11 @@ export default class SimulationControls {
 			'flat_20pc_ind': new GridData( [ 1, 4 ], [ 0.8*0.8, 0.8*0.2, 0.2*0.8, 0.2*0.2 ] ),
 			'flat_50pc_ind': new GridData( [ 1, 4 ], [ 0.5*0.5, 0.5*0.5, 0.5*0.5, 0.5*0.5 ] )
 		} ;
-		//@ts-ignore
-		return starting_values[ value_choice ] ;
+		if (value_choice in starting_values) {
+			// bit of a mouthful here but typing value_choice more broadly is a hassle / probably OTT
+			return starting_values[value_choice as keyof typeof starting_values] ;
+		}
+		throw new Error(`Unknown starting condition: ${value_choice}`) ;
 	}
 
 	constrain_fitness() {
@@ -518,12 +520,12 @@ export default class SimulationControls {
 			.append( 'path' )
 			.attr( 'class', 'r' ) ;
 		svg.selectAll( 'path.l' )
-			// @ts-ignore
+			// @ts-expect-error
 			.attr( 'd', lline )
 			.attr( 'fill', 'none' )
 			.attr( 'stroke', 'black' ) ;
 		svg.selectAll( 'path.r' )
-			// @ts-ignore
+			// @ts-expect-error
 			.attr( 'd', rline )
 			.attr( 'fill', 'none' )
 			.attr( 'stroke', 'black' ) ;
@@ -531,7 +533,7 @@ export default class SimulationControls {
 			scale => (
 				d3.axisBottom( scale )
 				.ticks(2)
-				// @ts-ignore
+				// @ts-expect-error
 				.tickFormat( (d:number) => (d + "km" ))
 			)
 		) ;
@@ -543,11 +545,11 @@ export default class SimulationControls {
 			.attr( 'transform', 'translate(0,' + (geom.size.height - geom.margin.bottom + 5) + ")" ) ;
 		svg.selectAll( 'g.axis' )
 			.filter((_d:any,i:any) => (i==0))
-			// @ts-ignore
+			// @ts-expect-error
 			.call( axes[0] ) ;
 		svg.selectAll( 'g.axis' )
 			.filter((_d:any,i:any) => (i==1))
-			// @ts-ignore
+			// @ts-expect-error
 			.call( axes[1] ) ;
 	}
 } ;
