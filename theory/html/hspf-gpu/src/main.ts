@@ -30,7 +30,7 @@ async function run() {
 						Other browsers may work but require enabling WebGPU in your browser's settings.
 					</p>
 					<ul>
-						<li>In Safari, go to <code>Safari &gt; Settings &gt; Feature Flags </code> and enable the WebGPU flag.</li>
+						<li>In Safari, go to <code>Safari &gt; Settings &gt; Feature Flags </code> and enable the WebGPU flag (although performance appears to be poor).</li>
 						<li>In Firefox, go to <code>about:config</code>, set <code>dom.webgpu.enabled</code> to <code>true</code> and hope for the best (no guarantees, sorry).</li>
 					</ul>
 					<p>
