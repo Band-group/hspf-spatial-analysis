@@ -62,40 +62,40 @@ export default class TiffDisplay {
 			code: `
 			fn binned_colour(
 				value: f32,
-				levels: array<vec4f,${paletteLevels}>,
+				levels: array<vec4<f32>,${paletteLevels}>,
 				breaks: array<f32,${this.palette.values.height+1}>
-			) -> vec4f {
+			) -> vec4<f32> {
 				for( var i = 0; i < ${this.palette.values.height}; i++ ) {
 					if( value <= breaks[i+1] ) {
 						return levels[i] ;
 					}
 				}
 				// Argh, no value!
-				return vec4f(0,0,0,1) ;
+				return vec4<f32>(0,0,0,1) ;
 			}
 
 			struct VertexOutput {
-				@builtin(position) pos: vec4f,
-				@location(1) uv: vec2f,
+				@builtin(position) pos: vec4<f32>,
+				@location(1) uv: vec2<f32>,
 			};
-			@group(0) @binding(0) var<uniform> grid: vec2f;
+			@group(0) @binding(0) var<uniform> grid: vec2<f32>;
 			@group(0) @binding(1) var textureSampler: sampler;
 			@group(0) @binding(2) var data: texture_2d<f32>;
-			@group(0) @binding(3) var<uniform> palette: array<vec4f,${paletteLevels}>;
+			@group(0) @binding(3) var<uniform> palette: array<vec4<f32>,${paletteLevels}>;
 			@group(0) @binding(4) var<storage> palette_breaks: array<f32,${paletteLevels+1}>;
 
 			@vertex
-			fn vertexMain( @location(0) pos: vec2f ) -> VertexOutput {
+			fn vertexMain( @location(0) pos: vec2<f32> ) -> VertexOutput {
 				var output: VertexOutput;
-				output.pos = vec4f(pos, 0.0, 1.0);
+				output.pos = vec4<f32>(pos, 0.0, 1.0);
 				output.uv = pos * 0.5 + 0.5;
 				output.uv.y = 1.0 - output.uv.y;
 				return output;
 			}
 			@fragment
 			fn fragmentMain(
-				@location(1) uv: vec2f
-			) -> @location(0) vec4f {
+				@location(1) uv: vec2<f32>
+			) -> @location(0) vec4<f32> {
 			 ${this.hasFloatFiltering ? `
 				let a = textureSample(data, textureSampler, uv).r;
 			 ` : `
@@ -156,11 +156,11 @@ export default class TiffDisplay {
 					
 					wa = c1 + c2;
 				}
-				result = mix( result, vec4f(.8,.8,.8,1), smoothstep(0.0, 1.0, wa*0.75)) ;
+				result = mix( result, vec4<f32>(.8,.8,.8,1), smoothstep(0.0, 1.0, wa*0.75)) ;
 				
 				// Fix off-map colours to background...
-				let land_water_transition_color = vec4f( 0, 33.0/256, 71.0/256, 0.5 );
-				let nodata_color = vec4f( 1.0, 1.0, 1.0, 0.5 );
+				let land_water_transition_color = vec4<f32>( 0, 33.0/256, 71.0/256, 0.5 );
+				let nodata_color = vec4<f32>( 1.0, 1.0, 1.0, 0.5 );
 
 				// Mix from result to a transition color (e.g. for ocean)
 				result = mix(
