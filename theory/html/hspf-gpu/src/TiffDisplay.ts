@@ -105,8 +105,15 @@ export default class TiffDisplay {
 
 		this.shaders = device.createShaderModule({
 			label: "Cell shader",
-			code: shaderCode
+			code: shaderCode,
 		});
+
+		this.shaders.getCompilationInfo().then(info => {
+			if (info.messages.length > 0) {
+				console.warn("Shader compilation messages:", info.messages);
+			}
+		});
+
 		this.layout = this.device.createBindGroupLayout({
 			entries: [
 			  { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: "uniform" }},
@@ -120,6 +127,8 @@ export default class TiffDisplay {
 		this.pipelineLayout = device.createPipelineLayout({
 			bindGroupLayouts: [ this.layout ]
 		}) ;
+
+		device.pushErrorScope('validation');
 		this.pipeline = this.device.createRenderPipeline({
 			label: "Cell pipeline",
 			layout: this.pipelineLayout,
@@ -138,6 +147,11 @@ export default class TiffDisplay {
 			multisample: {
 				count: this.sampleCount,
 			},
+		});
+		device.popErrorScope().then(error => {
+			if (error) {
+				console.error("Pipeline creation error:", error);
+			}
 		});
 	}
 
