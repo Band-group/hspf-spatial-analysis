@@ -3,7 +3,16 @@ import SimulationControls from "./SimulationControls.js"
 import {Simulation} from "./Simulation.js"
 
 async function run() {
-	if( !navigator.gpu ) {
+	let adapter: GPUAdapter | null = null;
+	try {
+		if (navigator.gpu) {
+			adapter = await navigator.gpu.requestAdapter();
+		}
+	} catch (e) {
+		console.warn("Error requesting WebGPU adapter:", e);
+	}
+
+	if (!adapter) {
 		const nav = document.getElementsByTagName('nav')[0] as HTMLElement;
 		const section = document.getElementsByTagName('section')[0] as HTMLElement;
 		if( nav ) {
