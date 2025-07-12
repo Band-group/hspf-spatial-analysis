@@ -116,7 +116,7 @@ export default class SimulationControls {
 				+ '</fieldset>'
 				+ '<fieldset>'
 				+ '<legend>Weights</legend>'
-				+ '<input type="checkbox" id="weights_checkbox" name="weights" />'
+				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
 				+ '<label for="weights_checkbox">Weight by prevalence?</label>'
 				+ '</fieldset>'
 				+ '<fieldset>'
@@ -145,6 +145,12 @@ export default class SimulationControls {
 				+ '<label for="overdominant">No selection</label>'
 				+ '<br/>'
 				+ '</fieldset>'
+				+ '<fieldset id="immunity_control">'
+				+ '<legend>Immunity contribution:</legend>'
+				+ '<input type="number" id="immunity" name="lambda"  value = 0.0 min = 0.0 max = 1.0 step=0.1 />'
+				+ '<label for="immunity">Lambda</label>'
+				+ '</fieldset>'
+
 			) ;
 		}
 		{
@@ -155,7 +161,7 @@ export default class SimulationControls {
 				[ 'value' ],
 				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 				{
-					'value:twoBiteRate%': { value: 1, min: 0.0, max: 100.0, step: 1 },
+					'value:twoBiteRate%': { value: 15, min: 0.0, max: 100.0, step: 1 },
 					'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
 					'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
@@ -222,8 +228,7 @@ export default class SimulationControls {
 
 		this.resetControl.addEventListener(
 			'click', function( _elt ) {
-				// @ts-ignore
-				self.startingCondition = _elt.target.getAttribute( "id" ) ;
+				self.startingCondition = (_elt.target as HTMLDivElement).getAttribute( "id" )! ;
 				self.trigger( 'reset' ) ;
 			} 
 		) ;
@@ -323,7 +328,8 @@ export default class SimulationControls {
 		let fitness_mode = <HTMLInputElement> document.querySelector( 'input[name="fitness_mode"]:checked' ) ;
 		let stop_every = <HTMLInputElement> document.querySelector( 'input[name="stop_every"]' ) ;
 		let use_weights = <HTMLInputElement> document.querySelector( 'input[name="weights"]' ) ;
-		let values = [ 0.0, 0.0, 0.0, 0.0 ] ;
+		let lambda = <HTMLInputElement> document.querySelector( 'input[name="lambda"]' ) ;
+		let values = [ 0.0, 0.0, 0.0, 0.0, 0.0 ] ;
 		if( checkbox ) {
 			values[0] = checkbox.checked ? 1.0 : 0.0 ;
 		}
@@ -342,11 +348,14 @@ export default class SimulationControls {
 		if( use_weights ) {
 			values[3] = use_weights.checked ? 1.0 : 0.0 ;
 		}
-		return new GridData( [1,4], values ) ;
+		if( lambda ) {
+			values[4] = 0.0 + parseFloat(lambda.value) ;
+		}
+		return new GridData( [1,5], values ) ;
 	}
 
 	getResetValues( value_choice: string ): GridData {
-		let starting_values = {
+		const starting_values = {
 			'flat_10pc_pp': new GridData( [ 1, 4 ], [ 0.9, 0.0, 0.0, 0.1 ] ),
 			'flat_20pc_pp': new GridData( [ 1, 4 ], [ 0.8, 0.0, 0.0, 0.2 ] ),
 			'flat_1pc_ind': new GridData( [ 1, 4 ], [ 0.99*0.99, 0.99*0.01, 0.01*0.99, 0.01*0.01 ] ),
@@ -354,8 +363,11 @@ export default class SimulationControls {
 			'flat_20pc_ind': new GridData( [ 1, 4 ], [ 0.8*0.8, 0.8*0.2, 0.2*0.8, 0.2*0.2 ] ),
 			'flat_50pc_ind': new GridData( [ 1, 4 ], [ 0.5*0.5, 0.5*0.5, 0.5*0.5, 0.5*0.5 ] )
 		} ;
-		//@ts-ignore
-		return starting_values[ value_choice ] ;
+		if (value_choice in starting_values) {
+			// bit of a mouthful here but typing value_choice more broadly is a hassle / probably OTT
+			return starting_values[value_choice as keyof typeof starting_values] ;
+		}
+		throw new Error(`Unknown starting condition: ${value_choice}`) ;
 	}
 
 	constrain_fitness() {
@@ -508,12 +520,12 @@ export default class SimulationControls {
 			.append( 'path' )
 			.attr( 'class', 'r' ) ;
 		svg.selectAll( 'path.l' )
-			// @ts-ignore
+			// @ts-expect-error
 			.attr( 'd', lline )
 			.attr( 'fill', 'none' )
 			.attr( 'stroke', 'black' ) ;
 		svg.selectAll( 'path.r' )
-			// @ts-ignore
+			// @ts-expect-error
 			.attr( 'd', rline )
 			.attr( 'fill', 'none' )
 			.attr( 'stroke', 'black' ) ;
@@ -521,7 +533,7 @@ export default class SimulationControls {
 			scale => (
 				d3.axisBottom( scale )
 				.ticks(2)
-				// @ts-ignore
+				// @ts-expect-error
 				.tickFormat( (d:number) => (d + "km" ))
 			)
 		) ;
@@ -533,11 +545,11 @@ export default class SimulationControls {
 			.attr( 'transform', 'translate(0,' + (geom.size.height - geom.margin.bottom + 5) + ")" ) ;
 		svg.selectAll( 'g.axis' )
 			.filter((_d:any,i:any) => (i==0))
-			// @ts-ignore
+			// @ts-expect-error
 			.call( axes[0] ) ;
 		svg.selectAll( 'g.axis' )
 			.filter((_d:any,i:any) => (i==1))
-			// @ts-ignore
+			// @ts-expect-error
 			.call( axes[1] ) ;
 	}
 } ;

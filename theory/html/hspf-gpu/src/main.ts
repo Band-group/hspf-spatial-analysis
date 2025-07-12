@@ -3,6 +3,36 @@ import SimulationControls from "./SimulationControls.js"
 import {Simulation} from "./Simulation.js"
 
 async function run() {
+	if( !navigator.gpu ) {
+		const nav = document.getElementsByTagName('nav')[0] as HTMLElement;
+		const section = document.getElementsByTagName('section')[0] as HTMLElement;
+		if( nav ) {
+			nav.style.display = 'none' ;
+		}
+		if( section ) {
+			section.innerHTML = `
+				<div class="webgpu-support-error" style="padding: 1em; text-align: left; max-width: 800px; margin: auto;">
+					<h1>WebGPU not available</h1>
+					<p>
+						This simulation requires a browser with WebGPU support to run. Mobile browsers are not supported as of this writing.
+					</p>
+					<p>
+						Please try a recent desktop version of <b>Google Chrome</b> or <b>Microsoft Edge</b>.
+						Other browsers may work but require enabling WebGPU in your browser's settings.
+					</p>
+					<ul>
+						<li>In Safari, go to <code>Safari &gt; Settings &gt; Feature Flags </code> and enable the WebGPU flag.</li>
+						<li>In Firefox, go to <code>about:config</code>, set <code>dom.webgpu.enabled</code> to <code>true</code> and hope for the best (no guarantees, sorry).</li>
+					</ul>
+					<p>
+						You can check current browser support for WebGPU at <a href="https://caniuse.com/webgpu" target="_blank" rel="noopener">caniuse.com/webgpu</a>.
+					</p>
+				</div>
+			` ;
+		}
+		return ;
+	}
+
 	let controls = new SimulationControls( document.getElementsByTagName( 'nav' )[0] ) ;
 	// debug
 	controls.on( 'fitness', function(values: GridData) { console.log( "FITNESS", values ) ; }) ;

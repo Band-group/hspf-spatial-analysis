@@ -11,7 +11,7 @@ import MapDisplay from "./MapDisplay.js"
 import Barrier from "./Barrier.js"
 import ComparisonDisplay from "./ComparisonDisplay.js"
 import serialise_simulation from "./serialise.js"
-import { PfsaCounts, LatLong } from "./Types.js"
+import { PfsaCounts, LatLong, PfsaDataKey } from "./Types.js"
 //import { writeArrayBuffer } from 'geotiff';
 //import { writeGeoTiff } from 'geotiff';
 //import {writeGeotiffF32} from './writeGeoTiffF32.ts'
@@ -53,10 +53,10 @@ export class Simulation {
 	hspf: HsPfSim ;
 	tiffs: SimulationMaps ;
 	displays: { [key:string]: MapDisplay } ;
-	comparisons: [ {
+	comparisons: {
 		spec: ComparisonSpec,
 		display: ComparisonDisplay
-	 } ] ;
+	 }[] ;
 	data: SimulationData ;
 	counts: Array<PfsaCounts> ;
 	barriers: Array< Barrier > ;
@@ -79,10 +79,16 @@ export class Simulation {
 			throw new Error("No appropriate GPUAdapter found.");
 		}
 		//console.log( "ADAPTER INFO", adapter.requestAdapterInfo() ) ;
-		let device = await adapter.requestDevice() ;
+		const hasFloatFiltering = adapter.features.has( "float32-filterable" ) ;
+		let device = await adapter.requestDevice( {
+			requiredFeatures: hasFloatFiltering ? [ "float32-filterable" ] : []
+		} ) ;
 		if (!device) {
 			throw new Error("No appropriate GPUDevice found.");
 		}
+		device.lost.then( (info) => {
+			console.error( "device lost", info ) ;
+		} ) ;
 	
 		let tiffs = {
 			HbS: await Tiff.load( map_urls['HbS'] ),
@@ -266,27 +272,26 @@ export class Simulation {
 					}
 				)
 				section.appendChild( container ) ;
-				//@ts-ignore
 				this.comparisons = [] ;
-				let left = 20 ;
+				let left = 10 ;
 				let countries =  ['Gambia', 'Senegal', 'Mali', 'Ghana', 'Nigeria', 'Cameroon', 'Uganda', 'Democratic Republic of the Congo', 'United Republic of Tanzania', 'Kenya' ] ;
 				interface Genotypes {
 					name: string,
-					count: string,
-					N: string,
+					count: PfsaDataKey,
+					N: PfsaDataKey,
 					layer: number,
 					limit: number
 				} ;				
-				let genotypes = [
+				const genotypes = [
 					{ "name": "-+", "count": "pfsa13mp", "N": "pfsa13N", "layer": 1, "limit": 0.3 },
 					{ "name": "+-", "count": "pfsa13pm", "N": "pfsa13N", "layer": 2, "limit": 0.3 },
 					{ "name": "++", "count": "pfsa13pp", "N": "pfsa13N", "layer": 3, "limit": 1 }
-				] ;
+				] as const satisfies Genotypes[] ;
 				genotypes.forEach(
 					( a: Genotypes ) => {
 						let overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 						overlay.setAttribute( "class", "comparison_display" ) ;
-						container.appendChild( overlay ) ;
+						this.displays['pf' + a.name].container.appendChild( overlay ) ;
 						this.comparisons.push({
 							spec: {
 								title: a.name,
@@ -302,8 +307,9 @@ export class Simulation {
 								a.N,
 								a.limit,
 								{
-									width: 320,
-									height: 240,
+									width: 240,
+									height: 180,
+									// bottom: 0,
 									margins: {
 										'bottom': 50,
 										'left': 40,
@@ -314,7 +320,7 @@ export class Simulation {
 								left
 							)
 						} ) ;
-						left += 10 ;
+						// left += 10 ;
 					}
 				) ;
 			}
@@ -377,8 +383,7 @@ export class Simulation {
 				await this.hspf.step() ;
 				this.render() ;
 				++this.m_iteration ;
-				// @ts-ignore
-				document.querySelector( '.generation-counter' ).innerHTML = `g = ${this.m_iteration}` ;
+				document.querySelector( '.generation-counter' )!.innerHTML = `g = ${this.m_iteration}` ;
 
 				if( this.m_stop_every > 0 && this.m_iteration % this.m_stop_every == 0 ) {
 					document.getElementById( "playpause" )?.click() ;
