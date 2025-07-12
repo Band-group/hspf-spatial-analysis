@@ -59,8 +59,8 @@ export default class TiffDisplay {
 		this.paletteBreaksBuffer = this.palette.breaks.toDeviceBuffer( this.device, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST ) ;
 		let paletteLevels = this.palette.values.height ;
 
-		const textureSamplingCode = this.hasFloatFiltering
-			? `let a = textureSample(data, textureSampler, uv).r;`
+		const getValueAtUvBody = this.hasFloatFiltering
+			? `return textureSample(data, textureSampler, uv).r;`
 			: `
 				let tex_size = grid;
 				let inv_tex_size = 1.0 / tex_size;
@@ -80,16 +80,28 @@ export default class TiffDisplay {
 				// Interpolate
 				let v0 = mix(v00, v10, fuv.x);
 				let v1 = mix(v01, v11, fuv.x);
-				let a = mix(v0, v1, fuv.y);
+				return mix(v0, v1, fuv.y);
 				`;
 		
 		const contourWidth = this.options.contours ? '18.0' : '0.0';
 
 		const shaderCode = tiffDisplayWgsl
-			.replace( /\{\{PALETTE_LEVELS\}\}/g, paletteLevels.toString() )
-			.replace( /\{\{PALETTE_LEVELS_PLUS_1\}\}/g, (paletteLevels + 1).toString() )
-			.replace( '{{TEXTURE_SAMPLING_CODE}}', textureSamplingCode )
-			.replace( '{{CONTOUR_WIDTH}}', contourWidth );
+			.replace(
+				/const PALETTE_LEVELS: u32 = \d+u;/,
+				`const PALETTE_LEVELS: u32 = ${paletteLevels}u;`
+			)
+			.replace(
+				/const PALETTE_LEVELS_PLUS_1: u32 = \d+u;/,
+				`const PALETTE_LEVELS_PLUS_1: u32 = ${paletteLevels + 1}u;`
+			)
+			.replace(
+				/fn get_value_at_uv\(uv: vec2<f32>\) -> f32 \{[^}]+\}/,
+				`fn get_value_at_uv(uv: vec2<f32>) -> f32 { ${getValueAtUvBody} }`
+			)
+			.replace(
+				/const CONTOUR_WIDTH: f32 = [\d.]+;/,
+				`const CONTOUR_WIDTH: f32 = ${contourWidth};`
+			);
 
 		this.shaders = device.createShaderModule({
 			label: "Cell shader",
