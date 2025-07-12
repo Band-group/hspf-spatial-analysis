@@ -236,6 +236,41 @@ export default class HsPfSim {
 		this.m_iteration = 0 ;
 	}
 
+	async readDataAt(xy: { x: number; y: number }): Promise<Float32Array> {
+		const stagingBuffer = this.device.createBuffer({
+			size: 5 * 4, // 5 layers, 4 bytes per float
+			usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+		});
+
+		const commandEncoder = this.device.createCommandEncoder();
+
+		const sourceBuffer = this.m_iteration % 2 === 0 ? this.buffers.pfsaA : this.buffers.pfsaB;
+		const width = this.hs.width;
+		
+		for (let i = 0; i < 5; i++) {
+			const offset = (i * this.hs.height * width + xy.y * width + xy.x) * 4;
+			commandEncoder.copyBufferToBuffer(
+				sourceBuffer, // source
+				offset,       // sourceOffset
+				stagingBuffer, // destination
+				i * 4,        // destinationOffset
+				4             // size
+			);
+		}
+
+		this.device.queue.submit([commandEncoder.finish()]);
+
+		await stagingBuffer.mapAsync(GPUMapMode.READ);
+		const data = new Float32Array(stagingBuffer.getMappedRange());
+		
+		// Create a copy of the data before unmapping
+		const result = new Float32Array(data);
+
+		stagingBuffer.unmap();
+		
+		return result;
+	}
+
 	setWeights( weights: GridData ) { 
 		let dim = weights.dimensions ;
 		let mydim = this.hs.dimensions ;
