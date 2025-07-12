@@ -110,6 +110,7 @@ regions = {
 }
 wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
+	position = '[0-9]+',
 	Ne = '[0-9]+'
 
 include: "relate.snakefile"
@@ -126,7 +127,7 @@ mutation_rates = [
 rule all:
 	input:
 		relate = expand(
-			"outputs/pf7/relate/output/pf7.relate.{chromosome}.Ne=100000.mu={mu}.mut",
+			"outputs/pf7/relate/output/initial/pf7.relate.{chromosome}.Ne=100000.mu={mu}.mut",
 			chromosome = chromosomes,
 			# Otto et al says average mutation rate is 9.57x10-11 per mitosis
 			# (which comes from the average 3.83x10^-10 per erythrocyte cycle from Claessens et al clone tree paper, and 4 mitoses per erythrocyte cycle.)
@@ -137,7 +138,7 @@ rule all:
 		),
 		#regions = expand( "outputs/pf7/relate/input/{region}.shapeit.gz", region = regions.keys() ),
 		popsize = expand(
-			"outputs/pf7/relate/output/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize.pdf",
+			"outputs/pf7/relate/output/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize.pdf",
 			chromosome_or_region = chromosomes,
 			mu = mutation_rates,
 			Ne = [ "100000" ]

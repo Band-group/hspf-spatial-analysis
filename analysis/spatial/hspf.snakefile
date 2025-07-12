@@ -19,7 +19,7 @@ rule compile_TMB_code:
 		Rscript --vanilla {params.script} --model {output.cpp}
 	"""
 
-rule extract_hspf_covariates:
+rule extract_pfpr:
 	output:
 		tsv = "output/hspf/covariates/{hspf_covariates}-type={type}-size={size}-area={area}.tsv"
 	input:
@@ -52,8 +52,8 @@ rule fit_hspf_in_areas:
 		covariates = lambda w: ([
 			# This funny bit of code is to make sure this rule depends on the appropriate
 			# covariates file, UNLESS hspf_covariates="none"
-			rules.extract_hspf_covariates.output.tsv for covariate in (
-				[] if w.hspf_covariates == "none" else [ w.hspf_covariates]
+			rules.extract_pfpr.output.tsv for covariate in (
+				[] if w.hspf_covariates == "none" else [ w.hspf_covariates ]
 			)
 		])
 
@@ -171,9 +171,13 @@ rule summarise_hspf:
 
 rule combine_hspf_summaries:
 	output:
-		tsv = "output/all_hspf_analyses_summary.tsv"
+		tsv = "output/pf={pf_data_version}/all_hspf_analyses_summary.tsv"
 	input:
-		tsv = expand( rules.summarise_hspf.output.tsv, **config['params'] )
+		tsv = lambda w: expand(
+			rules.summarise_hspf.output.tsv,
+			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version' ] )),
+			pf_data_version = w.pf_data_version
+		)
 	run:
 		done_header = False
 		for filename in input.tsv:

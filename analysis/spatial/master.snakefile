@@ -17,7 +17,7 @@ config['areas'] = get_area_definitions( config['params']['area'] )
 # master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: combine_hspf_summaries, summarise_HbS_fits, plot_hspf_areas, create_figure1, create_figure2, create_summary_list, compile_TMB_code
+localrules: combine_hspf_summaries, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
 	min_N = "[0-9]+",
@@ -50,20 +50,17 @@ rule all:
 		),
 		pfsa_hspf_plots = expand(
 			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
-			**( remove_keys( config['params'], keys_to_remove = [ 'locus' ] )),
-			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ]
+			**config['params']
 		),
-		nonpfsa_hspf_plots = expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
-			**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
-			area = [ 'global', 'africa', 'eaf', 'waf' ]
+#		hspf_area_plots = expand(
+#			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
+#			**( remove_keys( config['params'], keys_to_remove = [ 'locus' ] )),
+#			locus = [ 'Pfsa1' ]
+#		),
+		hspf_summary = expand(
+			"output/pf={pf_data_version}/all_hspf_analyses_summary.tsv",
+			pf_data_version = config['params']['pf_data_version']
 		),
-		hspf_area_plots = expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
-			**( remove_keys( config['params'], keys_to_remove = [ 'locus' ] )),
-			locus = [ 'Pfsa1' ]
-		),
-		hspf_summary = "output/all_hspf_analyses_summary.tsv",
 		fig1 = expand(
 			"output/pf={pf_data_version}/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1.pdf",
 			**config['params']
@@ -89,7 +86,7 @@ rule all:
 		temporal = expand(
 			"output/pf={pf_data_version}/figures/temporal/{loci}-temporal-area={area}.pdf",
 			pf_data_version = config['params']['pf_data_version'],
-			loci = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4', 'CLAG3.2:140167', 'FIKK3:79845', 'CRT', 'REX2:1428875' ],
+			loci = config['params']['locus'],
 			area = [ 'global', 'africa', 'waf', 'eaf' ]
 		),
 		ld = expand(

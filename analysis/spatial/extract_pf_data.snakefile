@@ -1,4 +1,22 @@
-output = "input/hbs-pf-pf8.sqlite"
+choice = "random"
+
+choices = {
+	"random": {
+		"output": "input/hbs-pf-random-variants.sqlite",
+		"variants": "input/random_variants_f_ge_10pc.tsv"
+	},
+	"annie": {
+		"output": "input/hbs-pf-annie.sqlite",
+		"variants": "input/variants.tsv"
+	},
+	"pf8": {
+		"output": "input/hbs-pf-pf8.sqlite",
+		"variants": "input/variants.tsv"
+	}
+}
+
+output = choices[choice]['output']
+variants = choices[choice]['variants']
 
 rule all:
 	input:
@@ -19,7 +37,7 @@ rule download_or_extract_data:
 		bgen = "input/{dataset}/data.bgen",
 		bgi = "input/{dataset}/data.bgen.bgi"
 	input:
-		tsv = "input/variants.tsv"
+		tsv = variants
 	params:
 		url = lambda w: ({
 			'pf8': "https://pf8-release.cog.sanger.ac.uk/vcf/{chromosome}.filt.vcf.gz",
@@ -31,6 +49,7 @@ rule download_or_extract_data:
 	run:
 		bgens = []
 		shell( "mkdir -p {params.tmpdir}" )
+		variants = {}	
 		with open( input.tsv, "rt" ) as f:
 			for line in f.readlines():
 				if line[0:5] == 'chrom' or line[0] == '#' or line[0] == '\n':
@@ -41,17 +60,28 @@ rule download_or_extract_data:
 				locus = elts[2]
 				ref_allele = elts[3]
 				alt_allele = elts[4]
-				url = params.url.format( chromosome = chromosome )
-				print(
-					"""++ Fetching data for {locus} ({chromosome}:{position} {ref_allele}>{alt_allele}) from {url}...""".format(
-						locus = locus, chromosome = chromosome, position = position, ref_allele = ref_allele, alt_allele = alt_allele, url = url
-					))
-				tmpfilename = "%s/%s:%d.tmp.vcf" % ( params.tmpdir, chromosome, position )
-				shell( """tabix -h '{url}' {chromosome}:{position}-{position} > {tmpfilename}""" )
-				shell( """sed -i -e '{params.sed_string}' '{tmpfilename}'""" )
-				bgenfilename = tmpfilename.replace( ".vcf", ".bgen" )
-				shell( """{params.qctool} -g {tmpfilename} -og {bgenfilename} -bgen-bits 8 -bgen-compression zstd""" )
-				bgens.append( bgenfilename )
+				if chromosome not in variants:
+					variants[chromosome] = []
+				variants[chromosome].append({
+					"chromosome": chromosome,
+					"position": position,
+					"ref_allele": ref_allele,
+					"alt_allele": alt_allele
+				})
+		print( variants )
+		for chromosome in variants.keys():
+			url = params.url.format( chromosome = chromosome )
+			print(
+				"""++ Fetching data for {chromosome} from {url}...""".format(
+					chromosome = chromosome, url = url
+				))
+			tmpfilename = "%s/%s.tmp.vcf" % ( params.tmpdir, chromosome )
+			positions = [ "%s:%s-%s" % ( e['chromosome'], e['position'], e['position'] ) for e in variants[chromosome] ]
+			shell( """tabix -h '{url}' %s > {tmpfilename}""" % ' '.join( positions ) )
+			shell( """sed -i -e '{params.sed_string}' '{tmpfilename}'""" )
+			bgenfilename = tmpfilename.replace( ".vcf", ".bgen" )
+			shell( """{params.qctool} -g {tmpfilename} -og {bgenfilename} -bgen-bits 8 -bgen-compression zstd""" )
+			bgens.append( bgenfilename )
 		shell( """cat-bgen -g {bgens} -og {output.bgen}""")
 		shell( """bgenix -g {output.bgen} -index""" )
 
@@ -59,7 +89,10 @@ rule extract_dataset:
 	output:
 		flag = touch( temp( "input/status/{dataset}.ok" ))
 	input:
-		db = rules.initialise_db.output.db
+		db = rules.initialise_db.output.db,
+		GAMCC = "input/GAMCC/data.bgen",
+		pf8 = "input/pf8/data.bgen",
+		variants = variants
 	params:
 		script = "input/scripts/extract_{dataset}_counts.R",	
 		indir = lambda w: (
@@ -74,7 +107,7 @@ rule extract_dataset:
 			}[w.dataset]
 		)
 	shell: """
-		Rscript --vanilla {params.script} --indir {params.indir} --output {input.db}
+		Rscript --vanilla {params.script} --indir {params.indir} --output {input.db} --variants {input.variants}
 		sqlite3 -header -column {input.db} "SELECT source, SUM(ref+mixed+nonref) AS N, COUNT(*) FROM by_sample GROUP BY source ;"
 	"""
 

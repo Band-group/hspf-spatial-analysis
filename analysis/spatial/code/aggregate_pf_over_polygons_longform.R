@@ -59,7 +59,12 @@ data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
 stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
 # For these loci, the Pfsa+ allele is assumed to be the reference allele...
-flipped_loci = c( "Pfsa4", "CLAG3.2:140167", "FIKK3:79845" )
+flipped_loci = c(
+	"Pfsa4",
+	"CLAG3.2:140167",
+	"FIKK3:79845",
+	"PTP7:96476"
+)
 # while for others, it's the non-reference allele.
 
 # HACK
