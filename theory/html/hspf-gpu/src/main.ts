@@ -3,7 +3,16 @@ import SimulationControls from "./SimulationControls.js"
 import {Simulation} from "./Simulation.js"
 
 async function run() {
-	if( !navigator.gpu ) {
+	let adapter: GPUAdapter | null = null;
+	try {
+		if (navigator.gpu) {
+			adapter = await navigator.gpu.requestAdapter();
+		}
+	} catch (e) {
+		console.warn("Error requesting WebGPU adapter:", e);
+	}
+
+	if (!adapter) {
 		const nav = document.getElementsByTagName('nav')[0] as HTMLElement;
 		const section = document.getElementsByTagName('section')[0] as HTMLElement;
 		if( nav ) {
@@ -21,7 +30,7 @@ async function run() {
 						Other browsers may work but require enabling WebGPU in your browser's settings.
 					</p>
 					<ul>
-						<li>In Safari, go to <code>Safari &gt; Settings &gt; Feature Flags </code> and enable the WebGPU flag.</li>
+						<li>In Safari, go to <code>Safari &gt; Settings &gt; Feature Flags </code> and enable the WebGPU flag (although performance appears to be poor).</li>
 						<li>In Firefox, go to <code>about:config</code>, set <code>dom.webgpu.enabled</code> to <code>true</code> and hope for the best (no guarantees, sorry).</li>
 					</ul>
 					<p>

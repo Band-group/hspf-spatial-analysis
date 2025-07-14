@@ -44,8 +44,8 @@ fn between( x: f32, a: f32, b: f32 ) -> bool {
   }
 */
 fn segments_overlap(
-  a: vec2f, b: vec2f,
-  p: vec2f, q: vec2f
+  a: vec2<f32>, b: vec2<f32>,
+  p: vec2<f32>, q: vec2<f32>
 ) -> bool {
   let ma = (b.y-a.y)/(b.x-a.x) ;
   let ca = a.y - a.x * ma ;
@@ -59,12 +59,12 @@ fn segments_overlap(
 
 // background data and parameters
 @group(0) @binding(0) var<uniform> parameters: Parameters ; // width, height, number of nbhd points, number of barriers, two-bite rate in %, outer padding, immunity lambda
-@group(0) @binding(1) var<uniform> fitness: array< vec4f, 2 > ;
+@group(0) @binding(1) var<uniform> fitness: array< vec4<f32>, 2 > ;
 @group(0) @binding(2) var<storage> nbhd: array<NbhdPoint> ;
 @group(0) @binding(3) var<storage> HbS: array<f32> ;
 @group(0) @binding(4) var<storage> weights: array<f32> ;
-@group(0) @binding(5) var<uniform> barriers: array<vec4f, 10> ;
-@group(0) @binding(6) var<uniform> offspringTable: array<vec4f, 16> ;
+@group(0) @binding(5) var<uniform> barriers: array<vec4<f32>, 10> ;
+@group(0) @binding(6) var<uniform> offspringTable: array<vec4<f32>, 16> ;
 
 // simulation data, will be updated
 @group(1) @binding(0) var<storage, read_write> pfsa: array<f32> ;
@@ -87,7 +87,7 @@ fn step(
   let twoBiteRate: f32 = f32(parameters.twoBiteRate)/100.0 ;
 
   let n = parameters.nbhd_size ; // number of nbhd points or 'mosquitos'
-  var value: vec4f = vec4(0.0) ;
+  var value: vec4<f32> = vec4<f32>(0.0) ;
   var denominator: f32 = 0.0 ;
   var totalWeight: f32 = 0.0 ;
   var fs = HbS[target_idx] ; 
@@ -101,8 +101,8 @@ fn step(
     pfsanew[ 4*size + target_idx ] = fs ;
     return ;
   }
-  let s = fs*fs + 2*fs*(1-fs) ;
-  let a = 1 - s ;
+  let s = fs*fs + 2.0*fs*(1.0-fs) ;
+  let a = 1.0 - s ;
 
   for( var i: u32 = 0; i < n; i++ ) {
     let x = u32(nbhd[i].dx + f32(target_x)) ;
@@ -110,7 +110,7 @@ fn step(
     let source_idx = y*width + x ;
     let bite_fs = HbS[source_idx] ;
     let bite_weight = weights[source_idx] ;
-    let pf = vec4(
+    let pf = vec4<f32>(
       pfsa[0*size + source_idx],
       pfsa[1*size + source_idx],
       pfsa[2*size + source_idx],
@@ -137,7 +137,7 @@ fn step(
       if(
         segments_overlap(
           barriers[j].xy, barriers[j].zw,
-          vec2f(f32(target_x),f32(target_y)), vec2f(f32(x),f32(y))
+          vec2<f32>(f32(target_x),f32(target_y)), vec2<f32>(f32(x),f32(y))
         )
       ) {
         weight *= 0.1 ;
@@ -146,7 +146,7 @@ fn step(
 
     // test both bite location and target location
     // if either is missing, skip it
-    if( bite_fs >= 0 && fs >= 0 ) {
+    if( bite_fs >= 0.0 && fs >= 0.0 ) {
       totalWeight += weight ;
       // one bite
       {
@@ -161,9 +161,9 @@ fn step(
         value += (1.0 - twoBiteRate) * weight * v ;
       }
       // two bites
-      for( var r = 0; r < 16; r++ ) {
-        let g1 = r / 4 ;
-        let g2 = r % 4 ;
+      for( var r: u32 = 0u; r < 16u; r++ ) {
+        let g1 = r / 4u ;
+        let g2 = r % 4u ;
         let v = (
           (pf[g1]*pf[g2])
           * offspringTable[r]
@@ -191,7 +191,7 @@ fn step(
   let f_1 = value[1] + value[3] ;
   let d = value[3] - f1_ * f_1 ;
   let r = clamp(
-    d / sqrt( f1_ * (1-f1_) * f_1 * (1 - f_1)),
+    d / sqrt( f1_ * (1.0-f1_) * f_1 * (1.0 - f_1)),
     -1.0, 1.0
   ) ;
   pfsanew[ 4*size + target_idx ] = r ;

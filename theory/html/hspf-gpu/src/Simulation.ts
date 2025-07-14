@@ -266,7 +266,8 @@ export class Simulation {
 							this.device,
 							{
 								'contours': (genotype != 'r'),
-								'title': genotype ? genotype : "(unknown)" // workaround 
+								'title': genotype ? genotype : "(unknown)", // workaround 
+								'onClick': (xy) => this.inspect(xy, genotype || 'unknown')
 							}
 						) ;
 					}
@@ -338,7 +339,8 @@ export class Simulation {
 					this.device,
 					{
 						'contours': false,
-						'title': 'HbS'
+						'title': 'HbS',
+						'onClick': (xy) => this.inspect(xy, 'hs')
 					}
 				) ;
 				const nav = document.querySelector( "nav" ) ;
@@ -349,6 +351,18 @@ export class Simulation {
 		this.m_running = false ;
 		this.m_iteration = 0 ;
 		this.m_stop_every = 0 ;
+	}
+
+	async inspect(xy: {x: number, y: number}, type: string) {
+		console.log(`Inspecting ${type} at`, xy);
+	
+		// The display co-ordinates are for the padded map, so we don't need to adjust them
+		// to look up in this.data.HbS.
+		const hbsValue = this.data.HbS.at([xy.y, xy.x]);
+		console.log(`HbS value: ${hbsValue}`);
+	
+		const pfsaValues = await this.hspf.readDataAt(xy);
+		console.log(`PFSA values:`, pfsaValues);
 	}
 
 	// get pixel coords of lat/long.
