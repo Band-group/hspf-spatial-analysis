@@ -12,7 +12,8 @@ export interface Geom {
 
 export interface MapOptions {
 	contours: boolean,
-	title: string
+	title: string,
+	onClick?: (xy: {x: number, y: number}) => void
 } ;
 
 export default class MapDisplay {
@@ -66,6 +67,19 @@ export default class MapDisplay {
 		this.legend.setAttribute( "height", "250" ) ;
 		this.legend.setAttribute( "class", "palette_legend" ) ;
 		this.container.appendChild( this.legend ) ;
+
+		if (options.onClick) {
+			this.container.addEventListener('click', (event) => {
+				const rect = this.overlay.getBoundingClientRect();
+				const viewbox = (this.overlay as SVGSVGElement).viewBox.baseVal;
+		
+				// Transform click coordinates to SVG coordinates
+				const svgX = viewbox.x + (event.clientX - rect.left) * (viewbox.width / rect.width);
+				const svgY = viewbox.y + (event.clientY - rect.top) * (viewbox.height / rect.height);
+
+				options.onClick!({ x: Math.round(svgX), y: Math.round(svgY) });
+			});
+		}
 	}
 
 	draw( data: GridData, layer: number = 0 ) {

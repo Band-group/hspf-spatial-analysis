@@ -152,30 +152,30 @@ rule beagle_phase:
 		chrom={params.chromosome}
 	"""
 
+rule count_phased_hets:
+	output:
+		txt = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.counts.txt"
+	input:
+		vcf = rules.beagle_phase.output.vcf
+	shell: """
+		zcat {input.vcf} | tr '\\t' '\\n' | sort | uniq -c | grep '[01][|][01]' > {output.txt}
+	"""
+
 # TODO: normalising before phasing would make more sense, I reckon.
-# Not doing this now because would require re-phasing, which takes time.
+# But I'm not doing this now because would require re-phasing, which takes time.
 rule vt_normalise:
 	output:
-		vcf = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.normalised.vcf.gz",
-		tbi = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.normalised.vcf.gz.tbi"
+		vcf = "outputs/pf7/vcf/06b_normalised/{chromosome}.normalised.vcf.gz",
+		tbi = "outputs/pf7/vcf/06b_normalised/{chromosome}.normalised.vcf.gz.tbi"
 	input:
-		vcf = rules.beagle_phase.output.vcf,
+		vcf = rules.beagle_phase.output.vcf.format( chromosome = '{chromosome}', beagle_version = "v5.4" ),
 		fasta = "/well/band/projects/pfsa/data/assemblies/Pf3D7_v3/Pf3D7_v3.fasta"
 	shell: """
 		vt normalize -r {input.fasta} -o {output.vcf} {input.vcf}
 		tabix -p vcf {output.vcf}
 	"""
 
-rule count_phased_hets:
-	output:
-		txt = "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.counts.txt"
-	input:
-		vcf = rules.vt_normalise.output.vcf
-	shell: """
-		zcat {input.vcf} | tr '\\t' '\\n' | sort | uniq -c | grep '[01][|][01]' > {output.txt}
-	"""
-
-rule generate_qctool_files:
+rule generate_qctool_ancestral_allele_files:
 	output:
 		strand = "outputs/pf7/vcf/07_ancestral/ancestral.strand.tsv.gz",
 		pos = "outputs/pf7/vcf/07_ancestral/ancestral.positions.txt",
@@ -197,12 +197,14 @@ rule subset_and_flip_to_ancestral_alleles:
 		vcf = "outputs/pf7/vcf/07_ancestral/{chromosome}.vcf.gz",
 		samples = "outputs/pf7/vcf/07_ancestral/{chromosome}.sample"
 	input:
-		strand = rules.generate_qctool_files.output.strand,
-		pos = rules.generate_qctool_files.output.pos,
-		map = rules.generate_qctool_files.output.map,
-		vcf = rules.vt_normalise.output.vcf.format( chromosome = '{chromosome}', beagle_version = "v5.4" )
+		strand = rules.generate_qctool_ancestral_allele_files.output.strand,
+		pos = rules.generate_qctool_ancestral_allele_files.output.pos,
+		map = rules.generate_qctool_ancestral_allele_files.output.map,
+		vcf = rules.vt_normalise.output.vcf.format( chromosome = '{chromosome}' )
+	params:
+		qctool = "/well/band/shared/software/qctool_v2.2.7-devel"
 	shell: """
-		qctool_v2.2.4 \
+		{params.qctool} \
 		-g {input.vcf} \
 		-incl-positions {input.pos} \
 		-map-id-data {input.map} \
@@ -240,10 +242,39 @@ rule convert_to_bgen:
 		bgi = "outputs/pf7/vcf/07_ancestral/{chromosome}.bgen.bgi"
 	input:
 		vcf = rules.subset_and_flip_to_ancestral_alleles.output.vcf
+	params:
+		qctool = "/well/band/shared/software/qctool_v2.2.7-devel"
 	shell: """
-	qctool_v2.2.4 -g {input.vcf} -og {output.bgen} -bgen-bits 8 -bgen-compression zstd
+	{params.qctool} -g {input.vcf} -og {output.bgen} -bgen-bits 8 -bgen-compression zstd
 	bgenix -index -g {output.bgen}
 """
+
+rule convert_to_shapeit:
+	output:
+		shapeit = "outputs/pf7/vcf/07_ancestral/{chromosome}.shapeit.gz",
+		left = temp( "outputs/pf7/vcf/07_ancestral/tmp/{chromosome}.left" ),
+		right = temp( "outputs/pf7/vcf/07_ancestral/tmp/{chromosome}.right" )
+	input:
+		vcf = rules.subset_and_flip_to_ancestral_alleles.output.vcf
+	params:
+		sed_cmd = ' '.join(
+			[
+				( "-e '%s'" % s)
+				for s in [
+					's/0[|]0/0/g',
+					's/0[|]1/0/g', # A few hets seem to come through phasing, treat as ref
+					's/1[|]0/0/g', # A few hets seem to come through phasing, treat as ref
+					's/1[|]1/1/g'
+				]
+			]
+		)
+	shell: """
+		set +o pipefail
+		zcat {input.vcf} | grep -v '^#' | cut -f10- | sed {params.sed_cmd} | tr '\\t' ' '> {output.right}
+		zcat {input.vcf} | grep -v '^#' | cut -f1-5 | awk '{{ printf( "%s %s %s %s %s\\n", $1, $3, $2, $4, $5 ) }}' > {output.left}
+		paste -d' ' {output.left} {output.right} | gzip -c > {output.shapeit}
+	"""
+
 
 rule compute_stats:
 	output:
@@ -252,12 +283,13 @@ rule compute_stats:
 	input:
 		bgen = expand( rules.convert_to_bgen.output.bgen, chromosome = chromosomes )
 	params:
-		chromosomes = chromosomes
+		chromosomes = chromosomes,
+		qctool = "/well/band/shared/software/qctool_v2.2.7-devel"
 	run:
 		for chromosome in params.chromosomes:
 			filename = rules.convert_to_bgen.output.bgen.format( chromosome = chromosome )
 			print( "++ Computing snp stats for %s..." % filename )
-			shell( """qctool_v2.2.4 -g %s -snp-stats -threshold 0.9 -osnp sqlite://{output.stats}:SnpStats -analysis-name {chromosome}""" % filename )
+			shell( """{params.qctool} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{output.stats}:SnpStats -analysis-name {chromosome}""" % filename )
 
 rule compute_stats_stratified:
 	output:
@@ -267,12 +299,13 @@ rule compute_stats_stratified:
 		samples = "outputs/pf7/samples/filtered_samples.sample",
 		stats = rules.compute_stats.output.stats
 	params:
-		chromosomes = chromosomes
+		chromosomes = chromosomes,
+		qctool = "/well/band/shared/software/qctool_v2.2.7-devel"
 	run:
 		for chromosome in params.chromosomes:
 			filename = rules.convert_to_bgen.output.bgen.format( chromosome = chromosome )
 			print( "++ Computing snp stats for %s..." % filename )
-			shell( """qctool_v2.2.4 -s {input.samples} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{input.stats}:by_country -analysis-name by_country:{chromosome} -stratify Country""" % filename )
+			shell( """{params.qctool} -s {input.samples} -g %s -snp-stats -threshold 0.9 -osnp sqlite://{input.stats}:by_country -analysis-name by_country:{chromosome} -stratify Country""" % filename )
 
 rule find_similar_freq_mutations:
 	output:

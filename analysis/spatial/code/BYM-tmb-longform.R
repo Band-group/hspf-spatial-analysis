@@ -58,9 +58,17 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
+		"--covariates_files",
+		type = "character",
+		nargs = "+",
+		help = "path(s) to tsv file(s) of covariate values to include.  Must have polygon_id as first column.",
+		required = FALSE
+	)
+	parser$add_argument(
 		"--covariates",
 		type = "character",
-		help = "path to tsv file(s) of covariate values to include",
+		nargs = "+",
+		help = "Names of columns in covariates file(s) to use as covariates.",
 		required = FALSE
 	)
 	parser$add_argument(
@@ -197,13 +205,6 @@ if( 0 ) {#is.null( args )) {
 
 	#sanity check (each polygon_id should only lies within a specific country)
 	
-	stopifnot(
-		nrow(
-			pf %>% group_by(polygon_id) %>% summarise(n = length(unique(majority_country))) %>% filter(n != 1)
-		) == 0
-	)
-
-
 	pf = (
 		pf
 		%>% filter( locus == args$locus )
@@ -218,6 +219,12 @@ if( 0 ) {#is.null( args )) {
 		)
 		%>% filter( N >= args$min_N )
 	)
+	stopifnot(
+		nrow(
+			pf %>% group_by(polygon_id) %>% summarise(n = length(unique(majority_country))) %>% filter(n != 1)
+		) == 0
+	)
+
 	echo( "++ ...ok, %d points for locus %s loaded.\n", nrow( pf ), args$locus )
 	echo( "++ Data looks like:\n" )
 	print( head(pf), width = 300 )
@@ -297,14 +304,24 @@ if( 0 ) {#is.null( args )) {
 
 covariates = NULL
 if( !is.null( args$covariates )) {
-	covariates = readr::read_tsv( args$covariates )
-	if( colnames(covariates)[1] != "polygon_id" ) {
-		echo( "!! Expected the file \"%s\" (passed to --covariates)\n", args$covariates )
-		echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
-		stop( "!! Covariates file error." )
-	} else {
-		echo( "++ Loaded covariates with %d rows from \"%s\".\n", nrow( covariates ), args$covariates )
+	filenames = args$covariate_files
+	covariates = pf %>% select( polygon_id )
+	for( filename in filenames ) {
+		X = inner_join( readr::read_tsv( filename )
+		if( colnames(X)[1] != "polygon_id" ) {
+			echo( "!! Expected the file \"%s\" (passed to --covariates_files)\n", args$covariates_files )
+			echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
+			stop( "!! Covariates file error." )
+		} else {
+			echo( "++ Loaded covariates with %d rows from \"%s\".\n", nrow( X ), filename )
+		}
+		X = (
+			covariates %>% inner_join( readr::read_tsv( filename ), by = "polygon_id" )
+		)
+		X = X[, c( "polygon_id", covariates[ which( covariates %in% colnames(X) ) ] )]
+		covariates = covariates %>% left_join( X, by = "polygon_id" )
 	}
+	covariates = readr::read_tsv( args$covariates )
 }
 
 result = fitbym_to_posterior_samples(

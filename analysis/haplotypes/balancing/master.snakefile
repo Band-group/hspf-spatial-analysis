@@ -148,7 +148,8 @@ year_sets = {
 
 wildcard_constraints:
 	chromosome = "|".join( chromosomes ),
-	Ne = '[0-9]+'
+	Ne = '[0-9]+',
+	beagle_version = "v5[.]4|v5[.]1|v4[.]1"
 
 include: "pf7.snakefile"
 include: "selscan.snakefile"
@@ -160,9 +161,9 @@ rule all:
 	input:
 		vcf = expand( "outputs/pf7/vcf/06_phased/{chromosome}.phased.v5.4.vcf.gz", chromosome = chromosomes ),
 		counts = expand( "outputs/pf7/vcf/06_phased/{chromosome}.phased.{beagle_version}.counts.txt", chromosome = chromosomes, beagle_version = [ "v5.4" ]),
-		ancestral = expand( "outputs/pf7/vcf/07_ancestral/{chromosome}.{extension}", chromosome = chromosomes, extension = [ 'bgen', 'vcf.gz' ] ),
-		polarised = expand( "outputs/pf7/relate/input/{chromosome}.shapeit.gz", chromosome = chromosomes ),
-		samples = "outputs/pf7/relate/input/relate_input.sample",
+		ancestral = expand( "outputs/pf7/vcf/07_ancestral/{chromosome}.{extension}", chromosome = chromosomes, extension = [ 'bgen', 'vcf.gz', 'shapeit.gz' ] ),
+		#polarised = expand( "outputs/pf7/relate/input/{chromosome}.shapeit.gz", chromosome = chromosomes ),
+		#samples = "outputs/pf7/relate/input/relate_input.sample",
 		betascan = expand(
 			"outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv.gz",
 			window = [ "5000", "10000" ],

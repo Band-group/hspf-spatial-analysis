@@ -55,7 +55,7 @@ rule combine_betascan:
 			)
 		)
 	params:
-		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv"
+		tsv = "outputs/pf7/betascan/output/original_betascan/pf7.betascan.window={window}.p={p}.tsv"
 	run:
 		f = input.tsv[0]
 		shell( "echo -e 'window\\tp\\tcountry\\tchromosome\\tposition\\tderived\\ttotal\\tfrequency\\tbeta' > {params.tsv}")
@@ -99,7 +99,7 @@ rule combine_my_betascan:
 			)
 		)
 	params:
-		tsv = "outputs/pf7/betascan/advanced/tmp/pf7.betascan.window={window}.p={p}.tsv"
+		tsv = "outputs/pf7/betascan/output/pf7.betascan.window={window}.p={p}.tsv"
 	run:
 		f = input.tsv[0]
 		shell( """head -n 1 {f} | sed 's/countries/country/' > {params.tsv}""" )

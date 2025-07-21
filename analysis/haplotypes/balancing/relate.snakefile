@@ -41,31 +41,6 @@ rule create_relate_sample_files:
 		--output_poplabels {output.poplabels}
 """
 
-rule create_pfsa_region_shapeit_files:
-	output:
-		shapeit = "outputs/pf7/relate/input/{region}.shapeit.gz",
-		exclusions = temp( "outputs/pf7/relate/input/tmp/{region}_variant_exclusions.txt" )
-	input:
-		shapeit = lambda w: rules.create_shapeit_file.output.shapeit.format( chromosome = regions[w.region]['chromosome'] )
-	params:
-		chromosome = lambda w: regions[w.region]['chromosome'],
-		position_range = lambda w: regions[w.region]['range'],
-		exclusions = lambda w: regions[w.region]['exclusions']
-	shell: """
-		echo {params.exclusions} > {output.exclusions}
-		# In the following command, we add -assume-chromosome and -omit-chromosome
-		# to correctly handle these shapeit files, which do not have a seperate additional chromosome column.
-		qctool_v2.2.4 \
-		-assume-chromosome {params.chromosome} \
-		-omit-chromosome \
-		-g {input.shapeit} \
-		-filetype shapeit_haplotypes \
-		-og {output.shapeit} \
-		-ofiletype shapeit_haplotypes \
-		-incl-range {params.position_range} \
-		-excl-positions {output.exclusions}
-	"""
-
 rule run_relate:
 	output:
 		mut = "outputs/pf7/relate/output/initial/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.mut",
@@ -80,14 +55,14 @@ rule run_relate:
 		prefix = "pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}",
 		# Relate puts output files in current directory.
 		# So we have to make relative paths here.
-		shapeit = "../input/{chromosome_or_region}.shapeit.gz",
-		samples = rules.create_relate_sample_files.output.samples.replace( "outputs/pf7/relate/", "../" )
-	threads: 2
+		shapeit = "../../input/{chromosome_or_region}.shapeit.gz",
+		samples = rules.create_relate_sample_files.output.samples.replace( "outputs/pf7/relate/", "../../" )
+	threads: 4
 	resources:
 		queues = "long"
 	shell: """
-mkdir -p outputs/pf7/relate/output
-cd outputs/pf7/relate/output
+mkdir -p outputs/pf7/relate/output/initial
+cd outputs/pf7/relate/output/initial
 rm -rf {params.prefix}
 {params.relate} \
 --mode All \
@@ -95,7 +70,7 @@ rm -rf {params.prefix}
 -N {wildcards.Ne} \
 --haps {params.shapeit} \
 --sample {params.samples} \
---map ../../../../{input.genetic_map} \
+--map ../../../../../{input.genetic_map} \
 -o {params.prefix}
 """
 
@@ -139,7 +114,8 @@ rule estimate_pop_size:
 		script = "/well/band/users/iws573/Projects/Software/3rd_party/relate/scripts/EstimatePopulationSize/EstimatePopulationSize.sh",
 		input_stub = rules.run_relate.output.anc.replace( ".anc", "" ),
 		output_stub = "outputs/pf7/relate/output/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize",
-		threads = 12
+		years_per_gen = "1", # scale so output is in generations.
+		threads = 16
 	resources:
 		queues = "long"
 	shell: """
@@ -148,9 +124,7 @@ rule estimate_pop_size:
 	-o {params.output_stub} \
 	--poplabels {input.poplabels} \
 	--threads {threads} \
-	--bins
-	# scale so output is in generations.
-	--years_per_gen 1 \
+	--years_per_gen {params.years_per_gen} \
 	--mu {wildcards.mu}
 """
 
@@ -256,25 +230,27 @@ rule relate_selection:
 	--mu wildcards.mu
 """
 
-#rule relate_extract_tree:
-#	output:
-#		newick = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}.newick",
-#		pos = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}.pos"
-#	input:
-#		mut = rules.run_relate.output.mut,
-#		anc = rules.run_relate.output.anc
-#	params:
-#		relate = "/well/band/users/iws573/Projects/Software/3rd_party/relate/bin/RelateExtract",
-#		output_stub = "outputs/pf7/relate/output/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}"
-#	shell: """
-#		{params.relate} \
-#		--mode AncToNewick \
-#		--anc {input.anc} \
-#		--mut {input.mut} \
-#		--first_bp {wildcards.position} \
-#		--last_bp {wildcards.position} \
-#		-o {params.output_stub}
-#	"""
+rule relate_extract_tree:
+	output:
+		newick = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
+		pos = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.pos"
+	input:
+		anc = rules.estimate_pop_size.output.anc,
+		mut = rules.estimate_pop_size.output.mut
+	params:
+		relate = "/well/band/users/iws573/Projects/Software/3rd_party/relate/bin/RelateExtract",
+		output_stub = "outputs/pf7/relate/output/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}",
+		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
+	shell: """
+		{params.relate} \
+		--mode AncToNewick \
+		--anc {input.anc} \
+		--mut {input.mut} \
+		--years_per_gen {params.years_per_gen} \
+		--first_bp {wildcards.position} \
+		--last_bp {wildcards.position} \
+		-o {params.output_stub}
+	"""
 
 #rule plot_tree:
 #	output:

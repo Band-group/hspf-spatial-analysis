@@ -1,6 +1,4 @@
-
-#chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 15 )]
-chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 5 )]
+chromosomes = ["Pf3D7_%02d_v3" % i for i in range( 1, 15 )]
 
 data = {
 	"pf7": "/well/band/projects/pf7"

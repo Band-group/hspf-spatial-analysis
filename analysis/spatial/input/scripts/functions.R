@@ -15,10 +15,9 @@ load.genotypes.from.bgen <- function( filename, SNPs ) {
 
 	# Compute a dosage as 0/1/2.
 	# Some variants are multiallelic, we exclude all but the first two alleles here.
-	G$data = G$data[,,1:3]
+	G$data = G$data[,,1:3,drop=F]
 	G$dosage = G$data[,,2] + 2*G$data[,,3]
 	G$dosage[ rowSums(G$data,dims=2) == 0 ] = NA
-
 	G$variants$ID = sprintf(
 		"chr%d:%d:%s>%s",
 		as.integer( gsub( "^chr", "", gsub( "_v3", "", gsub( "Pf3D7_", "", G$variants$chromosome )))),
@@ -57,15 +56,14 @@ generate_long_form_table <- function(
 	stopifnot( nrow( variants ) == nrow( dosage ))
 	stopifnot( nrow( samples ) == ncol( dosage ))
 	stopifnot( all( colnames(dosage) == samples$ID ))
-
 	result = tibble()
 	for( i in 1:nrow( variants )) {
 		X = tibble::tibble(
 			ID = colnames(dosage),
 			locus = variants$locus[i],
-			ref = as.integer( dosage[i,] == 0 ),
-			mixed = as.integer( dosage[i,] == 1 ),
-			nonref = as.integer( dosage[i,] == 2 )
+			ref = as.integer( dosage[i,,drop=F] == 0 ),
+			mixed = as.integer( dosage[i,,drop=F] == 1 ),
+			nonref = as.integer( dosage[i,,drop=F] == 2 )
 		)
 		result = dplyr::bind_rows(
 			result,

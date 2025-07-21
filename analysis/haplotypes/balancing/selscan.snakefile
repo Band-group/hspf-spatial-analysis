@@ -40,7 +40,8 @@ rule prepare_to_run_selscan:
 					's/1[|]1/1/g'
 				]
 			]
-		)
+		),
+		qctool = "/well/band/shared/software/qctool_v2.2.7-devel"
 	shell: """
 		set +o pipefail
 		# This horrendous bit of code is to prepare .hap/.map files for selscan.
@@ -48,7 +49,7 @@ rule prepare_to_run_selscan:
 		# file with qctool (it needs to be reformatted for this) to extract cM coords,
 		# then awk to make the map file.
 
-		qctool_v2.2.4 \
+		{params.qctool} \
 		-g {input.vcf} \
 		-s {input.samples} \
 		-incl-samples {input.filter} \
@@ -62,7 +63,7 @@ rule prepare_to_run_selscan:
 
 		echo 'chromosome pos COMBINED_rate Genetic_Map' > {output.cM}
 		tail -n +2 {input.cM} | awk '{{printf("{wildcards.chromosome} %s\\n", $0 );}}' >> {output.cM}
-		qctool_v2.2.4 \
+		{params.qctool} \
 		-g {input.vcf} \
 		-annotate-genetic-map {output.cM} \
 		-osnp {output.qctool}

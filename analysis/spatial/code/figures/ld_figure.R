@@ -15,8 +15,10 @@ parse_arguments <- function() {
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", required = TRUE )
 	parser$add_argument("--ld2way", type = "character", help = "Path to ld input file", required = TRUE )
 	parser$add_argument("--ld3way", type = "character", help = "Path to 3-way ld input file, include '{area}' for area", required = TRUE )
+	return( parser$parse_args() )
 }
 
+args = parse_arguments()
 
 HbS = load_HbS_mean( args$HbS_aggregated )
 grid = readRDS( args$grid )
