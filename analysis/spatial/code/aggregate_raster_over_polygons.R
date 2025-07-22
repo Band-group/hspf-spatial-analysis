@@ -20,6 +20,11 @@ parse_arguments <- function() {
 		help = "path to grid polygons rds file"
 	)
 	parser$add_argument(
+		"--colname",
+		type = "character",
+		help = "Name of output column"
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "path to output .tsv file",
@@ -59,11 +64,14 @@ if( method == "stars" ) {
 
 result = tibble::tibble(
 	polygon_id = polygons$polygon_id,
+	longitude = sf::st_coordinates( polygons$centroid )[,1],
+	latitude = sf::st_coordinates( polygons$centroid )[,2],
 	value = summarised[[1]]
 )
+colnames(result)[4] = args$colname
 
 echo( "++ Writing output to %s...\n", args$output )
 readr::write_tsv( result, file = args$output )
 
-echo( "++ Great success!  I like!" )
-echo( "++ Thanks for using aggregate_raster_over_polygons.R!" )
+echo( "++ Great success!  I like!\n" )
+echo( "++ Thanks for using aggregate_raster_over_polygons.R!\n" )
