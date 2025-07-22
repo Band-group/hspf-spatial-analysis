@@ -307,7 +307,7 @@ if( !is.null( args$covariates )) {
 	filenames = args$covariate_files
 	covariates = pf %>% select( polygon_id )
 	for( filename in filenames ) {
-		X = inner_join( readr::read_tsv( filename )
+		X = readr::read_tsv( filename )
 		if( colnames(X)[1] != "polygon_id" ) {
 			echo( "!! Expected the file \"%s\" (passed to --covariates_files)\n", args$covariates_files )
 			echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
