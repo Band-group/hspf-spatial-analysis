@@ -25,7 +25,7 @@ rule extract_pfpr:
 	input:
 		tif = lambda w: (
 			{
-				"PfPR2000": "geodata/2024_GBD2023_Global_PfPR_2000.tif"
+				"pfpr2000": "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 			}[w.hspf_covariates]
 		),
 		grid = rules.create_grid.output.rds
@@ -51,8 +51,15 @@ rule fit_hspf_in_areas:
 		tmb_model  = rules.compile_TMB_code.output.so,
 		covariates = lambda w: ([
 			# This funny bit of code is to make sure this rule depends on the appropriate
-			# covariates file, UNLESS hspf_covariates="none"
-			rules.extract_pfpr.output.tsv for covariate in (
+			# covariates file, UNLESS hspf_covariates="none".
+			# Present kludge: we only use one file, the pfpr one, including for lat / long.
+			# TODO:  support other files of covariates in principle
+			rules.extract_pfpr.output.tsv.format(
+				hspf_covariates = "pfpr2000",
+				type = '{type}',
+				size = '{size}',
+				area = '{area}'
+			) for covariate in (
 				[] if w.hspf_covariates == "none" else [ w.hspf_covariates ]
 			)
 		])
@@ -175,8 +182,14 @@ rule combine_hspf_summaries:
 	input:
 		tsv = lambda w: expand(
 			rules.summarise_hspf.output.tsv,
-			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version' ] )),
-			pf_data_version = w.pf_data_version
+			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'hspf_covariates' ] )),
+			pf_data_version = w.pf_data_version,
+			hspf_covariates = [ 'none' ]
+		) + expand(
+			rules.summarise_hspf.output.tsv,
+			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'area' ] )),
+			pf_data_version = w.pf_data_version,
+			area = [ 'global', 'africa', 'waf', 'eaf' ]
 		)
 	run:
 		done_header = False

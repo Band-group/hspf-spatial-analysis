@@ -19,7 +19,8 @@ params:
       - "none"
    hspf_covariates:
       - "none"
-      - "latitude+longitude"
+#      - "pfpr2000"
+#      - "latitude+longitude"
    divide:
       - "none"
    size:

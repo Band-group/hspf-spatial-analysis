@@ -48,9 +48,18 @@ rule all:
 			area = config['params']['area'],
 			by = [ 'none', 'year' ]
 		),
-		pfsa_hspf_plots = expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
-			**config['params']
+		pfsa_hspf_plots = (
+			expand(
+				# no-covariates plot in all areas
+				"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
+				**( remove_keys( config['params'], keys_to_remove = [ 'hspf_covariates' ] )),
+				hspf_covariates = [ 'none' ]
+			) + expand(
+				# plot with covariates in specific areas
+				"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
+				**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
+				area = [ 'global', 'africa', 'eaf', 'waf' ]
+			)
 		),
 #		hspf_area_plots = expand(
 #			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
