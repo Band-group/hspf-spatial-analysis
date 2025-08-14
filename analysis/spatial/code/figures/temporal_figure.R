@@ -123,9 +123,7 @@ palette = c(
 	rgb( 192/256, 192/256, 192/256 )
 )
 
-
 {
-
 	p = (
 		ggplot(
 			data = data %>% filter(
@@ -150,7 +148,7 @@ palette = c(
 			linewidth = 0.5,
 			colour = rgb( 0, 0, 0, 0.2 )
 		)
-		+ facet_grid( source_countries ~ locus, scales = "free_x" )
+		+ facet_wrap( ~source_countries, scales = "free_x" )
 		+ scale_x_continuous(
 			limits = c( 1984, 2020 ),
 			breaks = seq( from = 1985, to = 2020, by = 5 ),
@@ -174,7 +172,8 @@ palette = c(
 			fill = "none",
 			shape = guide_legend( name = "Locus" )
 		)
+		+ ylab( "Pfsa+\nfrequency" )
 	)
 	print(p)
-	ggsave( p, file = args$output, width = 7.5, height = 10 )
+	ggsave( p, file = args$output, width = 7.5, height = 6 )
 }

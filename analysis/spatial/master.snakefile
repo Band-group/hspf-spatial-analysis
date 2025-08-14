@@ -1,4 +1,4 @@
-configfile: "config.yaml"
+configfile: "config-main.yaml"
 include: "functions.snakefile"
 
 print( "++ Welcome to the hs-pf spatial analysis pipeline" )

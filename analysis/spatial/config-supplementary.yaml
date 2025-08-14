@@ -8,19 +8,19 @@ params:
       - "pf8-version"
    r0:
       - "5.0"
-      - "10.0"
-      - "25.0"
+#      - "10.0"
+#      - "25.0"
    sigma0:
       - "0.6"
-      - "1.0"
+#      - "1.0"
    type:
       - "hexagon"
    hbs_covariates:
       - "none"
    hspf_covariates:
       - "none"
-#      - "pfpr2000"
-#      - "latitude+longitude"
+      - "pfpr2000"
+      - "latitude+longitude"
    divide:
       - "none"
    size:
@@ -47,17 +47,17 @@ params:
       - global
       - africa
       - waf
-      - wwaf
-      - ewaf
-      - caf
-      - drc+east
+#      - wwaf
+#      - ewaf
+#      - caf
+#      - drc+east
       - eaf
       - gambia+senegal
       - mali
       - ghana
-      - ghana+burkina+togo
-      - ghana+burkina+togo+benin+ivorycoast
+#      - ghana+burkina+togo
+#      - ghana+burkina+togo+benin+ivorycoast
       - uganda
       - tanzania
-      - tanzania+kenya+uganda+rwanda
+#      - tanzania+kenya+uganda+rwanda
       - DRC

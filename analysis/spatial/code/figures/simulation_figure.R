@@ -2,6 +2,10 @@ library( dplyr )
 library( sf )
 sf::sf_use_s2( FALSE )
 
+echo <- function( message, ... ) {
+	cat( sprintf( message, ... ))
+}
+
 aggregate_over_grid <- function( sims, grid ) {
 	grid_vector = terra::vect(grid)
 	for( name in names(sims)) {
@@ -95,9 +99,6 @@ read_simulation_snapshot <- function(
 	))
 }
 
-echo <- function( message, ... ) {
-	cat( sprintf( message, ... ))
-}
 read.simulation.snapshots = function( filenames, extent, crs ) {
 	sims = list()
 	for( name in names( filenames )) {
@@ -126,17 +127,17 @@ source( "code/functions.R" )
 
 args = list(
 	# we will plot in polygons, for a laugh
-	polygons = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds",
+	polygons = "output/grids/grid-type=hexagon-size=1-area=global.rds",
 	# HbS should be the same map used by the simulation.
 	HbS = "../../theory/html/hspf-gpu/public/2024-03-05-MEAN-nobarrier.2x.tif",
 	# HbS should be the same map used by the simulation.
-	HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv",
-	pf = "output/pf/aggregated/grid-type=hexagon-size=1-division=none-area=africa.tsv"
+	HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=africa.tsv",
+	pf = "output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-ld-by=none.tsv"
 )
 
 #africa = load.entry.from.Rdata( args$world, "world_sf" ) %>% filter( CONTINENT == "Africa" )
 africa = rnaturalearth::ne_countries( returnclass = "sf", scale = 110 ) %>% filter( continent == "Africa" )
-africa = sf::st_union( africa )
+#africa = sf::st_union( africa )
 
 grid = readRDS( args$polygons ) %>% filter( CONTINENT == 'Africa' )
 HbS = terra::rast( args$HbS )
@@ -153,10 +154,15 @@ simulation.filenames = list(
 	dominant = sprintf(
 		"simulated/dominant/simulation_g=%d.hspf",
 		c( 1, seq( from = 25, to = 800, by = 25 ))
+	),
+	no_selection = sprintf(
+		"simulated/no_selection/simulation_g=%d.hspf",
+		c( 1, seq( from = 25, to = 800, by = 25 ))
 	)
 )
-names(simulation.filenames[[1]]) = names(simulation.filenames[[2]]) = names(simulation.filenames[[3]]) = sprintf( "g=%d", c( 1, seq( from = 25, to = 800, by = 25 )) )
-
+for( i in 1:length(simulation.filenames)) {
+	names(simulation.filenames[[i]]) = sprintf( "g=%d", c( 1, seq( from = 25, to = 800, by = 25 )) )
+}
 sims = list()
 for( name in names( simulation.filenames )) {
 	sims[[name]] = aggregate_over_grid(
@@ -174,19 +180,7 @@ for( name in names( simulation.filenames )) {
 	)
 
 	country.palette = country.colours()
-	pf.data$country = factor( pf.data$SOVEREIGNT, levels = names(country.palette))
-
-	HbS.data = readr::read_tsv( args$HbS_aggregated )
-	HbS.data = (
-		HbS.data
-		%>% mutate( HbS_mean = rowMeans( as.matrix( HbS.data[,grep( "posterior_sample", colnames( HbS.data))])))
-		%>% mutate( HbAS_or_SS = HbS_mean^2 + 2 * HbS_mean * ( 1 - HbS_mean ))
-		%>% select( polygon_id, HbS_mean, HbAS_or_SS )
-	)
-	observed.data = (
-		pf.data
-		%>% inner_join( HbS.data, by = "polygon_id" )
-	)
+	pf.data$country = factor( pf.data$majority_country, levels = names(country.palette))
 }
 
 {
@@ -201,7 +195,27 @@ for( name in names( simulation.filenames )) {
 
 {
 	source( "code/figures/fig4_impl.R" )
-	pdf( file = "tmp/fig4.pdf", width = 8, height = 6 )
+	cairo_pdf( file = "tmp/fig4.pdf", width = 12, height = 6 )
+	fig4(
+		sims,
+		pf.data,
+		africa,
+		HbS_aggregated,
+		boxes = FALSE,
+		frames = c( "g=1", "g=25", "g=50", "g=75", "g=100", "g=250", "g=500", "g=750", "g=800" )
+	)
+	dev.off()
+}
+
+{
+	source( "code/figures/fig4_impl.R" )
+	# svglite encodes text as text, unlike svg()
+	svglite::svglite(
+		file = "tmp/fig4.svg",
+		width = 12,
+		height = 6,
+		fix_text_size = FALSE # allow text boxes to be editable without a fixed width
+	)
 	fig4(
 		sims,
 		pf.data,

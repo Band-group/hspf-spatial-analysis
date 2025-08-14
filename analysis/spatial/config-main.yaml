@@ -1,0 +1,43 @@
+# Note: all values must be strings, otherwise snakemake gets confused
+name: "hspf-analysis-main"
+data:
+   pf:
+      v5: "input/hbs-pf-v5.sqlite"
+      pf8-version: "input/hbs-pf-pf8.sqlite"
+params:
+   pf_data_version:
+      - "pf8-version"
+   r0:
+      - "5.0"
+   sigma0:
+      - "0.6"
+   type:
+      - "hexagon"
+   hbs_covariates:
+      - "none"
+   hspf_covariates:
+      - "none"
+   divide:
+      - "none"
+   size:
+      # Africa is 3,736.69km across West-East at Equator
+      # 6,604.55km from coast of Gambia to coast of Kenya
+      # At equator, 1 degree ~ 111km and 1.35 degrees ~ 150 km
+      - "1"
+#      - "1.35"
+   locus:
+      - "Pfsa1"
+      - "Pfsa2"
+      - "Pfsa3"
+      - "Pfsa4"
+   regression_model:
+      - "bym2"
+   min_km_to_survey_pt:
+      - "200"
+   min_N:
+      - "0"
+   area:
+      - global
+      - africa
+      - waf
+      - eaf
