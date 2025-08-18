@@ -26,6 +26,12 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
+		"--min_N",
+		type = "character",
+		help = "min N. FIXME: would be better to include in the fit object!",
+		required = TRUE
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "Filename of .tsv file to write"
@@ -123,6 +129,7 @@ result = bind_cols(
 		area = args$area,
 		countries = paste( fit$areas, collapse = "," ),
 		min_km_to_survey_pt = fit$min_km_to_survey_pt,
+		min_N = args$min_N,
 		model = fit$model,
 		transform = fit$transform,
 		n_data_points = nrow( fit$data ),

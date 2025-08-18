@@ -173,7 +173,7 @@ rule summarise_hspf:
 	params:
 		script = srcdir( "code/summarise_hspf_fits.R" )
 	shell: """
-		Rscript --vanilla {params.script} --area {wildcards.area} --fit {input.fit} --output {output.tsv}
+		Rscript --vanilla {params.script} --area {wildcards.area} --fit {input.fit} --output {output.tsv} --min_N {wildcards.min_N}
 	"""
 
 rule combine_hspf_summaries:
