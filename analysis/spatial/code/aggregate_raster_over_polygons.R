@@ -71,6 +71,11 @@ result = tibble::tibble(
 colnames(result)[4] = args$colname
 
 echo( "++ Writing output to %s...\n", args$output )
+out_dir <- dirname(args$output)
+
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+} 
 readr::write_tsv( result, file = args$output )
 
 echo( "++ Great success!  I like!\n" )

@@ -5,6 +5,7 @@
 .snakemake
 analysis/spatial/archives
 analysis/spatial/geodata
+analysis/spatial/input/
 analysis/spatial/output
 analysis/spatial/grids
 analysis/spatial/HbS

@@ -189,7 +189,7 @@ rule combine_hspf_summaries:
 			rules.summarise_hspf.output.tsv,
 			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'hspf_covariates' ] )),
 			pf_data_version = w.pf_data_version,
-			hspf_covariates = [ 'none' ]
+			hspf_covariates = [ 'none', 'pfpr2000' ]
 		) + expand(
 			rules.summarise_hspf.output.tsv,
 			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'area' ] )),
