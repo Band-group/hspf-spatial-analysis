@@ -17,6 +17,7 @@ params:
       - "none"
    hspf_covariates:
       - "none"
+      - "pfpr2000"
    divide:
       - "none"
    size:
