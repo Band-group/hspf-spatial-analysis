@@ -154,26 +154,43 @@ fitbym_to_posterior_samples <- function(
 			# theta = -log(alpha)/U
 			# if the PC prior choice is P(sd > U) = alpha
 			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
-			prior_sd_rate 			= -log(0.01)/1
+			prior_sd_rate 			= -log(0.01)/1,
+			prior_log_nu_sd		= 1 
+		),
+		'bym2_logit' = list(
+			tmb_model 				= "bym2",
+			prior_logodds_phi_mean 	= 0.0,
+			prior_logodds_phi_sd 	= 10.0,
+			# Prior on sd of random effects:
+			# Refer to Riebler et al 2016 page 9
+			# PC prior makes this exponential with rate
+			# theta = -log(alpha)/U
+			# if the PC prior choice is P(sd > U) = alpha
+			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
+			prior_sd_rate 			= -log(0.01)/1,
+			prior_log_nu_sd		= 0.00001 
 		),
 		'besag' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean	= 100.0,
 			prior_logodds_phi_sd 	= 10.0,
-			prior_sd_rate 			= -log(0.01)/1
+			prior_sd_rate 			= -log(0.01)/1,
+			prior_log_nu_sd		= 1 
 		),
 		'iid' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean 	= -100.0,
 			prior_logodds_phi_sd 	= 10.0,
-			prior_sd_rate 			= -log(0.01)/1
+			prior_sd_rate 			= -log(0.01)/1,
+			prior_log_nu_sd		= 1 
 		),
 		'norandom' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean 	= 0.0,
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
-			prior_sd_rate 			= 1000
+			prior_sd_rate 			= 1000,
+			prior_log_nu_sd		= 1 
 		)
 	)[[ model ]]
 
@@ -219,7 +236,7 @@ fitbym_to_posterior_samples <- function(
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
 			model_choice = "bym2", # or "norandom"
-			link_choice = "generalised-logit",
+			link_choice = 'generalised-logit', # or "logit" or "identit
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd 		= 10.0,
@@ -229,7 +246,7 @@ fitbym_to_posterior_samples <- function(
 			prior_sd_rate 				= tmb_config$prior_sd_rate, #-log(0.01)/1,
 			prior_logodds_phi_mean	= tmb_config$prior_logodds_phi_mean,
 			prior_logodds_phi_sd		= tmb_config$prior_logodds_phi_sd,
-			prior_log_nu_sd			= 1 #tmb_config$prior_log_nu_sd
+			prior_log_nu_sd			= tmb_config$prior_log_nu_sd #tmb_config$prior_log_nu_sd
 		)
 
 		n = length(data$y)

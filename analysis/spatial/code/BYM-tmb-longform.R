@@ -303,26 +303,25 @@ if( 0 ) {#is.null( args )) {
 }
 
 covariates = NULL
-if( !is.null( args$covariates )) {
-	filenames = args$covariate_files
-	covariates = pf %>% select( polygon_id )
-	for( filename in filenames ) {
-		X = readr::read_tsv( filename )
-		if( colnames(X)[1] != "polygon_id" ) {
-			echo( "!! Expected the file \"%s\" (passed to --covariates_files)\n", args$covariates_files )
-			echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
-			stop( "!! Covariates file error." )
-		} else {
-			echo( "++ Loaded covariates with %d rows from \"%s\".\n", nrow( X ), filename )
-		}
-		X = (
-			covariates %>% inner_join( readr::read_tsv( filename ), by = "polygon_id" )
-		)
-		X = X[, c( "polygon_id", covariates[ which( covariates %in% colnames(X) ) ] )]
-		covariates = covariates %>% left_join( X, by = "polygon_id" )
-	}
-	covariates = readr::read_tsv( args$covariates )
+if( !is.null( args$covariates )) {	
+    filenames = args$covariates_files
+   # covariates = pf %>% select( polygon_id )
+	covariates = tibble::tibble( polygon_id = pf$polygon_id )
+    for( filename in filenames ) {
+        X = readr::read_tsv( filename )
+        if( colnames(X)[1] != "polygon_id" ) {
+            echo( "!! Expected the file \"%s\" (passed to --covariates_files)\n", args$covariates_files )
+            echo( "   to have 'polygon_id' as the first column, but it does not!  Quitting.\n" )
+            stop( "!! Covariates file error." )
+        } else {
+            echo( "++ Loaded covariates with %d rows from \"%s\".\n", nrow( X ), filename )
+        }
+        X = X[, c( "polygon_id", args$covariates[ which( args$covariates %in% colnames(X) ) ] )]
+        covariates = covariates %>% left_join( X, by = "polygon_id" )
+    }
+print(head(covariates))	
 }
+echo('hi five')
 
 result = fitbym_to_posterior_samples(
 	pf %>% filter( in_range == 1 ),
