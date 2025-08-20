@@ -313,6 +313,7 @@ fitbym_to_posterior_samples <- function(
 		list(
 			model = model,
 			data = countrydfi,
+			covariates = covariates,
 			transform = transform,
 			link = link,
 			prior = prior,

@@ -35,6 +35,7 @@ rule extract_pfpr:
 	Rscript --vanilla {params.script} \
 	--grid {input.grid} \
 	--raster {input.tif} \
+	--colname {wildcards.hspf_covariates} \
 	--output {output.tsv}
 """
 
@@ -68,9 +69,12 @@ rule fit_hspf_in_areas:
 		#script = srcdir( "code/BYM-inla.R" ),
 		script = srcdir( "code/BYM-tmb-longform.R" ),
 		areas = lambda w: "" if w.area == 'global' else "--areas '%s'"% "' '".join( config['areas'][w.area] ),
-		hspf_covariates = lambda w, input: (
-			"" if w.hspf_covariates == "none" else "--covariates %s" % input.covariates
+		hspf_covariates_files = lambda w, input: (
+			"" if w.hspf_covariates == "none" else "--covariates_files %s"
 		),
+		hspf_covariates = lambda w, input: (
+			[] if w.hspf_covariates == "none" else w.hspf_covariates.split( "+" )
+		)
 		posterior_samples_per_hbs_sample = 100
 	threads: 1
 	shell: """
@@ -82,6 +86,7 @@ rule fit_hspf_in_areas:
 		--HbS_aggregated {input.hbs} \
 		--pf_aggregated {input.pf} \
 		--posterior_samples_per_hbs_sample {params.posterior_samples_per_hbs_sample} \
+		{params.hspf_covariates_files} \
 		{params.hspf_covariates} \
 		--locus {wildcards.locus} \
 		{params.areas} \
