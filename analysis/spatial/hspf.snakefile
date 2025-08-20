@@ -74,7 +74,7 @@ rule fit_hspf_in_areas:
 		),
 		hspf_covariates = lambda w, input: (
 			[] if w.hspf_covariates == "none" else w.hspf_covariates.split( "+" )
-		)
+		),
 		posterior_samples_per_hbs_sample = 100
 	threads: 1
 	shell: """
