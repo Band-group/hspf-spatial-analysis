@@ -88,6 +88,13 @@ grid$country[is.na(grid$country)] = "other"
 echo( "++ Countries are:")
 print( table( grid$country ))
 
+#keep only continents of interest
+continents_of_interest = c("Africa", "Asia", "Seven seas (open ocean)", "South America")
+grid = grid %>% filter( CONTINENT %in% continents_of_interest )
+#recode Seven seas (open ocean) to Oceania	
+grid$CONTINENT[ grid$CONTINENT == "Seven seas (open ocean)" ] = "Oceania"
+grid$CONTINENT = factor( grid$CONTINENT, levels = c("Africa", "Asia", "Oceania", "South America"))
+
 grid = grid[ sample( 1:nrow( grid )), ]
 
 # TODO: implement this:
@@ -157,4 +164,4 @@ p = (
 		)
 	)
 )
-ggsave( p, file = args$output, width = 14, height = 10)
+ggsave( p, file = args$output, width = 14, height = 11)
