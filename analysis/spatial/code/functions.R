@@ -2290,3 +2290,17 @@ load_HbS_mean = function( filename ) {
   result = result %>% mutate( HbAS_or_SS = HbS^2 + 2*HbS*(1-HbS) )
   return( result )
 }
+
+
+logistic = function( data, formula = Y ~ year ) {
+	data = ( data %>% mutate( Y = (`Pfsa+` / N) ))
+	g = glm( formula, weight = N, data = data, family = "binomial" )
+	coeff = summary(g)$coeff
+	colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+	return(
+		bind_cols(
+			tibble( parameter = rownames(coeff) ),
+			coeff
+		)
+	)
+}
