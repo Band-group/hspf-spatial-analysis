@@ -112,7 +112,7 @@ rule temporal_figure:
 	output:
 		pdf = "output/pf={pf_data_version}/figures/temporal/{loci}-temporal-area={area}.pdf"
 	input:
-		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year.tsv"
+		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year-source.tsv"
 	params:
 		script = srcdir( "code/figures/temporal_figure.R" ),
 		loci = lambda w: w.loci.split( "+" ),
