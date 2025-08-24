@@ -357,7 +357,7 @@ echo(
 
 result$areas               = args$areas
 result$min_km_to_survey_pt = args$min_km_to_survey_pt
-result$cellsize            = as.integer( stringr::str_extract( args$grid, "size=([0-9.]+)", group = 1 ))
+result$cellsize            = as.numeric( stringr::str_extract( args$grid, "size=([0-9.]+)", group = 1 ))
 result$celltype            = stringr::str_extract( args$grid, "type=([^-]+)", group = 1 )
 result$r0                  = as.numeric( stringr::str_extract( args$HbS_aggregated, "r0=([^-]+)", group = 1 ))
 result$sigma0              = as.numeric( stringr::str_extract( args$HbS_aggregated, "sigma0=([^-]+)", group = 1 ))
