@@ -9,6 +9,7 @@ library( dplyr )
 library( rnaturalearth)
 library( tidyverse )
 library( ggtext ) # to add part of the legend title in bold
+library( scales) # to squish colour fill of HbS frequency
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -139,6 +140,7 @@ facet_labels <- c(
   "q75"    = "C",
   "sd"     = "D"
 )
+maxsd <- max(r_long$value[r_long$stat == "sd"], na.rm = TRUE)
 
 p <- ggplot() +
   # Country borders
@@ -150,6 +152,8 @@ p <- ggplot() +
   ) +
 	scale_fill_viridis_c(option = "magma", direction = 1, 
 	name = "<b>Estimated HbS frequency</b><br>median, first and third quantiles",
+	limits = c(0, 0.16),          # max value for color scale
+	oob = scales::squish,         # values above limit are "squished" to limit
 	guide = guide_colourbar(
     barwidth = unit(6.5, "cm"),   # increase length of the color bar
     barheight = unit(0.5, "cm"),  # keep the thickness small
@@ -165,6 +169,8 @@ p <- ggplot() +
   ) +
   scale_fill_viridis_c(option = "G", direction = -1,
    name = "<br>standard deviation",
+   	limits = c(0, maxsd),          # max value for color scale
+	#oob = scales::squish,         # values above limit are "squished" to limit
    guide = guide_colourbar(
     barwidth = unit(5, "cm"),   # increase length of the color bar
     barheight = unit(0.5, "cm")
@@ -178,7 +184,7 @@ if (args$continent == "global") {
   p <- p + coord_sf(crs = "+proj=moll", datum = NA)
 } 
 
-p <- p + theme_minimal() +
+p <- p + theme_minimal(base_family = "Helvetica") +
   theme(
     axis.title = element_blank(),         # remove x and y axis labels
     axis.text  = element_blank(),         # optionally remove axis text
@@ -189,7 +195,8 @@ p <- p + theme_minimal() +
     legend.text  = element_text(size = 9),
     strip.text   = element_text(size = 12, face = "bold",hjust = 0),
 	panel.spacing.x = unit(0, "lines"),
-	panel.spacing.y = unit(0, "lines") 
+	panel.spacing.y = unit(0, "lines") ,
+	legend.spacing.x = unit(2, "cm")
   ) + guides(
 
   )
