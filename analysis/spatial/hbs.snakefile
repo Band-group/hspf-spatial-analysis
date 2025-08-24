@@ -72,7 +72,10 @@ rule aggregate_piel:
 	params:
 		script = srcdir( "code/aggregate_raster_over_polygons.R" )
 	shell: """
-	Rscript --vanilla {params.script} --raster {input.piel} --grid {input.polygons} --output {output.tsv}
+	Rscript --vanilla {params.script} \
+	--raster {input.piel} \
+	--grid {input.polygons} \
+	--output {output.tsv}
 """
 
 rule plot_HbS_vs_piel:
