@@ -22,7 +22,8 @@ parse_arguments <- function() {
 	parser$add_argument(
 		"--colname",
 		type = "character",
-		help = "Name of output column"
+		help = "Name of output column",
+		required = FALSE
 	)
 	parser$add_argument(
 		"--output",
@@ -36,6 +37,12 @@ parse_arguments <- function() {
 
 args = parse_arguments()
 print( args )
+
+#andre test
+# args <- list()
+# args$raster <- "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+# args$grid <- "output/grids/grid-type=hexagon-size=2-area=global.rds"
+# args$output <- "output/piel/piel_et_al-grid-type=hexagon-size=2-area=global.tsv.gz"
 
 #install packages
 source( 'code/functions.R' )
@@ -68,7 +75,9 @@ result = tibble::tibble(
 	latitude = sf::st_coordinates( polygons$centroid )[,2],
 	value = summarised[[1]]
 )
+if (!is.null(args$colname) && length(args$colname) > 0){
 colnames(result)[4] = args$colname
+}
 
 echo( "++ Writing output to %s...\n", args$output )
 out_dir <- dirname(args$output)
