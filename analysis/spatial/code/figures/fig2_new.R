@@ -32,8 +32,6 @@ if( is.null( args )) {
 	args$pf = "input/hbs-pf-pf8.sqlite"
 #	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
-#	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
-#	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
 	args$hspf_fit = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area=global-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
@@ -41,11 +39,11 @@ if( is.null( args )) {
 	args$output_svg = "tmp/figure_2/figure_2.svg"
 }
 
-if (!dir.exists("tmp/figure_2")) {
-  # Create the folder if it doesn't exist
-  dir.create("tmp/figure_2")
-  cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
-} 
+# if (!dir.exists("tmp/figure_2")) {
+#   # Create the folder if it doesn't exist
+#   dir.create("tmp/figure_2")
+#   cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
+# } 
 
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
@@ -68,7 +66,6 @@ aesthetic = list(
 
 # Load aggregated HbS samples by polygon
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-args$pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
 args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
 
 # Load world map at coarse resolution for visualization
@@ -170,7 +167,8 @@ pfsf = df2sf(
 						y = seq( from = 0, to = 1, by = 0.2 )
 					)
 				)
-				+ scale_size_area( max_size = 8,  limits = c( 0, 3000 ), guide = "none" )
+				#+ scale_size_area( max_size = 8,  limits = c( 0, 3000 ), guide = "none" )
+				+ scale_size_area( max_size = 16, guide = "none" ) 
 				+ theme_minimal( base_family = "sans" )
 				+ theme(
 					axis.title		= element_blank(),
@@ -260,7 +258,7 @@ pfsf = df2sf(
 	)
 
 	forestplot = make.forestplot(
-		fp_data %>% filter(order < 3 & include == 1 ),
+		fp_data, #%>% filter(order < 3 & include == 1 ),
 		xname = 'RegionStyled',
 		yname = 'slope',
 		brewerstyle = "VanGogh3",
