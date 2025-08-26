@@ -79,8 +79,5 @@ p = (
 )
 
 ggsave( p, file = args$output, width = 12, height = 4 )
-#save the plot as rds file as well (to make later multipanel plots)
-rds_output <- file.path(dirname(dirname(args$output)),
-                        sub("\\.pdf$", ".rds", basename(args$output)))
-saveRDS(p, file = rds_output)
+
 quit()
