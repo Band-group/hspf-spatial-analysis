@@ -9,12 +9,12 @@ source( "code/figures/fig1_impl.R" )
 
 
 # for testing Andre##################################################################################
-# args <- list()
-# args$loci <- c('Pfsa1')
-# args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
-# args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
-# args$countries <- readr::read_tsv(args$pf_aggregated)
-# args$countries <- unique(args$countries$majority_country)
+args <- list()
+args$loci <- c('Pfsa1')
+args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
+args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
+args$countries <- readr::read_tsv(args$pf_aggregated)
+args$countries <- unique(args$countries$majority_country)
 
 # #####################################################################################################
 parse_arguments <- function() {
@@ -146,8 +146,7 @@ shape_key <- c(
   "MalariaGEN Pf8" = 24,           # triangle
   "Moser et al 2021" = 22,         # square
   "Schaffner et al Senegal 2023" = 24, # triangle
-  "GAMCC" = 24,                    # triangle
-  "MalariaGEN Pf8,Schaffner et al Senegal 2023" = 24  # triangle
+  "GAMCC" = 24                    # triangle
 )
 
 fill_key <- c(
@@ -244,25 +243,25 @@ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
 ) + guides(
       colour = guide_legend(title = "Country", nrow = 3, byrow = TRUE,title.position = "top")
       ) +
-    theme_minimal() + 
+    theme_minimal(base_family = "sans", base_size=16 ) + 
     theme(
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title.position = "top",
-    legend.title = element_text(size = 12, face = "bold"),
-    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.text = element_text(size = 12),
       #  axis.title.y = element_text(angle = 0, hjust = 1, vjust = 0.5),
     axis.text.x = element_text(angle = 60, hjust = 1),
-	  strip.text.x = element_text(hjust = 0),  # left-align facet labels (x direction)
- 	  strip.text.y = element_text(hjust = 0),   # left-align facet labels (y direction)
+	  strip.text.x = element_text(hjust = 0,  size = 16),  # left-align facet labels (x direction)
+ 	  strip.text.y = element_text(hjust = 0,  size = 16),   # left-align facet labels (y direction)
     axis.title.x  = ggtext::element_markdown(),
 		axis.title.y  = ggtext::element_markdown()
 		
   )+
   # guides(colour = guide_legend(title = "Country"))+#,
   #       # shape = guide_legend(title = "Source")) +
-  ylab( "<em>Pfsa+</em> frequency" ) +
+  ylab(sprintf("<em>%s</em>+ frequency", args$loci) ) +
   xlab("")
 
 print(p)
-ggsave(p, file = args$output, width = 14, height = 12)
+ggsave(p, file = args$output, width = 14, height = 14)
