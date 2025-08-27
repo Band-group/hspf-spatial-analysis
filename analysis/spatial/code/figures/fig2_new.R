@@ -13,7 +13,7 @@ parse_arguments <- function() {
 	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
 	parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-v3.sqlite" )
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
-	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
+	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename", default = "tmp/figure_2/figure_2.pdf" )
 	parser$add_argument("--output_svg", type = "character", help = "Output svg filename", default = "tmp/figure_2/figure_2.svg" )
@@ -26,24 +26,24 @@ args = parse_arguments()
 
 if( is.null( args )) {
 	args = list()
-	args$grid = "output/grids/grid-type=hexagon-size=1-division=none-area=global.rds"
-	args$pf = "input/hbs-pf-v3.sqlite"
+	args$grid = "output/grids/grid-type=hexagon-size=1-area=global.rds"
+	args$pf = "input/hbs-pf-pf8.sqlite"
 #	args$HbS_survey = "input/cleanHbSdata.csv"
 	args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv"
 #	args$HbS_predictions = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_predictions.rds"
 #	args$HbS_fit = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/fit/fixed-r0=25.0-sigma0=0.6-fc=none_modelfit.rds"
-	args$hspf_fit = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1-division=none/{locus}-model=bym2+fc=none-200km-area=global-min_N=0.rds"
+	args$hspf_fit = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
-	args$output_pdf = "tmp/figure_2/figure_2.pdf"
-	args$output_svg = "tmp/figure_2/figure_2.svg"
-}
+	args$output_pdf = "output/pf=pf8-version/figures/figure_2/figure_2.pdf"
+	args$output_svg = "output/pf=pf8-version/figures/figure_2/figure_2.svg"
 
-if (!dir.exists("tmp/figure_2")) {
-  # Create the folder if it doesn't exist
-  dir.create("tmp/figure_2")
-  cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
-} 
+	if (!dir.exists("tmp/figure_2")) {
+	# Create the folder if it doesn't exist
+	dir.create("tmp/figure_2")
+	cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
+	} 
+}
 
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
@@ -168,7 +168,7 @@ pfsf = df2sf(
 						y = seq( from = 0, to = 1, by = 0.2 )
 					)
 				)
-				+ scale_size_area( max_size = 8,  limits = c( 0, 3000 ), guide = "none" )
+				+ scale_size_area( max_size = 12,  limits = c( 0, 3600 ), guide = "none" )
 				+ theme_minimal( base_family = "sans" )
 				+ theme(
 					axis.title		= element_blank(),
@@ -191,8 +191,6 @@ pfsf = df2sf(
 	source( "code/figures/fig1_impl.R" )
 	# List relevant regions
 	# Create a mapping of original names to proper names and order levels
-	# List relevant regions
-	# Create a mapping of original names to proper names and order levels
 	area_mapping <- tibble::tibble(
 		# See master.snakefile for how these are defined
 		area = c( "global", "africa", "waf", "DRC", "eaf" ),
@@ -211,7 +209,7 @@ pfsf = df2sf(
 	)
 
 	# Load data and compute the slope
-	filename_template = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
+	filename_template = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
 	print( "UHOH" )
 	print( filename_template )
 	fp_data = (
