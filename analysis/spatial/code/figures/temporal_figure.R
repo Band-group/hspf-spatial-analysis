@@ -2,6 +2,7 @@ library( ggplot2 )
 library( dplyr )
 library( viridis )
 library( argparse )
+library( ggtext )
 
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
@@ -253,12 +254,15 @@ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
       #  axis.title.y = element_text(angle = 0, hjust = 1, vjust = 0.5),
     axis.text.x = element_text(angle = 60, hjust = 1),
 	  strip.text.x = element_text(hjust = 0),  # left-align facet labels (x direction)
- 	  strip.text.y = element_text(hjust = 0)   # left-align facet labels (y direction)
+ 	  strip.text.y = element_text(hjust = 0),   # left-align facet labels (y direction)
+    axis.title.x  = ggtext::element_markdown(),
+		axis.title.y  = ggtext::element_markdown()
+		
   )+
   # guides(colour = guide_legend(title = "Country"))+#,
   #       # shape = guide_legend(title = "Source")) +
-  ylab("Pfsa+ frequency") +
+  ylab( "<em>Pfsa+</em> frequency" ) +
   xlab("")
 
 print(p)
-ggsave(p, file = args$output, width = 14, height = 9)
+ggsave(p, file = args$output, width = 14, height = 12)
