@@ -201,6 +201,58 @@ dataplot <- dataplot %>%
     )
   )
 
+# time series analysis######################################################
+############################################################################
+#check for linearity in the time series
+# library(dplyr)
+# library(broom)
+
+# trend_results <- dataplot %>%
+#   group_by(majority_country) %>%
+#   group_modify(~ {
+#     # Skip if insufficient data
+#     if (n_distinct(.x$year) <= 1 || nrow(.x) < 3) {
+#       return(tibble(year = NA, p.value = NA, hex_F.E = NA))  # rename here too
+#     }
+
+#     use_fe <- FALSE
+
+#     # If more than 1 polygon, try with polygon fixed effects
+#     if (n_distinct(.x$polygon_id) > 1 && nrow(.x) > 3) {
+#       m <- lm(`f+` ~ year + factor(polygon_id), data = .x)
+#       slope <- broom::tidy(m) %>% filter(term == "year")
+
+#       if (!is.na(slope$p.value)) {
+#         use_fe <- TRUE
+#       } else {
+#         # fallback: re-fit without polygon FE
+#         m <- lm(`f+` ~ year, data = .x)
+#         slope <- broom::tidy(m) %>% filter(term == "year")
+#       }
+#     } else {
+#       m <- lm(`f+` ~ year, data = .x)
+#       slope <- broom::tidy(m) %>% filter(term == "year")
+#     }
+
+#     tibble(
+#       year    = slope$estimate,   # renamed here
+#       p.value = slope$p.value,
+#       hex_F.E  = use_fe
+#     )
+#   }) %>%
+#   ungroup() %>%
+#   mutate(label = ifelse(!is.na(year),
+#                         sprintf("Slope = %.3f\np = %.3g", year, p.value),
+#                         NA)) %>%
+#   filter(!is.na(label))
+
+# print(trend_results,n=21)
+
+# #regression with all countries combined
+# print(tidy(lm(`f+` ~ year, data = dataplot )))
+  
+
+
 # Plot with vertical dashed lines at gap boundaries
 p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
   geom_line(aes(group = interaction(polygon_id, sources)), 
