@@ -148,7 +148,7 @@ pfsf = df2sf(
 	library( stringr )
 	source( "code/figures/fig1_impl.R" )
 	loci = c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
-	areas = c( "waf", "eaf", "DRC" )
+	areas = c( "waf", "eaf", "DRC", "DRC+east" )
 	hspf_plots = list()
 	for( locus in loci ) {
 		for( area in areas ) {
@@ -301,7 +301,7 @@ pfsf = df2sf(
 	)
 	#border = theme(plot.background = element_rect(size = 0.5, linetype="solid", color="black" ))
 	border = theme(plot.background = element_blank())
-	areascale = scale_size( range = c( 0, 5 ), breaks = seq( from = 1, to = 3000, by = 1 ), limits = c( 0, 3000 ), guide = "none" )
+	areascale = scale_size( range = c( 0, 5 ), breaks = seq( from = 1, to = 3600, by = 1 ), limits = c( 0, 3600 ), guide = "none" )
 	shapescale = scale_shape_manual( values = 21 )
 	hspftheme = theme(
 		axis.text.x = element_text( size = 6 ),
@@ -331,6 +331,96 @@ pfsf = df2sf(
 		hspf_plots[['Pfsa2-area=eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
 		hspf_plots[['Pfsa3-area=eaf']] + areascale + hspftheme + shapescale + yaxis + border,
 		hspf_plots[['Pfsa4-area=eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		(
+			forestplot
+			+ theme(
+				axis.text.x = element_markdown(size = 6),	# Apply markdown formatting to x labels
+				axis.text.y = element_markdown(
+					hjust = 0, 
+					#margin = margin(l = 10),#text margin left
+					#margin = margin(r = -1),#text margin right
+					size = 8
+				),
+				axis.title.x = element_markdown(size = 8 ),
+				axis.title.y = element_markdown(size = 8, hjust = 0 ),
+				strip.text.x = element_markdown(size = 10 ),
+				plot.margin = margin(0, 0, 0, 0)# top, right, bottom, and left margins.
+			)
+		),
+		layout_matrix = layout.m,
+		widths = geom$columns,
+		heights = geom$rows
+	)
+	if( !is.null( args$output_pdf )) {
+		tryCatch({
+		ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height)
+		}, error = function(e) {
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_pdf, width = geom$width, height = geom$height, device = cairo_pdf  )
+		
+		})
+	}
+	if( !is.null( args$output_svg )) {
+	tryCatch({
+		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height)
+		}, error = function(e) {
+		message ('ggsave standard failed, using ggsave with cairo instead')
+		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf  )
+		
+		})	
+	}
+}
+
+# Alternative version, no map and join DRC+east
+if( 0 ) {
+	source( "code/figures/fig1_impl.R" )
+	library( gridExtra )
+	layout.m = matrix(
+		c(
+			NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA, 
+			NA,   1,  NA,   2,  NA,   5,  NA,   6,  NA, 
+			NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA, 
+			NA,   3,  NA,   4,  NA,   7,  NA,   8,  NA, 
+			NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA, 
+			NA,   9,   9,   9,   9,   9,   9,   9,  NA,
+			NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA,  NA
+		),
+		nrow = 7,
+		byrow = T
+	)
+	geom = list(
+		columns = c(  0.1, 1, 0.01, 1, 0.2, 1, 0.01, 1, 0.1 ), # length 17
+		rows = c( 0.25, 1, 0.05, 1, 0.15, 1.4, 0.1 ),
+		width = 6,
+		height = 4.5
+	)
+	#border = theme(plot.background = element_rect(size = 0.5, linetype="solid", color="black" ))
+	border = theme(plot.background = element_blank())
+	areascale = scale_size( range = c( 0, 5 ), breaks = seq( from = 1, to = 3600, by = 1 ), limits = c( 0, 3600 ), guide = "none" )
+	shapescale = scale_shape_manual( values = 21 )
+	hspftheme = theme(
+		axis.text.x = element_text( size = 6 ),
+		plot.margin = unit( c( t = 0, r = 0, b = 0.2, l = 0 ), "inches" )
+	)
+	yaxis = theme(
+		axis.text.y = element_text( size = 6 )
+	)
+	rightaxis = scale_y_continuous(
+		position = "right",
+		breaks = seq( from = 0, to = 1, by = 0.2 ),
+		limits = c( -0.01, 1.01 ),
+		labels = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 ) * 100 ),
+		expand = c( 0, 0 )
+	)
+	z = grid.arrange(
+		hspf_plots[['Pfsa1-area=waf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa1-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
 		(
 			forestplot
 			+ theme(
