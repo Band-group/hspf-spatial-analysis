@@ -13,7 +13,7 @@ source( 'code/figures/fig1_impl.R' )
 # call plot_hspf_fit.R and make faceted plot by locus
 # define loci and areas of interest
 loci  <- c("Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4")
-areas <- c( "waf", "DRC", "eaf")
+areas <- c( "waf", "drc+east")
 
 plots <- list()
 
@@ -67,16 +67,14 @@ for (area in areas) {
 # Build ordered list: first row (Pfsa1, Pfsa2 alternating by area), second row (Pfsa3, Pfsa4)
 plots_ordered <- list(
    plots[["waf_Pfsa1"]], plots[["waf_Pfsa2"]],
-   plots[["DRC_Pfsa1"]], plots[["DRC_Pfsa2"]],
-   plots[["eaf_Pfsa1"]], plots[["eaf_Pfsa2"]],
+   plots[["drc+east_Pfsa1"]], plots[["drc+east_Pfsa2"]],
    plots[["waf_Pfsa3"]], plots[["waf_Pfsa4"]],
-   plots[["DRC_Pfsa3"]], plots[["DRC_Pfsa4"]],
-   plots[["eaf_Pfsa3"]], plots[["eaf_Pfsa4"]]
+   plots[["drc+east_Pfsa3"]], plots[["drc+east_Pfsa4"]]
 )
 # Combine in 2 rows
 combined <- wrap_plots(plots_ordered, nrow = 2)
 
 #path to save the plot to be updated
 plotpath <- "output/pf=pf8-version/figures/forest_plot/hspf_main-size=1-model=bym2-200km-min_N=0.pdf"
-myheight <- 6; mywidth <- myheight * 6.8
+myheight <- 6; mywidth <- myheight * 5
 ggsave(plotpath, combined, width = mywidth, height = myheight)
