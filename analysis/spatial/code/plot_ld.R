@@ -107,13 +107,13 @@ blank.plot = function( xlim = c(0,1), ylim = c(0,1), xlab = '', ylab = '', ... )
 	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlab = xlab, ylab = ylab, xlim = xlim, ylim = ylim, ... )
 }
 
-echo( "++ Loading pf aggregated data from %s\n", pf_aggregated )
+echo( "++ Loading pf aggregated data from %s\n", args$pf_aggregated )
 echo( "   (and grouping by polygon_id)...\n" )
-pf = readr::read_tsv( pf_aggregated )
+pf = readr::read_tsv( args$pf_aggregated )
 echo( "++ ...ok, %d points loaded.\n", nrow( pf ))
 
-echo( "++ Loading HbS aggregated data from %s...\n", HbS_aggregated )
-hbs = readr::read_tsv( HbS_aggregated )
+echo( "++ Loading HbS aggregated data from %s...\n", args$HbS_aggregated )
+hbs = readr::read_tsv( args$HbS_aggregated )
 echo( "++ ...ok, %d points loaded.\n", nrow( hbs ))
 
 echo( "++ Loading hspf model fit from %s...\n", args$fit )
