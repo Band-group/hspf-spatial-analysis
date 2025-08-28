@@ -30,7 +30,7 @@ def get_area_definitions( names ):
 		# Central africa region.  Not needed.
 		'caf': [ 'Democratic Republic of the Congo', 'Zambia', 'Gabon' ],
 		# Eestern africa region matching Pfsa2/4 distribution split
-		'drc+east': [ 'Democratic Republic of the Congo', 'Ethiopia', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania',  'Madagascar' ],
+		'DRC+eaf': [ 'Democratic Republic of the Congo', 'Sudan', 'Ethiopia', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania',  'Madagascar' ],
 		'eaf': [ 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'United Republic of Tanzania' ],
 		#
 		'gambia+senegal': [ 'Gambia', 'Senegal' ],
