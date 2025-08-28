@@ -320,8 +320,8 @@ fig1bplot <- function(
 		+ geom_sf( data = allland, fill = aesthetic$landcolor, col = NA )
 		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
 		+ geom_sf( data = lakes.around.country,fill = aesthetic$lakecolor, col = 'transparent')
-    + geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
-    + geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
+		+ geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
+		+ geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
 		+ scale_fill_viridis_c(
 			alpha = 0.5,
 			option = viridisoption$scale,
@@ -818,7 +818,7 @@ make.forestplot <- function(
 		+ geom_hline(yintercept = 0, col = "grey30", lwd=0.4, linetype='dashed' )
 	#	stat_halfeye() + # to add density as shadow behind the CIs
 		+ stat_interval( linewidth = 2 )
-		+ stat_summary( geom = "point", fun = median )
+		+ stat_summary( geom = "point", fun = median, size = 1 )
 		+ scale_color_manual(values = MetBrewer::met.brewer(brewerstyle)[c(1,3,4)])
 		+ coord_flip( ylim = xlim, clip = "off" )
 		+ guides( col = "none" )
