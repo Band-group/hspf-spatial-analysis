@@ -193,9 +193,9 @@ pfsf = df2sf(
 	# Create a mapping of original names to proper names and order levels
 	area_mapping <- tibble::tibble(
 		# See master.snakefile for how these are defined
-		area = c( "global", "africa", "waf", "DRC", "eaf" ),
+		area = c( "global", "africa", "waf", "DRC+eaf", "eaf" ),
 		Region = c(
-			"Global", "Africa", "Western&nbsp;&nbsp;pop.", "DRC", "East&nbsp;&nbsp;pop."
+			"Global", "Africa", "Western&nbsp;&nbsp;populations", "Central&nbsp;and&nbsp;Eastern&nbsp;&nbsp;populations", "Eastern populations only"
 		),
 		order = c(
 			1, 1, 2, 2, 2
@@ -210,8 +210,6 @@ pfsf = df2sf(
 
 	# Load data and compute the slope
 	filename_template = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
-	print( "UHOH" )
-	print( filename_template )
 	fp_data = (
 		load.forestplot.data( area_mapping$area, template = filename_template )
 		%>% mutate(
@@ -227,8 +225,8 @@ pfsf = df2sf(
 				order == 1 ~ paste0("<b>", Region, "</b>"),	# Bold for order 1
 				order == 2 ~ paste0("<span style='color:white;'>h</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
 				order == 3 ~ paste0("<span style='color:white;'>hi</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
-				order > 3	~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
-				TRUE ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
+				order > 3  ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
+				TRUE       ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
 			)
 		)
 #		%>% mutate(
@@ -372,7 +370,7 @@ pfsf = df2sf(
 }
 
 # Alternative version, no map and join DRC+east
-if( 0 ) {
+if( 1 ) {
 	source( "code/figures/fig1_impl.R" )
 	library( gridExtra )
 	layout.m = matrix(
@@ -455,7 +453,7 @@ if( 0 ) {
 		ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height)
 		}, error = function(e) {
 		message ('ggsave standard failed, using ggsave with cairo instead')
-		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = cairo_pdf  )
+		   	ggsave( z, filename =  args$output_svg, width = geom$width, height = geom$height, device = svg  )
 		
 		})	
 	}
