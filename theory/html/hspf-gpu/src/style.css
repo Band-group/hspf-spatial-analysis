@@ -1,37 +1,72 @@
-body {
-	font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+@font-face {
+  font-family: "Roboto";
+  src: url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap");
 }
-body > #title {
+
+body {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.sidebar {
 	display: block ;
 	position: fixed ;
+	left: 0px ;
+	top: 0px ;
+	padding: 0px ;
+	width: 370px ;
+	background-color: rgba( 255, 255, 255, 1 ) ;
+	background-color: rgba( 0, 0, 0, 0 ) ;
+}
+.sidebar > header {
+	display: block ;
+	position: relative ;
 	left: 0px ;
 	top: 0px ;
 	width: 370px ;
 	text-align: center ;
 	font-family: 'Palatino', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif ;
-	background-color : rgba(255,255,255,1) ;
 	padding: 0px ;
+	margin-bottom: 10px ;
 	z-index: 100 ;
-	border-bottom: 1px solid black  ;
+	border-bottom: 1px solid grey  ;
 }
-body > #title > h1 {
+.sidebar > header > h1 {
 	margin-bottom: 0px ;
 	padding-bottom: 0px ;
 }
-body > #title > h2 {
+.sidebar > header > h2 {
 	margin-top: 0px ;
 	font-size: 10pt ;
 }
 
 nav {
-	position: fixed ;
-	left: 10px ;
-	top: 80px ;
-	width: 350px ;
-	max-height: calc( 100vh - 80px ) ;
-	padding-right: 10px ;
+	position: relative ;
+	top: 0px ;
+	max-height: calc( 100vh - 240px ) ;
+	box-sizing: border-box ;
+	width: 362px ;
+	left: 4px ;
+	padding-left: 4px ;
+	padding-right: 4px ;
+	padding-top: 4px ;
+	padding-bottom: 4px ;
 	overflow-y: auto ;
+	background-color: rgba( 255, 255, 255, 1 ) ;
+	border-radius: 4px ;
 }
+.controls {
+	width: 354px ;
+}
+fieldset {
+	margin-top: 10px ;
+	background-color: rgba( 255, 255, 255, 1 ) ;
+	border-radius: 5px ;
+}
+fieldset > legend {
+	font-family: Roboto ;
+}
+
 section {
 	display: block ;
 	position: absolute ;
@@ -55,13 +90,16 @@ section {
 	display: grid;
 	gap: 10px;
 	grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+	max-width: 1042px ;
 }
 
 .map_container {
 	display: inline-block ;
 	position: relative ;
 	aspect-ratio: 5 / 4;
-	border: 2px solid rgba(0, 0, 0, 0.2);
+	box-sizing: border-box ;
+	background-colour:rgba(0, 0, 0, 0.2); 
+	border: 1px solid rgba(0, 0, 0, 0.05);
 	border-radius: 5px;
 }
 
@@ -80,6 +118,7 @@ section {
 tr {
 	text-align: center ;
 }
+
 .control, .hud {
 	background: rgb( 255, 255, 255, 0.5 ) ;
 }
@@ -168,3 +207,17 @@ svg.comparison_display {
 	/*left: 20px ;*/
 	background:  rgb( 256, 256, 256, 0.5 ) ;
 } 
+
+.simulation-control span {
+	background-color: "grey" ;
+	border: 1px solid rgb( 0, 0, 0, 0.2 ) ;
+	border-radius: 10px ;
+}
+
+input[type=number] {
+	border: none ;
+	background-color:rgb( 255, 255, 255, 0.5 ) ;
+	color: 'black' ;
+	font-weight: bold ;
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+}
