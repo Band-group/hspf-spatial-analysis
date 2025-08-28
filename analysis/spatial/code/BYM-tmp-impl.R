@@ -168,21 +168,21 @@ fitbym_to_posterior_samples <- function(
 			# if the PC prior choice is P(sd > U) = alpha
 			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd         = 0.01
+			prior_log_nu_sd		= 0.00001 
 		),
 		'besag' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean	= 100.0,
 			prior_logodds_phi_sd 	= 10.0,
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd = 1
+			prior_log_nu_sd			= 1 
 		),
 		'iid' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean 	= -100.0,
 			prior_logodds_phi_sd 	= 10.0,
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd = 1
+			prior_log_nu_sd			= 1 
 		),
 		'norandom' = list(
 			tmb_model 				= "bym2",
@@ -190,7 +190,7 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
 			prior_sd_rate 			= 1000,
-			prior_log_nu_sd = 1
+			prior_log_nu_sd			= 1 
 		)
 	)[[ model ]]
 
@@ -236,7 +236,7 @@ fitbym_to_posterior_samples <- function(
 			Q = Q.scaled,
 			connected_components = connected.component.matrix,
 			model_choice = "bym2", # or "norandom"
-			link_choice = "generalised-logit",
+			link_choice = 'generalised-logit', # or "logit" or "identit
 			# Prior on intercept and beta
 			# We use vague normal priors
 			prior_beta_sd 		= 10.0,

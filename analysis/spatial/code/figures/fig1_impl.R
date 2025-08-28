@@ -461,7 +461,7 @@ plot_hspf = function(
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 0.8 ),
 	at = list(
-		x = seq( from = xlim[1], to = xlim[2], by = 0.05 ),
+		x = seq( from = xlim[1], to = xlim[2], by = 0.1 ),
 		y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
 	)
 ) {
@@ -593,7 +593,7 @@ plot_hspf = function(
 					fill = country
 				),
 				shape = 21
-			)
+			) 
 		)
 		if( uncertainty == "lines" ) {
 			hspf_plot = (
@@ -682,9 +682,9 @@ plot_hspf = function(
 			legend_data = tibble::tibble(
 				x = 0.2875,
 				y = 0.11,
-				text_y = c( 0.04, 0.15, 0.21 ),
-				N = c( 25, 250, 2500 ),
-				display = c( "25", "250", "2,500" )
+				text_y = c( 0.05, 0.15, 0.21 ),
+				N = c( 30, 300, 3605 ),
+				display = c( "30", "300", "3,605" )
 			)
 			hspf_plot = (
 				hspf_plot
@@ -705,22 +705,22 @@ plot_hspf = function(
 				+ geom_segment(
 					data = tibble::tibble(
 						x = 0.2875,
-						y = 0.06,
-						yend = 0.095
+						y = 0.07,
+						yend = 0.10
 					),
 					aes( x = x, xend = x, y = y, yend = yend ),
 					linewidth=0.05,color='gray10'
 				)
 			)
 		}
-
+        
 		hspf_plot = (
 			hspf_plot
 			+ coord_cartesian( clip = "off" )
 			+ scale_x_continuous(
 				breaks = at$x,
 				limits = xlim + c( -0.01, 0.01 ),
-				labels = sprintf( "%.0f%%", at$x * 100 ),
+                labels = sprintf( "%.0f%%", at$x * 100 ),
 				expand = c( 0, 0 )
 			)
 			+ scale_y_continuous(
@@ -729,8 +729,8 @@ plot_hspf = function(
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa1+ </em> frequency" )
-			+ xlab( "Frequency of HbAS/SS genotypes" )
+			+ ylab( "<em>Pfsa+</em> frequency" )
+			+ xlab( "Combined frequency of HbAS and HbSS genotypes" )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
 				guide = "none"
@@ -739,7 +739,11 @@ plot_hspf = function(
 				values = c( rgb( 0, 0, 0, 0.9 ), rgb( 0, 0, 0, 0.1 ) ),
 				guide = "none"
 			)
-		)
+			+  theme(
+      			axis.title.x  = ggtext::element_markdown(),
+				axis.title.y  = ggtext::element_markdown()
+			)
+			)
 	}
 	return( hspf_plot )
 }
@@ -825,8 +829,7 @@ make.forestplot <- function(
 		+ labs(
 			title = "",
 			x = NULL,
-			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ 
-			frequency between values corresponding to sickle allele frequency at 20% and 10%"
+			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ frequency between values corresponding to sickle allele frequency at 20% and 10%"
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100

@@ -1,6 +1,7 @@
 rule aggregate_pf:
 	output:
-		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}.tsv"
+		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}.tsv",
+		sourcetsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}-source.tsv"
 	input:
 		pf = lambda w: config['data']['pf'][w.pf_data_version],
 		polygons = rules.create_grid.output.rds
@@ -12,12 +13,14 @@ rule aggregate_pf:
 			--pf {input.pf} \
 			--crs '{params.crs}' \
 			--polygons {input.polygons} \
-			--output {output.tsv}
+			--output {output.tsv} \
+			--outputsource {output.sourcetsv}
 	"""
 
 rule aggregate_pf_by:
 	output:
-		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}-by={by}.tsv"
+		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}-by={by}.tsv",
+		sourcetsv = "output/pf={pf_data_version}/pf/aggregated/grid-type={type}-size={size}-area={area}-by={by}-source.tsv"
 	input:
 		pf = lambda w: config['data']['pf'][w.pf_data_version],
 		polygons = rules.create_grid.output.rds
@@ -33,7 +36,8 @@ rule aggregate_pf_by:
 			--crs '{params.crs}' \
 			{params.group_by} \
 			--polygons {input.polygons} \
-			--output {output.tsv}
+			--output {output.tsv} \
+			--outputsource {output.sourcetsv}
 	"""
 
 rule aggregate_pf_ld:

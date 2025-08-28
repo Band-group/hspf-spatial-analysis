@@ -1,6 +1,4 @@
-
 # Forest plot
-# setwd("D:/OneDrive/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial/code/figures")
 library(readr)
 library(tidyverse)
 library(ggtext)
@@ -9,7 +7,6 @@ library(ggdist)
 library(patchwork)
 library(MetBrewer)
 library(scales)
-
 library( argparse )
 
 echo <- function( message, ... ) {
@@ -52,6 +49,12 @@ gl = function( v, parameters ) {
 
 args = parse_arguments()
 print( args )
+#test
+# args = list()
+# args$output_main = "output/pf=pf8-version/figures/forest_plot/forest_plot_main-size=1-model=bym2-200km-min_N=0.pdf"
+# args$output_si = "output/pf=pf8-version/figures/forest_plot/forest_plot_SI-size=1-model=bym2-200km-min_N=0.pdf"
+# args$input_template = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds"
+
 
 # List relevant regions
 # Create a mapping of original names to proper names and order levels
@@ -125,7 +128,7 @@ print( head( res ))
 ggsave(
 	args$output_main,
 	make.forestplot(
-		res %>% filter(order < 3 & include == 1 ),
+		res %>% filter(Region %in% c("Global", "Africa", "West Africa", "Democratic Republic of Congo", "East Africa")	 ),
 		xname = 'RegionStyled',
 		yname = 'slope',
 		brewerstyle = "VanGogh3",
@@ -147,3 +150,4 @@ ggsave(
 	width = 15,
 	height = 5
 )
+

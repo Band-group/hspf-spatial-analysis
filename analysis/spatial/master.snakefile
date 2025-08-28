@@ -78,11 +78,11 @@ rule all:
 			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg",
 			**config['params']
 		),
-		fig2 = expand(
-			"output/pf={pf_data_version}/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.{extension}",
-			**config['params'],
-			extension = [ 'pdf', 'svg' ]
-		),
+#		fig2 = expand(
+#			"output/pf={pf_data_version}/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.{extension}",
+#			**config['params'],
+#			extension = [ 'pdf', 'svg' ]
+#		),
 		forest_plot = expand(
 			"output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']

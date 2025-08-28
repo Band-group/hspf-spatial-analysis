@@ -1,5 +1,7 @@
 library( dplyr )
 library( argparse )
+library( ggplot2)
+library( ggtext) #for formatting
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
@@ -11,7 +13,7 @@ source( "code/figures/fig1_impl.R" )
 parse_arguments <- function() {
 	parser <- ArgumentParser( description = 'Create Figure 2' )
 	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
-	parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-v3.sqlite" )
+	parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-pf8.sqlite" )
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
@@ -38,12 +40,11 @@ if( is.null( args )) {
 	args$output_pdf = "output/pf=pf8-version/figures/figure_2/figure_2.pdf"
 	args$output_svg = "output/pf=pf8-version/figures/figure_2/figure_2.svg"
 
-	if (!dir.exists("tmp/figure_2")) {
-	# Create the folder if it doesn't exist
-	dir.create("tmp/figure_2")
-	cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
-	} 
-}
+# if (!dir.exists("tmp/figure_2")) {
+#   # Create the folder if it doesn't exist
+#   dir.create("tmp/figure_2")
+#   cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
+# } 
 
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
@@ -66,7 +67,6 @@ aesthetic = list(
 
 # Load aggregated HbS samples by polygon
 grid_name = gsub( "[.]rds$", "", basename( args$grid ))
-args$pf_aggregated = stringr::str_replace( args$pf_aggregated, stringr::fixed('[grid]'), grid_name )
 args$HbS_aggregated = stringr::str_replace( args$HbS_aggregated, stringr::fixed('[grid]'), grid_name )
 
 # Load world map at coarse resolution for visualization
@@ -254,7 +254,7 @@ pfsf = df2sf(
 	)
 
 	forestplot = make.forestplot(
-		fp_data %>% filter(order < 3 & include == 1 ),
+		fp_data, #%>% filter(order < 3 & include == 1 ),
 		xname = 'RegionStyled',
 		yname = 'slope',
 		brewerstyle = "VanGogh3",

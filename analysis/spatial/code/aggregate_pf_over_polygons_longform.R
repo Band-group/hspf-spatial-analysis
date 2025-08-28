@@ -39,7 +39,12 @@ parse_arguments <- function() {
 		help = "path to output directory",
 		required = TRUE
 	)
-	
+		parser$add_argument(
+		"--outputsource",
+		type = "character",
+		help = "path to output directory (file aggregated also by source)",
+		required = TRUE
+	)
 	return( parser$parse_args() )
 }
 
@@ -104,9 +109,16 @@ aggregated = aggregate_pf_across_polygons(
 	c( "polygon_id", "longitude", "latitude", "locus", args$group_by )
 )
 
+aggregatedsource = aggregate_pf_across_polygons(
+	longform,
+	polygons,
+	args$crs,
+	c( "polygon_id", "longitude", "latitude", "locus", "sources", args$group_by )
+)
+
 # Remove the geometry column, which ain't needed.
 # NB. Look up the grid file to check centroids etc.
 readr::write_tsv( aggregated, file = args$output )
+readr::write_tsv( aggregatedsource, file = args$outputsource )
 
-echo( "++ Great success!  I like!" )
 echo( "++ Thanks for using aggregate_pf_over_polygons_longform.R!" )
