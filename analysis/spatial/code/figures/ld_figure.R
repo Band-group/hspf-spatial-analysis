@@ -342,21 +342,11 @@ for( area in c( 'eaf', 'waf' )) {
 		+ geom_line(
 			data = lines,
 			aes( x = `f+++`, y = `max_D_+++`),
-			linetype = 1
-		)
-		+ geom_line(
-			data = lines,
-			aes( x = `f+++`, y = `perfect_LD_D_---`),
-			linetype = 4
-		)
-		+ geom_line(
-			data = lines,
-			aes( x = `f+++`, y = `perfect_LD_D_++-`),
 			linetype = 2
 		)
 		+ geom_line(
 			data = lines,
-			aes( x = `f+++`, y = `perfect_LD_D_+--`),
+			aes( x = `f+++`, y = `perfect_LD_D_---`),
 			linetype = 3
 		)
 		+ theme_minimal()
@@ -444,6 +434,7 @@ for( area in c( 'eaf', 'waf' )) {
 	# fallback device if Cairo is not available
 	safe_device <- if ("cairo_pdf" %in% capabilities()) cairo_pdf else pdf
 	ggsave( z, filename = args$output, width = 12, height = 5, device = safe_device  )
+	ggsave( z, filename = gsub( ".pdf", ".svg", args$output ), width = 12, height = 5, device = svglite::svglite  )
 }
 
 echo("++ End Fig1: plot HbS\n")
