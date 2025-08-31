@@ -42,7 +42,10 @@ def get_area_definitions( names ):
 		'tanzania': [ 'United Republic of Tanzania' ],
 		'tanzania+kenya+uganda+rwanda': [ 'United Republic of Tanzania', 'Kenya', 'Uganda', 'Rwanda' ],
 		'DRC': [ 'Democratic Republic of the Congo' ],
-		'mozambique': [ 'Mozambique' ]
+		'mozambique': [ 'Mozambique' ],
+		'mauritania': [ 'Mauritania' ],
+		'nigeria': [ 'Nigeria' ],
+		'uganda': [ 'Uganda' ]
 	}
 	result = {}
 	for name in names:
