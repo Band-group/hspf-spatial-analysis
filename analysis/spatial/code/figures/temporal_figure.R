@@ -9,12 +9,12 @@ source( "code/figures/fig1_impl.R" )
 
 
 # for testing Andre##################################################################################
-args <- list()
-args$loci <- c('Pfsa1')
-args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
-args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
-args$countries <- readr::read_tsv(args$pf_aggregated)
-args$countries <- unique(args$countries$majority_country)
+# args <- list()
+# args$loci <- c('Pfsa1')
+# args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
+# args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
+# args$countries <- readr::read_tsv(args$pf_aggregated)
+# args$countries <- unique(args$countries$majority_country)
 
 # #####################################################################################################
 parse_arguments <- function() {
@@ -201,8 +201,8 @@ dataplot <- dataplot %>%
     )
   )
 
-# time series analysis######################################################
-############################################################################
+#time series analysis######################################################
+###########################################################################
 #check for linearity in the time series
 # library(dplyr)
 # library(broom)
@@ -247,10 +247,39 @@ dataplot <- dataplot %>%
 #   filter(!is.na(label))
 
 # print(trend_results,n=21)
-
-# #regression with all countries combined
-# print(tidy(lm(`f+` ~ year, data = dataplot )))
   
+# logistic = function( data, formula = Y ~ time ) {
+#     data = ( data %>% mutate( 
+#       Y = (`Pfsa+` / N),
+#       time = year - min(year),
+#       time2 = time * time
+#     )
+#     )
+#     g = glm( formula, weight = N, data = data, family = "binomial" )
+#     coeff = summary(g)$coeff
+#     colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+#     ll = logLik(g)
+#     return(
+#         bind_cols(
+#             tibble( parameter = rownames(coeff), ll = as.numeric(ll)),
+#             coeff
+#         )
+#     )
+# }
+ 
+# #regression with all countries combined
+# #print(tidy(lm(`f+` ~ year, data = dataplot )))
+# print(logistic(data = dataplot ))
+
+
+# (
+#    dataplot
+#     %>% filter( majority_country %in% c('Gambia','Kenya','Ghana','Mali','Tanzania'))
+#     %>% group_by( locus, majority_country )
+#     %>% reframe( logistic( pick( `Pfsa+`, `N`, year ), Y ~ time  + polygon_id ))
+#     %>% filter( parameter %in% c('time','time2','year' ))
+#     %>% arrange(majority_country, locus, `pvalue` )
+# )
 
 
 # Plot with vertical dashed lines at gap boundaries
@@ -290,9 +319,10 @@ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
   scale_colour_manual(values = country.colours()) +
   facet_wrap(~factor(majority_country), scales = "free_x" ) +
   scale_x_continuous(
-  breaks = scales::pretty_breaks(n = 5),
-  labels = function(x) sprintf("%d", as.integer(x))
-) + guides(
+   breaks = scales::pretty_breaks(n = 5),
+   labels = function(x) sprintf("%d", as.integer(x))
+ ) +
+ guides(
       colour = guide_legend(title = "Country", nrow = 3, byrow = TRUE,title.position = "top")
       ) +
     theme_minimal(base_family = "sans", base_size=16 ) + 
