@@ -201,60 +201,138 @@ dataplot <- dataplot %>%
     )
   )
 
-# time series analysis######################################################
-############################################################################
-#check for linearity in the time series
-# library(dplyr)
-# library(broom)
-
-# trend_results <- dataplot %>%
-#   group_by(majority_country) %>%
-#   group_modify(~ {
-#     # Skip if insufficient data
-#     if (n_distinct(.x$year) <= 1 || nrow(.x) < 3) {
-#       return(tibble(year = NA, p.value = NA, hex_F.E = NA))  # rename here too
-#     }
-
-#     use_fe <- FALSE
-
-#     # If more than 1 polygon, try with polygon fixed effects
-#     if (n_distinct(.x$polygon_id) > 1 && nrow(.x) > 3) {
-#       m <- lm(`f+` ~ year + factor(polygon_id), data = .x)
-#       slope <- broom::tidy(m) %>% filter(term == "year")
-
-#       if (!is.na(slope$p.value)) {
-#         use_fe <- TRUE
-#       } else {
-#         # fallback: re-fit without polygon FE
-#         m <- lm(`f+` ~ year, data = .x)
-#         slope <- broom::tidy(m) %>% filter(term == "year")
-#       }
-#     } else {
-#       m <- lm(`f+` ~ year, data = .x)
-#       slope <- broom::tidy(m) %>% filter(term == "year")
-#     }
-
-#     tibble(
-#       year    = slope$estimate,   # renamed here
-#       p.value = slope$p.value,
-#       hex_F.E  = use_fe
+#time series analysis######################################################
+###########################################################################
+# logistic = function( data, formula = Y ~ time ) {
+#     data = ( data %>% mutate(
+#       Y = (`Pfsa+` / N),
+#       time = year - min(year),
+#       time2 = time * time
 #     )
-#   }) %>%
-#   ungroup() %>%
-#   mutate(label = ifelse(!is.na(year),
-#                         sprintf("Slope = %.3f\np = %.3g", year, p.value),
-#                         NA)) %>%
-#   filter(!is.na(label))
-
-# print(trend_results,n=21)
+#     )
+#     g = glm( formula, weight = N, data = data, family = "binomial" )
+#     coeff = summary(g)$coeff
+#     colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+#     ll = logLik(g)
+#     return(
+#         bind_cols(
+#             tibble( parameter = rownames(coeff), ll = as.numeric(ll)),
+#             coeff
+#         )
+#     )
+# }
 
 # #regression with all countries combined
-# print(tidy(lm(`f+` ~ year, data = dataplot )))
-  
+# #print(tidy(lm(`f+` ~ year, data = dataplot )))
+# print(logistic(data = dataplot ))
 
 
-# Plot with vertical dashed lines at gap boundaries
-p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
+# (
+#    dataplot
+#     %>% filter( majority_country %in% c('Gambia','Kenya','Ghana','Mali','Tanzania'))
+#     %>% group_by( locus, majority_country )
+#     %>% reframe( logistic( pick( `Pfsa+`, `N`, year ), Y ~ time  + polygon_id ))
+#     %>% filter( parameter %in% c('time','time2','year' ))
+#     %>% arrange(majority_country, locus, `pvalue` )
+# )
+
+#check for linearity in the time series
+library(dplyr)
+library(broom)
+
+trend_results <- dataplot %>%
+  group_by(majority_country) %>%
+  group_modify(~ {
+    if (n_distinct(.x$year) <= 1 || nrow(.x) < 3) {
+      return(tibble(estimate = NA, p.value = NA, std.error = NA, hex_F.E = NA))
+    }
+    
+    use_fe <- FALSE
+    
+    if (n_distinct(.x$polygon_id) > 1 && nrow(.x) > 3) {
+      m <- lm(`f+` ~ year + factor(polygon_id), data = .x)
+      slope <- broom::tidy(m) %>% filter(term == "year")
+      
+      if (!is.na(slope$p.value)) {
+        use_fe <- TRUE
+      } else {
+        m <- lm(`f+` ~ year, data = .x)
+        slope <- broom::tidy(m) %>% filter(term == "year")
+      }
+    } else {
+      m <- lm(`f+` ~ year, data = .x)
+      slope <- broom::tidy(m) %>% filter(term == "year")
+    }
+    
+    tibble(
+      estimate = slope$estimate,
+      std.error = slope$std.error,
+      p.value = slope$p.value,
+      hex_F.E  = use_fe
+    )
+  }) %>%
+  ungroup() %>%
+  mutate(
+    labelmean = sprintf("mean = %.3f", estimate),
+    labelpvalue = sprintf("p = %.3g", p.value),
+    ci_lower = estimate - 1.96 * std.error,
+    ci_upper = estimate + 1.96 * std.error
+  ) %>%
+  filter(!is.na(labelmean))
+
+
+
+ print(trend_results,n=21)
+
+ 
+ # Remove rows without slope
+ library(forcasts)
+ library(ggplot2)
+ library(dplyr)
+ library(forcats)
+
+ 
+ # Reorder countries by slope
+ trend_results_clean <- trend_results %>%
+   filter(!is.na(estimate)) %>%
+   mutate(majority_country = fct_reorder(majority_country, estimate))
+ 
+ # Compute offset for p-value label (right of plot)
+ pvaluemove <- ifelse(args$loci == 'Pfsa3', 0.25,0.06)
+ max_est <- max(trend_results_clean$estimate, na.rm = TRUE)
+ trend_results_clean <- trend_results_clean %>%
+   mutate(labelpvalue_y = pvaluemove + abs(max_est))
+ 
+ # Plot
+ ptrend <- ggplot(trend_results_clean, aes(x = majority_country, y = estimate)) +
+   # Points
+   geom_point(size = 3) +
+   # 95% CI
+   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+   # Horizontal reference line at zero
+   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey35", linewidth = 0.8) +
+   # labelmean: on top of the point
+   geom_text(aes(label = labelmean), vjust = -1, size = 3) +
+   # labelpvalue: to the right of the plot
+   geom_text(aes(y = labelpvalue_y, label = labelpvalue), hjust = 0, size = 3) +
+   # Axis, theme
+   xlab("")+
+   ylab(sprintf("Estimated <em>%s</em>+ frequency slope per year", args$loci) ) +
+   coord_flip() +    # Expand y-limits to make space for p-value labels
+   scale_y_continuous(expand = expansion(mult = c(0.05, 0.25)))+
+   theme_minimal(base_family = "sans", base_size = 16) + theme (
+     axis.title.x  = ggtext::element_markdown(),
+     axis.title.y  = ggtext::element_markdown()
+   )
+
+ 
+ print(ptrend)
+ ptrendpath <- sub("\\.pdf$", "_trend.pdf", args$output)
+ ggsave(ptrend, file = ptrendpath, width = 8, height = 5)
+ 
+ 
+ #plot country longitudinal
+ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
   geom_line(aes(group = interaction(polygon_id, sources)), 
             colour = rgb(0, 0, 0, 0.5), linewidth = 0.5) +
   geom_line(
@@ -271,14 +349,14 @@ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
    guide = guide_legend(
       title = "Sources",
       title.position = "top",   # put title above
-      nrow = 3,                 # number of rows
+      ncol= 1,                 # number of rows
       byrow = TRUE
     )) +
 	scale_fill_manual(values = fill_key,
   guide = guide_legend(
       title = "Sources",
       title.position = "top",   # put title above
-      nrow = 3,                 # number of rows
+      ncol = 1,                 # number of rows
       byrow = TRUE
     ))+
   #  Vertical dashed lines for years with a gap
@@ -290,10 +368,11 @@ p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
   scale_colour_manual(values = country.colours()) +
   facet_wrap(~factor(majority_country), scales = "free_x" ) +
   scale_x_continuous(
-  breaks = scales::pretty_breaks(n = 5),
-  labels = function(x) sprintf("%d", as.integer(x))
-) + guides(
-      colour = guide_legend(title = "Country", nrow = 3, byrow = TRUE,title.position = "top")
+   breaks = scales::pretty_breaks(n = 5),
+   labels = function(x) sprintf("%d", as.integer(x))
+ ) +
+ guides(
+      colour = guide_legend(title = "Country", ncol= 4, byrow = TRUE,title.position = "top")
       ) +
     theme_minimal(base_family = "sans", base_size=16 ) + 
     theme(
