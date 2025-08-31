@@ -49,7 +49,7 @@ rule fit_hspf_in_areas:
 		hbs        = rules.aggregate_HbS.output.tsv,
 		survey     = "input/cleanHbSdata.csv",
 		world      = "geodata/naturalearthdata.Rdata",
-		tmb_model  = rules.compile_TMB_code.output.so.format(regression_model="bym2"),
+		tmb_model  = rules.compile_TMB_code.output.so.format( regression_model = "bym2" ),
 		covariates = lambda w: ([
 			# This funny bit of code is to make sure this rule depends on the appropriate
 			# covariates file, UNLESS hspf_covariates="none".
@@ -73,8 +73,8 @@ rule fit_hspf_in_areas:
 			"" if w.hspf_covariates == "none" else "--covariates_files %s" % input.covariates
 		),
 		hspf_covariates = lambda w, input: (
-            "" if w.hspf_covariates == "none" else "--covariates %s" % (' '.join( w.hspf_covariates.split( "+" )))
-        ),
+			"" if w.hspf_covariates == "none" else "--covariates %s" % (' '.join( w.hspf_covariates.split( "+" )))
+		),
 		posterior_samples_per_hbs_sample = 100
 	threads: 1
 	shell: """

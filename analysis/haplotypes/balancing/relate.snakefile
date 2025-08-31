@@ -153,10 +153,39 @@ rule plot_reestimated_tree:
 	-o {params.output}
 """
 
+rule map_mutations:
+	output:
+		tsv = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.mapped_mutations.tsv"
+	input:
+		anc = rules.estimate_pop_size.output.anc,
+		mut = rules.estimate_pop_size.output.mut,
+		shapeit = rules.run_relate.input.shapeit,
+		coal = rules.estimate_pop_size.output.coal,
+		samples = rules.run_relate.input.samples,
+		poplabels = "outputs/pf7/relate/input/relate_input.poplabels.txt"
+	params:
+		script = "/Users/gav/Projects/Software/3rd_party/relate_v1.2.2_MacOSX_M/bin/RelateExtract",
+		stub = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.mapped_mutations",
+		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
+	shell: """
+	{params.script} \
+	--mode MapMutations \
+	--anc {input.anc} \
+	--mut {input.mut} \
+	--haps {input.shapeit} \
+	--sample {input.samples} \
+	--years_per_gen {params.years_per_gen} \
+	--output {params.stub} \
+	--bp_of_interest {wildcards.position}
+
+	# Get rid of weird semicolon formatting:
+	cat {params.stub}.mut | sed -e 's/;/\\t/g' > {output.tsv}
+	"""
+
 rule sample_branch_lengths:
 	output:
-		anc = "outputs/pf7/relate/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.anc",
-		mut = "outputs/pf7/relate/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.mut"
+		newick = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.newick"
+#		mut = "outputs/pf7/relate/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.mut"
 	input:
 		anc = rules.estimate_pop_size.output.anc,
 		mut = rules.estimate_pop_size.output.mut,
@@ -164,9 +193,10 @@ rule sample_branch_lengths:
 		samples = rules.run_relate.input.samples,
 		poplabels = "outputs/pf7/relate/input/relate_input.poplabels.txt"
 	params:
-		script = "/well/band/users/iws573/Projects/Software/3rd_party/relate/scripts/SampleBranchLengths/SampleBranchLengths.sh",
+		#script = "/well/band/users/iws573/Projects/Software/3rd_party/relate/scripts/SampleBranchLengths/SampleBranchLengths.sh",
+		script = "/Users/gav/Projects/Software/3rd_party/relate_v1.2.2_MacOSX_M/scripts/SampleBranchLengths/SampleBranchLengths.sh",
 		input_stub = rules.estimate_pop_size.output.anc.replace( ".anc", "" ),
-		output_stub = "outputs/pf7/relate/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples",
+		output_stub = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples",
 		number_of_samples = 100,
 		first_bp = lambda w: int(w.position),
 		last_bp = lambda w: int(w.position)
@@ -179,35 +209,35 @@ rule sample_branch_lengths:
 	--mu {wildcards.mu} \
 	--first_bp {params.first_bp} \
 	--last_bp {params.last_bp} \
-	--format a \
+	--format n \
 	--output {params.output_stub}
 """
 
-rule plot_reestimated_tree_samples:
-	output:
-		pdf = "outputs/pf7/relate/images/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.pdf"
-	input:
-		anc = rules.sample_branch_lengths.output.anc,
-		mut = rules.sample_branch_lengths.output.mut,
-		shapeit = rules.run_relate.input.shapeit,
-		samples = rules.run_relate.input.samples,
-		poplabels = "outputs/pf7/relate/input/relate_input.poplabels.txt"
-	params:
-		script = "/well/band/users/iws573/Projects/Software/3rd_party/relate/scripts/TreeView/TreeViewSample.sh",
-		output = "outputs/pf7/relate/images/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples",
-		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
-	shell: """
-	{params.script} \
-	--haps {input.shapeit} \
-	--sample {input.samples} \
-	--poplabels {input.poplabels} \
-	--anc {input.anc} \
-	--mut {input.mut} \
-	--dist none \
-	--bp_of_interest {wildcards.position} \
-	--years_per_gen {params.years_per_gen} \
-	-o {params.output}
-"""
+#rule plot_reestimated_tree_samples:
+#	output:
+#		pdf = "outputs/pf7/relate/images/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples.pdf"
+#	input:
+#		anc = rules.sample_branch_lengths.output.anc,
+#		mut = rules.sample_branch_lengths.output.mut,
+#		shapeit = rules.run_relate.input.shapeit,
+#		samples = rules.run_relate.input.samples,
+#		poplabels = "outputs/pf7/relate/input/relate_input.poplabels.txt"
+#	params:
+#		script = "/well/band/users/iws573/Projects/Software/3rd_party/relate/scripts/TreeView/TreeViewSample.sh",
+#		output = "outputs/pf7/relate/images/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.samples",
+#		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
+#	shell: """
+#	{params.script} \
+#	--haps {input.shapeit} \
+#	--sample {input.samples} \
+#	--poplabels {input.poplabels} \
+#	--anc {input.anc} \
+#	--mut {input.mut} \
+#	--dist none \
+#	--bp_of_interest {wildcards.position} \
+#	--years_per_gen {params.years_per_gen} \
+#	-o {params.output}
+#"""
 
 rule relate_selection:
 	output:
@@ -232,14 +262,15 @@ rule relate_selection:
 
 rule relate_extract_tree:
 	output:
-		newick = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
-		pos = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.pos"
+		newick = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
+		pos = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.pos"
 	input:
 		anc = rules.estimate_pop_size.output.anc,
 		mut = rules.estimate_pop_size.output.mut
 	params:
-		relate = "/well/band/users/iws573/Projects/Software/3rd_party/relate/bin/RelateExtract",
-		output_stub = "outputs/pf7/relate/output/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}",
+#		relate = "/well/band/users/iws573/Projects/Software/3rd_party/relate/bin/RelateExtract",
+		relate = "/Users/gav/Projects/Software/3rd_party/relate_v1.2.2_MacOSX_M/bin/RelateExtract",
+		output_stub = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}",
 		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
 	shell: """
 		{params.relate} \
@@ -315,8 +346,8 @@ rule relate_extract_tree:
 
 #rule reestimate_branch_lengths:
 #	output:
-#		anc = "outputs/pf7/relate/output/reestimated/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={days_per_generation}.reestimated.anc.gz",
-#		mut = "outputs/pf7/relate/output/reestimated/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={days_per_generation}.reestimated.mut.gz"
+#		anc = "outputs/pf7/relate/output/reestimated/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={days_per_generation}.bp={position}.reestimated.anc.gz",
+#		mut = "outputs/pf7/relate/output/reestimated/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={days_per_generation}.bp={position}.reestimated.mut.gz"
 #	input:
 #		anc = rules.run_relate.output.anc,
 #		mut = rules.run_relate.output.mut,

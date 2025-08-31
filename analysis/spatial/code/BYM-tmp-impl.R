@@ -155,7 +155,7 @@ fitbym_to_posterior_samples <- function(
 			# if the PC prior choice is P(sd > U) = alpha
 			# E.g. if P( sd > 1 ) < 0.01 this is -log(0.01)/1 ~ 4.6
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd		= 1 
+			prior_log_nu_sd = 1
 		),
 		'bym2_logit' = list(
 			tmb_model 				= "bym2",
@@ -175,14 +175,14 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_mean	= 100.0,
 			prior_logodds_phi_sd 	= 10.0,
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd		= 1 
+			prior_log_nu_sd			= 1 
 		),
 		'iid' = list(
 			tmb_model 				= "bym2",
 			prior_logodds_phi_mean 	= -100.0,
 			prior_logodds_phi_sd 	= 10.0,
 			prior_sd_rate 			= -log(0.01)/1,
-			prior_log_nu_sd		= 1 
+			prior_log_nu_sd			= 1 
 		),
 		'norandom' = list(
 			tmb_model 				= "bym2",
@@ -190,7 +190,7 @@ fitbym_to_posterior_samples <- function(
 			prior_logodds_phi_sd 	= 10.0,
 			# Exponential on sd with enormous rate forces sd close to 0.
 			prior_sd_rate 			= 1000,
-			prior_log_nu_sd		= 1 
+			prior_log_nu_sd			= 1 
 		)
 	)[[ model ]]
 
@@ -243,9 +243,9 @@ fitbym_to_posterior_samples <- function(
 			prior_gamma_sd 		= 10.0,
 			prior_intercept_sd	= 100.0,
 			# Prior on sd of random effects:
-			prior_sd_rate 				= tmb_config$prior_sd_rate, #-log(0.01)/1,
+			prior_sd_rate 			= tmb_config$prior_sd_rate, #-log(0.01)/1,
 			prior_logodds_phi_mean	= tmb_config$prior_logodds_phi_mean,
-			prior_logodds_phi_sd		= tmb_config$prior_logodds_phi_sd,
+			prior_logodds_phi_sd	= tmb_config$prior_logodds_phi_sd,
 			prior_log_nu_sd			= tmb_config$prior_log_nu_sd #tmb_config$prior_log_nu_sd
 		)
 

@@ -140,7 +140,7 @@ africa = rnaturalearth::ne_countries( returnclass = "sf", scale = 110 ) %>% filt
 #africa = sf::st_union( africa )
 
 grid = readRDS( args$polygons ) %>% filter( CONTINENT == 'Africa' )
-HbS = terra::rast( args$HbS )
+#HbS = terra::rast( args$HbS )
 
 simulation.filenames = list(
 	multiplicative = sprintf(
@@ -231,5 +231,24 @@ for( name in names( simulation.filenames )) {
 	source( "analysis/spatial/code/figures/fig4_impl.R" )
 	cairo_pdf( file = "analysis/spatial/tmp/fig5.pdf", width = 6, height = 4 )
 	fig5( sims, pf.data, africa, boxes = FALSE )
+	dev.off()
+}
+
+{
+	#cairo_pdf( file = "output/pf=pf8-version/figures/figure_S5_theory.pdf", width = 8, height = 6 )
+	svg( file = "output/pf=pf8-version/figures/figure_S5_theory.svg", width = 8, height = 6 )
+	layout(
+		matrix( c( 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 4, 0, 0, 0, 0, 0, 0 ), nrow = 5, byrow = T ),
+		widths = c( 0.3, 1, 0.25, 1, 0.1 ),
+		heights = c( 0.05, 1, 0.05, 1, 0.2 )
+	)
+	theory_figure( `gamma_-S` = 0.05, fS = c( upper = 0.25, lower = 0.05 ), `overall_risk_f+` = 0.5 )
+	mtext( 3, 0, text = expression( gamma[S]=="5%" ) )
+	theory_figure( `gamma_-S` = 0.1, fS = c( upper = 0.25, lower = 0.05 ), `overall_risk_f+` = 0.5 )
+	mtext( 3, 0, text = expression( gamma[S]=="10%" ) )
+	theory_figure( `gamma_-S` = 0.2, fS = c( upper = 0.25, lower = 0.05 ), `overall_risk_f+` = 0.5 )
+	mtext( 3, 0, text = expression( gamma[S]=="20%" ) )
+	theory_figure( `gamma_-S` = 0.5, fS = c( upper = 0.25, lower = 0.05 ), `overall_risk_f+` = 0.5 )
+	mtext( 3, 0, text = expression( gamma[S]=="50%" ) )
 	dev.off()
 }

@@ -2,150 +2,124 @@ library( tidyverse )
 library( rbgen )
 library( argparse )
 
+source("scripts/load.plasmodb.genes.R")
+
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
-}
-
-parse_arguments <- function() {
-	parser = ArgumentParser(
-		description = 'Plot haplotypes'
-	)
-	parser$add_argument(
-		"--pf7",
-		type = "character",
-		help = "path to pf7 bgen file",
-		default = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen"
-	)
-	parser$add_argument(
-		"--samples",
-		type = "character",
-		help = "path to pf7 samples file",
-		default = "outputs/pf7/samples/filtered_samples.tsv"
-	)
-	parser$add_argument(
-		"--genes",
-		type = "character",
-		help = "path to genes GFF file",
-		default = "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7.gff.gz"
-	)
-	parser$add_argument(
-		"--tree",
-		type = "character",
-		help = "name of tree file from Relate TreeView"
-	)
-	parser$add_argument(
-		"--margin",
-		type = "integer",
-		help = "margin in base pairs to add",
-		default = 20000
-	)
-	parser$add_argument(
-		"--min_maf",
-		type = "integer",
-		help = "minimum MAF of variants to include in plot.",
-		default = 0.005
-	)
-	parser$add_argument(
-		"--focus_margin",
-		type = "integer",
-		help = "margin in base pairs to add when sorting / computing statistics.  Should be less than --margin",
-		default = 10000
-	)
-	parser$add_argument(
-		"--focus",
-		type = "character",
-		help = "focus in the form chr:pos",
-		required = TRUE
-	)
-	return( parser$parse_args() )
 }
 
 blank.plot <- function( xlim = c(0,1), ylim = c(0,1), ... ) {
 	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlim = xlim, ylim = ylim, ... )
 }
 
-split_annotations = function( variant, annotation ) { 
-	elts = strsplit( annotation, split = ",", fixed = T )[[1]]
-	result = tibble(
-		consequence_allele = NA,
-		consequence = NA,
-		impact = NA,
-		symbol = NA,
-		ID = NA,
-		feature_type = NA,
-		feature_id = NA,
-		feature_biotype = NA,
-		mutation = NA,
-		mutation2 = NA
+arg_sets = list(
+	`Pfsa1` = list(
+		pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen",
+		samples = "outputs/pf7/samples/filtered_samples.tsv",
+		genes = "genes/PlasmoDB-65_Pfalciparum3D7.gff.gz",
+		gaf = "genes/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
+		trees = c(
+			`Pfsa1` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_02_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=631190.newick",
+			`Pfsa2` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_02_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=814288.newick",
+			`Pfsa3` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_11_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1058035.newick",
+			`Pfsa4` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_04_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1121472.newick",
+			`CRT`   = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_07_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=403625.newick"
+		),
+		length_samples = c(
+			`Pfsa1` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_02_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=631190.samples.newick"
+		),
+		annotation = "outputs/pf7/vcf/04_merged/Pf3D7_02_v3.merged.annotation.tsv.gz",
+		margin = 20000,
+		min_maf = 0.005,
+		focus_margin = 10000,
+		focus = "Pf3D7_02_v3:631190",
+		zoom_region = list(
+			chromosome = "Pf3D7_02_v3",
+			start = 626250,
+			end   = 633750
+		),
+		countries = NULL,
+		tree_annotated_positions = 631190
+	),
+	`Pfsa3` = list(
+		pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_11_v3.bgen",
+		samples = "outputs/pf7/samples/filtered_samples.tsv",
+		genes = "genes/PlasmoDB-65_Pfalciparum3D7.gff.gz",
+		gaf = "genes/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
+		trees = c(
+			`Pfsa3` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_11_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1058035.newick"
+		),
+		length_samples = c(
+			`Pfsa3` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_11_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1058035.samples.newick"
+		),
+		annotation = "outputs/pf7/vcf/04_merged/Pf3D7_11_v3.merged.annotation.tsv.gz",
+		margin = 20000,
+		min_maf = 0.005,
+		focus_margin = 10000,
+		focus = "Pf3D7_11_v3:1057437",
+		zoom_region = list(
+			chromosome = "Pf3D7_11_v3",
+			start = 1053000,
+			end   = 1060000
+		),
+		countries = NULL
+	),
+	`Pfsa2` = list(
+		pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen",
+		samples = "outputs/pf7/samples/filtered_samples.tsv",
+		genes = "genes/PlasmoDB-65_Pfalciparum3D7.gff.gz",
+		gaf = "genes/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
+		trees = c(
+			`Pfsa2` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_02_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=814288.newick"
+		),
+		length_samples = c(
+			`Pfsa2` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_02_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=814288.samples.newick"
+		),
+		annotation = "outputs/pf7/vcf/04_merged/Pf3D7_02_v3.merged.annotation.tsv.gz",
+		margin = 20000,
+		min_maf = 0.005,
+		focus_margin = 10000,
+		focus = "Pf3D7_02_v3:814288",
+		zoom_region = list(
+			chromosome = "Pf3D7_02_v3",
+			start = 811288,
+			end   = 817288
+		),
+		countries = NULL,
+		tree_annotate_all = TRUE
+#			'Democratic_Republic_of_the_Congo', 'Kenya', 'Rwanda', 'Uganda', 'Malawi', 'Zambia', 'Mozambique', 'Tanzania'
+	),
+	`Pfsa4` = list(
+		pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_04_v3.bgen",
+		samples = "outputs/pf7/samples/filtered_samples.tsv",
+		genes = "genes/PlasmoDB-65_Pfalciparum3D7.gff.gz",
+		gaf = "genes/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
+		trees = c(
+			`Pfsa4` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_04_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1121472.newick"
+		),
+		length_samples = c(
+			`Pfsa4` = "outputs/pf7/relate/output/trees/popsize/pf7.relate.Pf3D7_04_v3.Ne=100000.mu=6.3162e-9.dpg=365.bp=1121472.samples.newick"
+		),
+		annotation = "outputs/pf7/vcf/04_merged/Pf3D7_04_v3.merged.annotation.tsv.gz",
+		margin = 20000,
+		min_maf = 0.005,
+		focus_margin = 10000,
+		focus = "Pf3D7_04_v3:1121472",
+		zoom_region = list(
+			chromosome = "Pf3D7_04_v3",
+			start = 1116472,
+			end   = 1126472
+		),
+		countries = c('Mauritania', 'Senegal', 'Gambia', 'Guinea', 'Mali', 'Burkina_Faso', 'Cote_dIvoire', 'Ghana', 'Togo', 'Benin', 'Nigeria', 'Cameroon', 'Gabon'),
+		tree_annotate_all = FALSE
 	)
-	i = 1 # only do alt allele
-	for( i in 1:length(elts)) {
-		bits = strsplit( elts[[i]], split = "|", fixed = T)[[1]]
-		if( bits[1] == variant$allele1 | bits[1] == variant$allele0 ) {
-			# Allele | Annotation | Annotation_Impact
-			# | Gene_Name | Gene_ID | Feature_Type
-			# | Feature_ID | Transcript_BioType | Rank
-			# | HGVS.c | HGVS.p | cDNA.pos / cDNA.length
-			# | CDS.pos / CDS.length | AA.pos / AA.length | Distance
-			# | ERRORS / WARNINGS / INFO
-			result = tibble(
-				consequence_allele = bits[1],
-				consequence = bits[2],
-				impact = bits[3],
-				symbol = bits[4],
-				ID = bits[5],
-				feature_type = bits[6],
-				feature_id = bits[7],
-				feature_biotype = bits[8],
-				mutation = bits[10],
-				mutation2 = bits[11]
-			)
-			break ;
-		}
-	}
-	return( result )
-}
-
-load.ihs <- function( filename ) {
-	X = readr::read_tsv( filename )
-	X = X[,c(1:2,4,5,6,7,8)]
-	X$frequency_bin = cut( X$frequency, breaks = c( -0.01, seq( from = 0.01, to = 0.99, by = 0.02 )))
-	normalisation = (
-		X
-		%>% group_by( country, frequency_bin )
-		%>% summarise( normalisation_mean = mean( uIHS ), normalisation_sd = sd( uIHS ), normalisation_count = n() )
-	)
-	X = (
-		X
-		%>% inner_join( normalisation, by = c( "country", "frequency_bin" ))
-		%>% mutate( iHS = (uIHS - normalisation_mean) / normalisation_sd )
-	)
-	return(X)
-}
-
-# Defaults:
-args = list(
-	samples = "outputs/pf7/samples/filtered_samples.tsv",
-	pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen",
-	margin = 20000,
-	min_maf = 0.005,
-	#focus = "Pf3D7_02_v3:631190",
-	#split = c( 0.5, 1.5 ),
-	#stat.countries = c( "Gambia", "Mali", "Ghana", "Benin", "Democratic_Republic_of_the_Congo", "Cameroon", "Tanzania", "Kenya" ),
-	#focus_margin = 5000,
-	focus = "Pf3D7_02_v3:814288",
-	split = c( 0.25, 1.5 ),
-	stat.countries = c( "Democratic_Republic_of_the_Congo", "Malawi", "Tanzania", "Kenya" ),
-	focus_margin = 10000,
-#	focus = "Pf3D7_11_v3:1058035",
-#	split = c( 0.5, 1.5 ),
-#	stat.countries = c( "Gambia", "Mali", "Ghana", "Benin", "Democratic_Republic_of_the_Congo", "Cameroon", "Tanzania", "Kenya" ),
-	genes = "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7.gff.gz",
-	gaf = "/well/band/projects/pfsa/data/genes/pf/3D7/PlasmoDB-65_Pfalciparum3D7_GO.gaf.gz",
-	beta = "outputs/pf7/betascan/advanced/pf7.betascan.window=5000.p=50.annotated.tsv.gz",
-	relate_selection = "outputs/pf7/relate/selection/pf7.relate.Pf3D7_02_v3.Ne=100000.sele",
-	ihs = "outputs/pf7/selscan/output/pf7.selscan.ihs.tsv.gz"
 )
+
+#locus = "Pfsa1"
+#locus = "Pfsa2"
+#locus = "Pfsa3"
+locus = "Pfsa4"
+args = arg_sets[[locus]]
 
 focus = tibble(
 	chromosome = strsplit( args$focus, split = ':' )[[1]][1],
@@ -154,156 +128,231 @@ focus = tibble(
 focus$start = focus$position - args$margin
 focus$end = focus$position + args$margin
 
-args$annotation = sprintf( "outputs/pf7/vcf/04_merged/%s.merged.annotation.tsv.gz", focus$chromosome )
-
-args = parse_arguments()
+#args = parse_arguments()
 stopifnot( args$focus_margin <= args$margin )
 echo( "++ Loading samples from %s...\n", args$samples )
-samples = read_tsv( args$samples )
+
+regions = c(
+	Gambia = "west",
+	Senegal = "west",
+	Guinea = "west",
+	Mauritania = "west",
+	Cote_dIvoire = "west",
+	Mali = "west",
+	Burkina_Faso = "west",
+	Ghana = "west",
+	Benin = "west",
+	Nigeria = "west",
+	Gabon = "west",
+	Cameroon = "west",
+	Democratic_Republic_of_the_Congo = "central",
+	Sudan = "east",
+	Uganda = "east",
+	Malawi = "east",
+	Tanzania = "east",
+	Mozambique = "east",
+	Kenya = "east",
+	Ethiopia = "east",
+	Madagascar = "east"
+)
+samples = (
+	read_tsv( args$samples )
+	%>% mutate( relate_sample_index = sprintf( "%d", 0:(length(Sample)-1)))
+	%>% mutate( region = regions[Country] )
+)
 echo( "++ Ok, %d samples loaded.\n", nrow( samples ))
 
 echo( "++ focussing on region:\n" )
 print(focus)
 
-maf = args$min_maf
-
+# Turn pop and country into factors
 populations = unique( samples$Population[ order( samples$`Country longitude`)] )
 countries = unique( (samples %>% arrange( `Country longitude`))$Country )
 samples$Population = factor( samples$Population, levels = populations )
 samples$Country = factor( samples$Country, levels = countries )
+samples$region = factor( samples$region, levels = c( "west", "central", "east") )
 
-H = bgen.load(
-	args$pf7,
-	ranges = focus,
-	max_entries_per_sample = 4,
-	samples = samples$Sample
-)
+if( is.null(args$countries)) {
+	args$countries = levels( samples$Country )
+}
 
-H$variants$name = sprintf( "%s:%d:%s>%s", H$variants$chromosome, H$variants$position, H$variants$allele0, H$variants$allele1 )
-rownames(H$variants) = H$variants$name
+H = load.genotypes( args$pf7, focus )
 
-# The data is haploid, just take the alt / 2nd allele calls 
+# The data is haploid, and usually biallelic, just take the alt / 2nd allele calls 
 HD = H$data[,,2]
 variants = as_tibble(H$variants)
 variants$freq = rowSums( HD, na.rm = T ) / rowSums( !is.na( HD ))
-annotations = readr::read_tsv( args$annotation )
-annotations = annotations %>% filter( chromosome == focus$chromosome & position >= focus$start & position  <= focus$end )
-M = match( paste( variants$chromosome, variants$position ), paste( annotations$chromosome, annotations$position ))
-annotations = annotations[M,]
+annotations = simplify_alleles(
+	variants %>% select( chromosome, position )
+	%>% inner_join(
+		readr::read_tsv( args$annotation ),
+		by = c( "chromosome", "position" )
+	)
+)
 variants = bind_cols(
 	variants,
 	purrr::map_dfr( 1:nrow(variants), function(i) { split_annotations( variants[i,], annotations$annotation[i] ) })
 )
 variants$consequence[ variants$consequence_allele != variants$allele0 & variants$consequence_allele != variants$allele1 ] = 'none'
 
-wIn = which( variants$freq >= args$min_maf & variants$freq <= (1-args$min_maf) )
-if( focus$chromosome == 'Pf3D7_11_v3' ) {
-	# R2
-	wIn = setdiff( wIn, which( variants$position > 1053959 & variants$position < 1055073 ))
-	# R4-R5
-	wIn = setdiff( wIn, which( variants$position > 1055454 & variants$position < 1056830 ))
-	# R7-R8
-	wIn = setdiff( wIn, which( variants$position > 1058826 & variants$position < 1059652 ))
-}
-
-subsample.by.country <- function( samples, max_n = 50 ) {
-	result = c()
-	for( country in unique( samples$Country ) ) {
-		w = which( samples$Country == country )
-		if( length(w) > max_n ) {
-			w = sample( w, max_n )
-		}
-		result = c( result, w )
-	}
-	return( result )
-}
-
-samples$include_in_plot = 0
-samples$include_in_plot[ subsample.by.country( samples, 50 )] = 1
-
 focus.variant = which( variants$position == focus$position )
-sort.variants = intersect( wIn, which( variants$position >= focus$position - args$focus_margin & variants$position <= focus$position + args$focus_margin ))
-
-plot.samples = (samples %>% group_by( Country ) %>% slice_sample(n = 25))
-plot.HD = HD[,plot.samples$Sample]
-
-h = hclust( dist( t( plot.HD[sort.variants,] ), method = "manhattan" )) 
-ho = h$order
-if( HD[ focus.variant, ho[1] ] == 0 ) {
-	ho = rev(ho)
-	h = rev(as.dendrogram(h))
-} else {
-	h = as.dendrogram(h)
-}
-
-source("scripts/load.plasmodb.genes.R")
-genes = load.plasmodb.genes( gff = args$genes, gaf = args$gaf )
-genes = genes %>% filter( start <= focus$end & end >= focus$start )
-
-ihs = load.ihs( args$ihs )
-
-beta = readr::read_tsv( args$beta )
-beta = beta[ beta$chromosome == focus$chromosome , ]
-
-beta = (
-	beta
-	%>% left_join( ihs[, c( 'country', 'chromosome', 'position', 'iHS' )], by = c( "country", "chromosome", "position" ))
+wIn = which(
+	variants$freq >= args$min_maf
+	& variants$freq <= (1-args$min_maf)
+	& variants$position >= focus$position - 10000
+	& variants$position <= focus$position + 10000
 )
 
-normalise.by.bin <- function( beta, column, breaks = c( -0.01, seq( from = 0.05, to = 1, by = 0.05 ))) {
-	beta$frequency_bin = cut( beta$frequency, breaks )
-	beta_normalised = (
-		beta
-		%>% group_by( country, frequency_bin )
-		%>% summarise(
-			norm_mean = mean( .data[[column]] ),
-			norm_sd = sd( .data[[column]] ),
-			norm_n = n()
+samples$focus_genotype = HD[ which( variants$position == focus$position), ]
+
+{
+	spec = list(
+		locus = locus,
+		focus = focus,
+		zoom_region = args$zoom_region,
+		countries = args$countries,
+		variants = variants[wIn,],
+		samples = (
+			samples
+			%>% mutate( index = sprintf( "%d", 1:nrow( samples )))
+			%>% filter( Country %in% args$countries )
+#			%>% group_by( Country )
+			%>% group_by( Country, focus_genotype )
+			%>% slice_sample( n = 20 )
+		),
+		genes = (
+			load.plasmodb.genes( gff = args$genes, gaf = args$gaf )
+			%>% filter( start <= focus$end & end >= focus$start )
+			%>% filter(
+				(ID == 'PF3D7_0215300' | Parent == 'PF3D7_0215300' | Parent == 'PF3D7_0215300.1')
+				| (Parent == 'PF3D7_1127000' | ID == 'PF3D7_1127000' | Parent == 'PF3D7_1127000.1')
+				| (Parent == 'PF3D7_1126900' | ID == 'PF3D7_1126900' | Parent == 'PF3D7_1126900.1')
+				| (ID == 'PF3D7_0220300' | Parent == 'PF3D7_0220300' | Parent == 'PF3D7_0220300.1')
+				| (ID == 'PF3D7_0424700' | Parent == 'PF3D7_0424700' | Parent == 'PF3D7_0424700.1')
+			)
 		)
 	)
-	beta2 = left_join( beta, beta_normalised, by = c( "country", "frequency_bin" ))
-	stopifnot( nrow( beta2 ) == nrow( beta ))
-	return(
-		list(
-			normalisation = beta_normalised,
-			normalised = (beta[[column]] - beta2$norm_mean)/beta2$norm_sd,
-			frequency_bin = beta$frequency_bin
+	spec$haplotypes = HD[wIn, spec$samples$Sample]
+	spec$annotated_variants = (
+		(
+			find_high_ld_variants( HD, which( variants$position == focus$position ))
+			%>% filter( position >= focus$position - 5000 & position <= focus$position + 5000 )
+			%>% mutate( `f+` = (`++`/(`++`+`+-`)), `f-` = (`-+`/(`-+`+`--`)) )
+			%>% filter( `f-` < 0.05 & (`f+`/`f-`) > 5 & freq > 0.02 )
+			%>% filter( position %in% spec$variants$position )
+			#%>% filter( freq >= 0.02 )
+			%>% mutate(
+				shape = 21,
+				size = 0.75,
+				text.size = 0.5,
+				colour = consequence.colours[ consequence ],
+				border = 'black',
+				font = 1
+			)
 		)
 	)
+	spec$annotated_variants$shape[ spec$annotated_variants$position == focus$position ] = 25
+	spec$annotated_variants$size[ spec$annotated_variants$position == focus$position ] = 1.25
+	spec$annotated_variants$text.size[ spec$annotated_variants$position == focus$position ] = 1
+	spec$annotated_variants$font[ spec$annotated_variants$position == focus$position ] = 1
+
+	# Load tree
+	spec$trees = list()
+	spec$fulltrees = list()
+	for( name in names( args$trees )) {
+		tree = ape::read.tree( args$trees[[name]] )
+		# This bit gets the sub-tree for the chosen samples.
+		spec$fulltrees[[name]] = tree
+		spec$fulltrees[[name]]$tip.sample = samples$Sample[ match( spec$fulltrees[[name]]$tip.label, samples$relate_sample_index )]
+		spec$trees[[name]] = ape::keep.tip( tree, spec$samples$relate_sample_index )
+		spec$trees[[name]]$tip.sample = samples$Sample[ match( spec$trees[[name]]$tip.label, samples$relate_sample_index )]
+	}
+	if( args$tree_annotate_all ) {
+		spec$tree_mutations = assign.mutations(
+			spec$trees[[locus]],
+			spec$annotated_variants,
+			spec$haplotypes[ spec$variants$position %in% spec$annotated_variants$position,, drop = F ],
+			threshold = 0.99
+		)
+	} else {
+		spec$tree_mutations = assign.mutations(
+			spec$trees[[locus]],
+			spec$annotated_variants %>% filter( position == focus$position ),
+			spec$haplotypes[ spec$variants$position == focus$position,, drop = F ],
+			threshold = 0.99
+		)
+	}
+
+	spec$fulltree_mutations = assign.mutations(
+		spec$fulltrees[[locus]],
+		spec$annotated_variants %>% filter( position == focus$position ),
+		HD[variants$position == focus$position,, drop = F ],
+		verbose = TRUE
+	)
+
+	spec$length_samples = list()
+	for( name in names( args$length_samples )) {
+		spec$length_samples[[name]] = list()
+		X = readr::read_tsv( args$length_samples[[name]] )
+		spec$length_samples[[name]] = lapply(
+			1:nrow(X),
+			function(i) {
+				ape::read.tree( text = X$tree[i] )
+			}
+		)
+	}
+	# Compute age range estimates from samples
+	{
+		m = spec$fulltree_mutations[1,]
+		upperlower = sapply(
+			1:length( spec$length_samples[[locus]] ),
+			function(i) {
+				tree = spec$length_samples[[locus]][[i]]
+				times = ape::node.depth.edgelength( tree )
+				tmcra = max( times )
+				time.ago = tmcra - times
+				return( c(
+					lower = time.ago[m$node],
+					upper = time.ago[m$parent]
+				)) ;
+			}
+		)
+		spec$age_range = tibble::tibble(
+			lower2.5 = quantile( upperlower['lower',], 0.025 ),
+			upper97.5 = quantile( upperlower['upper',], 0.975 ),
+			lower25 = quantile( upperlower['lower',], 0.25 ),
+			upper75 = quantile( upperlower['upper',], 0.75 )
+		)
+	}
+
+
+	# Fix sample ordering for tree
+	ho = match( spec$trees[[locus]]$tip.sample, spec$samples$Sample )
+	stopifnot( length( which( is.na( ho ))) == 0 )
+	spec$samples = spec$samples[ho,]
+	spec$haplotypes = spec$haplotypes[,ho]
 }
 
-beta$frequency_bin = cut( beta$frequency, breaks = c( -0.01, seq( from = 0.05, to = 1, by = 0.05 )))
-pi_fraction_between_normalised = normalise.by.bin( beta, "pi_fraction_between")
-beta$pi_fraction_between_normalised = pi_fraction_between_normalised$normalised
-beta$beta_normalised = normalise.by.bin( beta, column = "beta" )$normalised
-beta$dango_normalised = normalise.by.bin( beta, column = "dango" )$normalised
-relate_selection = readr::read_table( args$relate_selection )
+{
+	source( "../spatial/code/functions.R" )
+	source( "scripts/layout.intervals.R" )
+	source( "scripts/plot.genes.R" )
+	source( "scripts/haplotype_figure_impl.R" )
 
-source( "scripts/layout.intervals.R" )
-source( "balancing/scripts/rank_metrics.R" )
-source( "scripts/plot.genes.R" )
-source( "scripts/haplotype_figure_impl.R" )
-
-gene.region = focus
-#gene.region$start = 631190 - 7500
-#gene.region$end = 631190 + 4000
-
-gene.region$start = gene.region$position - 5000
-gene.region$end = gene.region$position + 5000
-
-figure_3(
-	variants,
-	focus,
-	gene.region,
-	args$split,
-	plot.samples,
-	plot.HD,
-	h,
-	ho,
-	genes,
-	beta,
-	ihs,
-	stat.countries = args$stat.countries,
-	sprintf( "outputs/figures/draft/figure_3-%s:%d.pdf", focus$chromosome, focus$position )
-)
-
+	figure_3(
+		spec = spec,
+		colour.column = "Country",
+		split = c( 0.425, 0.575 ),
+		width = 10,
+		height = 6,
+		sprintf( "outputs/figures/figure_3-%s:%d.pdf", focus$chromosome, focus$position ),
+		colours = list(
+			Country = country.colours()[spec$countries],
+			region = c(
+				west = country.colours()[["Gambia"]],
+				central = country.colours()[["Democratic_Republic_of_the_Congo"]],
+				east = country.colours()[["Kenya"]]
+			)
+		)
+	)	
+}
