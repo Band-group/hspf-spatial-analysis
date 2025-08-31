@@ -182,7 +182,9 @@ rule summarise_hspf:
 		--area {wildcards.area} \
 		--fit {input.fit} \
 		--output {output.tsv} \
-		--min_N {wildcards.min_N}
+		--min_N {wildcards.min_N} \
+		--cellsize {wildcards.size} \
+		--hspf_covariates {wildcards.hspf_covariates}
 	"""
 
 rule combine_hspf_summaries:
@@ -198,7 +200,7 @@ rule combine_hspf_summaries:
 			rules.summarise_hspf.output.tsv,
 			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'area' ] )),
 			pf_data_version = w.pf_data_version,
-			area = [ 'global', 'africa', 'waf', 'eaf' ]
+			area=config['params'].get('areas', []) #area = [ 'global', 'africa', 'waf', 'DRC+eaf' ]
 		)
 	run:
 		done_header = False
@@ -209,3 +211,16 @@ rule combine_hspf_summaries:
 				done_header = True
 			else:
 				shell( """tail -n +2 {filename} >> {output.tsv}""" )
+
+rule hspf_summaries_to_excel:
+	output:
+		xlsx = "output/pf=pf8-version/all_hspf_analyses_summary.xlsx"
+	input:
+		tsv = "output/pf=pf8-version/all_hspf_analyses_summary.tsv"
+	params:
+		script = srcdir( "code/summary_hspf2excel.R" )
+	shell: """
+		Rscript --vanilla {params.script} \
+		--input {input.tsv} \
+		--output {output.xlsx}
+	"""
