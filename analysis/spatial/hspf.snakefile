@@ -182,7 +182,9 @@ rule summarise_hspf:
 		--area {wildcards.area} \
 		--fit {input.fit} \
 		--output {output.tsv} \
-		--min_N {wildcards.min_N}
+		--min_N {wildcards.min_N} \
+		--cellsize {wildcards.size}
+		# TODO FIXME: Hack to work around BYM-tmb-longform.R as.integer bug
 	"""
 
 rule combine_hspf_summaries:

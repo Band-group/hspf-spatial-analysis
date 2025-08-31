@@ -32,6 +32,12 @@ parse_arguments <- function() {
 		required = TRUE
 	)
 	parser$add_argument(
+		"--cellsize",
+		type = "character",
+		help = "grid cell size.  FIXME: would be better to include in the fit object!",
+		required = TRUE
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "Filename of .tsv file to write"
@@ -122,7 +128,8 @@ print( paste( fit$areas, collapse = "," ) )
 result = bind_cols(
 	tibble(
 		celltype = fit$celltype,
-		cellsize = fit$cellsize,
+#		cellsize = fit$cellsize, # FIXME
+		cellsize = args$cellsize,
 		HbSr0 = fit$r0,
 		HbSsigma0 = fit$sigma0,
 		allele = fit$allele,
