@@ -21,3 +21,9 @@ The pipeline has several dependencies which must be installed in R before use.  
 - The R-INLA package (tested using v22.08.24 and v24.12.11) and its dependencies.
 - The TMB package (tested using v1.9.17)
 - The standard set of packages for geographical modelling, including sf and stars.
+
+## Structure
+
+- `analysis/spatial` contains the geospatial analyses used in the paper.
+- `analysis/haplotypes` contains analysis of selection and haplotype / genealogical structure, using MalariaGEN Pf7 data.
+- `theory/html/hspf-gpu` contains code for a simulation of parasite evolution.
