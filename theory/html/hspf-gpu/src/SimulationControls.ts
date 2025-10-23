@@ -48,7 +48,7 @@ export default class SimulationControls {
 				table += '<tr class="rowheader"><td>' + pa + ' :</td>' ;
 				columns.forEach( function(ha:string) {
 					let key = ha + ':' + pa ;
-					table += '<td><span><input id="' + idtag + '-' + key + '" type="number" min = '
+					table += '<td><span class="control-border"><input id="' + idtag + '-' + key + '" type="number" min = '
 					+ values[key].min + ' max = '
 					+ values[key].max + ' step = '
 					+ values[key].step + ' value = "'
@@ -64,7 +64,7 @@ export default class SimulationControls {
 			let elt = this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div' ) ;
 			this.playbackControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
 			this.playbackControl.innerHTML = (
-				'<fieldset id="iteration_control">'
+				'<fieldset id="simulation-control iteration_control">'
 				+ '<table class="playback-control">'
 				+ '<tr>'
 				+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
@@ -73,9 +73,9 @@ export default class SimulationControls {
 				+ '</tr>'
 				+ '</table>'
 				+ '<legend>Simulation iteration controls:</legend>'
-				+ '<input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px">'
+				+ '<span class="control-border"><input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px"></span>'
 				+ '<label for="stop_every">Snapshot every nth generation?</label>'
-				+ '<p><small>Snapshots saved above can be loaded into R using the <a href="load_hspf.R">accompanying code</a>.</small></p>'
+				+ '<p><small>Snapshots saved above can be loaded into R using <a href="load_hspf.R">this code</a>.</small></p>'
 				+ '</fieldset>'
 			) ;
 		}
@@ -134,7 +134,7 @@ export default class SimulationControls {
 				+ '<legend>Bite weighting</legend>'
 				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
 				+ '<label for="weights_checkbox">Weight by <em>Pf</em>PR2000?</label>'
-				+ '<p><small>When checked, mosquitos preferentially sample infections in regions of higher malaria transmission, as determined by the Malaria Atlas Project <a href="https://data.malariaatlas.org"><em>Pf</em>PR2000</a> map.</small></p>'
+				+ '<p><small>When checked, mosquitos preferentially sample infections in regions of higher malaria transmission, as determined by the <a href="https://data.malariaatlas.org">Malaria Atlas Project <em>Pf</em>PR2000</a> map.</small></p>'
 				+ '</fieldset>'
 			) ;
 		}
@@ -179,7 +179,7 @@ export default class SimulationControls {
 				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 				{
 					'value:twoBiteRate%': { value: 15, min: 0.0, max: 100.0, step: 1 },
-					'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
+					'value:mapWidthInKm': { value: 11018.34, min: 1000, max: 12000, step: 100 },
 					'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
 					'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
@@ -434,7 +434,7 @@ export default class SimulationControls {
 		let set_value = function( selector: string, value: number ) {
 			let elt = ( <HTMLInputElement> document.querySelector( selector )) ;
 			if( elt ) {
-				elt.value = "" + value ;
+				elt.value = "" + Math.round(value * 100000.0)/100000.0 ; // Maintain 5 dps accuracy
 			}
 		} ;
 
@@ -476,6 +476,23 @@ export default class SimulationControls {
 			set_value(   'input[id="fitness-S:-+"]', s1 / 2.0 ) ;
 			set_value(   'input[id="fitness-S:+-"]', s1 / 2.0 ) ;
 		} else if( mode == "no_selection" ) {
+			set_enabled( 'input[id="fitness-A:--"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:++"]', false ) ;
+			set_enabled( 'input[id="fitness-S:--"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:++"]', false ) ;
+			set_value(   'input[id="fitness-A:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:++"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:++"]', 1.0 ) ;
+		} else if( mode == "preset1" ) {
 			set_enabled( 'input[id="fitness-A:--"]', false ) ;
 			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
 			set_enabled( 'input[id="fitness-A:-+"]', false ) ;

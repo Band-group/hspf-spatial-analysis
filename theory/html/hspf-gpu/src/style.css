@@ -54,9 +54,10 @@ nav {
 	overflow-y: auto ;
 	background-color: rgba( 255, 255, 255, 1 ) ;
 	border-radius: 4px ;
+	scrollbar-width: thin ;
 }
 .controls {
-	width: 354px ;
+	width: 342px ;
 }
 fieldset {
 	margin-top: 10px ;
@@ -189,10 +190,6 @@ input {
 	font-family:'Courier New', Courier, monospace ;
 	font-size: 14pt ;
 }
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-	opacity: 1;
-}
 svg.palette_legend {
 	display: block ;
 	position: absolute ;
@@ -208,7 +205,7 @@ svg.comparison_display {
 	background:  rgb( 256, 256, 256, 0.5 ) ;
 } 
 
-.simulation-control span {
+span.control-border {
 	background-color: "grey" ;
 	border: 1px solid rgb( 0, 0, 0, 0.2 ) ;
 	border-radius: 10px ;
@@ -220,4 +217,15 @@ input[type=number] {
 	color: 'black' ;
 	font-weight: bold ;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+}
+input[type=number]:disabled {
+	border: none ;
+	background-color:rgb( 255, 255, 255, 0.5 ) ;
+	color: 'grey' ;
+	font-weight: normal ;
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif ;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+	opacity: 1;
 }

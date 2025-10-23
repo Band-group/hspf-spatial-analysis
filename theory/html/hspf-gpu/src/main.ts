@@ -53,6 +53,9 @@ async function run() {
 	let simulation = await Simulation.create(
 //		"./2024-03-05-MEAN-nobarrier.2x.tif",
 		{
+			// Must have this bounding box:
+			// extent: -31.26681, 63.56653, -34.91681, 39.74986  (xmin, xmax, ymin, ymax)
+			// otherwise, the mapWidthInKm value must be changed.
 			"HbS": "./hbsfilter.tif",
 			"weights": "./pf2000.tif"
 		},
