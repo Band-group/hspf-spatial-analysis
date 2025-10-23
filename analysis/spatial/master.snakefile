@@ -1,5 +1,5 @@
-configfile: "config-main.yaml"
-include: "functions.snakefile"
+configfile: "config/config-main.yaml"
+include: "rules/functions.snakefile"
 
 print( "++ Welcome to the hs-pf spatial analysis pipeline" )
 
