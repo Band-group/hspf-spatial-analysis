@@ -194,7 +194,7 @@ for( name in names( simulation.filenames )) {
 }
 
 {
-	source( "code/figures/fig4_impl.R" )
+	source( "code/figures/simulation_figure_impl.R" )
 	cairo_pdf( file = "tmp/fig4.pdf", width = 12, height = 6 )
 	fig4(
 		sims,
