@@ -111,7 +111,7 @@ wildcard_constraints:
 	position = '[0-9]+',
 	Ne = '[0-9]+'
 
-include: "relate.snakefile"
+include: "rules/relate.snakefile"
 
 mutation_rates = [
 	# Otto et al says average mutation rate is 9.57x10-11 per mitosis

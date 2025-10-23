@@ -151,9 +151,9 @@ wildcard_constraints:
 	Ne = '[0-9]+',
 	beagle_version = "v5[.]4|v5[.]1|v4[.]1"
 
-include: "pf7.snakefile"
-include: "selscan.snakefile"
-include: "betascan.snakefile"
+include: "rules/pf7.snakefile"
+include: "rules/selscan.snakefile"
+include: "rules/betascan.snakefile"
 
 localrules: combine_selscan
 
