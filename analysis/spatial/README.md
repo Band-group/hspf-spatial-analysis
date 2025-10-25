@@ -12,7 +12,9 @@ The input HbS data for this pipeline can be found in [`input/cleanHbSdata.csv`](
 
 There are also additional scripts which were used to prepare the HbS and Pf genotype data for the above analysis.
 
-To run the pipeline, follow the installation instructions below; then a command like
+### Running the pipeline
+
+To run the pipeline, first follow the [installation instructions below](#pipeline-installation); then a command like
 ```sh
 snakemake -s master.snakefile --configfile config/config-main.yaml --cores 1
 ```
