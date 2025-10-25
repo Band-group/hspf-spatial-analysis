@@ -25,42 +25,37 @@ would run the pipeline using 1 core on your local machine.  (See the [snakemake 
 
 The master snakefile relies on a configuration file that specifies various aspects of what the pipeline will compute.  The config file used for the main analysis in the paper can be found in [`config/config-main.yaml`](config/config-main.yaml).  This includes choices on: the *Pf* dataset used, hyperparameters of the HbS model, the type and size of the grid cells used, a choice of covariates for HbS and *Pf* models, spatial criteria to select *Pf* data, the *Pf* loci of interest, and spatial domains of analysis. The file [`config/config-main.yaml`](config/config-full.yaml) includes a larger set of specifications required to replicate all results presented in the manuscript and supplementary material.
 
-## Pipeline structure
+### Pipeline structure
 
 Below we describe the major data and scripts for each snakemake workflow:
 - **grid.snakefile**:
-  - load world polygon: "geodata/naturalearthdata.Rdata"
-  - generate spatial polygons: "code/create_aggregation_polygons.R"
-- **extract_pf_data.snakefile**:
-  - extract Pf data within spatial polygon: "input/scripts/extract_{dataset}_counts.R" (latest dataset: pf8)
+  - generates spatial polygons using [`code/create_aggregation_polygons.R`](code/create_aggregation_polygons.R)
 - **hbs.snakefile**:
-  - run HbS spatial model: "code/HbS_model_fit2.R"
-  - plot fitted values from HbS model: "code/plot_HbS_fit.R"
-  - load world polygon: "geodata/naturalearthdata.Rdata"
-  - aggregate HbS data within spatial polygon: "code/aggregate_HbS_over_polygons.R"
-  - aggregate covariate (raster) data within spatial polygon: "code/aggregate_raster_over_polygons.R"
-  - compare model prediction of HbS model with Piel et al.: "code/plot_HbS_vs_piel_grid.R"
-  - summarise fittend values from HbS model: "code/summarise_HbS_fits.R"
+  - run HbS spatial model: [`code/HbS_model_fit2.R`](code/HbS_model_fit2.R)
+  - plot fitted values from HbS model: [`code/plot_HbS_fit.R`](code/plot_HbS_fit.R)
+  - aggregate HbS data within spatial polygon: [`code/aggregate_HbS_over_polygons.R`](code/aggregate_HbS_over_polygons.R)
+  - aggregate covariate (raster) data within spatial polygon: [`code/aggregate_raster_over_polygons.R`](code/aggregate_raster_over_polygons.R)
+  - compare model prediction of HbS model with Piel et al.: [`code/plot_HbS_vs_piel_grid.R`](code/plot_HbS_vs_piel_grid.R)
+  - summarise fittend values from HbS model: [`code/summarise_HbS_fits.R`](code/summarise_HbS_fits.R)
 - **pf.snakefile**:
-  - aggregate Pf values into polygons (longform format): "code/aggregate_pf_over_polygons_longform.R" )
-  - aggregate ld values into polygons (longform format): "code/aggregate_pf_ld_over_polygons_longform.R" )
-  - aggregate Pf (three ways ld) values into polygons (longform format): "code/aggregate_pf_3wayld_over_polygons_longform.R" )
+  - aggregate *Pf* genotype counts over grid polygons: [`code/aggregate_pf_over_polygons_longform.R`](code/aggregate_pf_over_polygons_longform.R)
+  - aggregate *Pf* two-locus LD over grid polygons: [`code/aggregate_pf_ld_over_polygons_longform.R`](code/aggregate_pf_ld_over_polygons_longform.R)
+  - aggregate *Pf* three-locus LD over grid polygons: [`code/aggregate_pf_3wayld_over_polygons_longform.R`](code/aggregate_pf_3wayld_over_polygons_longform.R)
 - **hspf.snakefile**:
-  - compile template model builder (TMB): "code/tmb/compile.R"
-  - load world polygon: "geodata/naturalearthdata.Rdata"
-  - aggregate covariate (raster) data within spatial polygon: "code/aggregate_raster_over_polygons.R"
-  - run Pf model (BYM spatial regression): "code/BYM-tmb-longform.R"
-  - plot fitted values from Pf momdel: "code/plot_hspf_fit.R"
-  - map fitted values from Pf momdel: "code/plot_hspf_fit_grid.R"
-  - summary of fitted values from Pf model: "code/summarise_hspf_fits.R"
-  - put results of Pf model into supplementary table: "code/summary_hspf2excel.R"
+  - compiles our template model builder (TMB): [TMB C++ file](code/tmb/bym2.cpp)] and [`code/tmb/compile.R`](code/tmb/compile.R).
+  - aggregate covariate (raster) data within spatial polygon: [`code/aggregate_raster_over_polygons.R`](code/aggregate_raster_over_polygons.R).
+  - Fits the main HbS-*Pf* spatial regression model: [`code/BYM-tmb-longform.R`](code/BYM-tmb-longform.R)
+  - plot fitted values from HbS-*Pf* regression model: [`code/plot_hspf_fit.R`](code/plot_hspf_fit.R)
+  - map fitted values from HbS-*Pf* regression model: [`code/plot_hspf_fit_grid.R`](code/plot_hspf_fit_grid.R)
+  - summarises fitted values from HbS-*Pf* regression model: [`code/summarise_hspf_fits.R`](code/summarise_hspf_fits.R)
+  - put results of the HbS-*Pf*f regression model into supplementary table format: [`code/summary_hspf2excel.R`](code/summary_hspf2excel.R)
 - **figures.snakefile**:
-  -  summary figure (manuscript): "code/figures/fig1.R",
-  -  HbS-Pf association for various loci in Africa figure (manuscript): "code/figures/fig2_new.R",
-  -  HbS-Pf time variation figure (manuscript): "code/figures/temporal_figure.R"
-  -  linkage desequilibrium figure (manuscript): "code/figures/ld_figure.R"
-  -  forest plot trend HbS-Pf (slope) figure (manuscript): "code/figures/forest_ggplot.R"
-  -  data summary figure (manuscript): "code/data_summary.R" (optional)
+  -  Creates manuscript Figure 1 components: [`code/figures/fig1.R`](code/figures/fig1.R)
+  -  Figure showing HbS-*Pf* association across for various regions of Africa: [`code/figures/fig2_new.R`](code/figures/fig2_new.R)
+  -  Figure showing *Pf* allele frequencies over time: [`code/figures/temporal_figure.R`](code/figures/temporal_figure.R)
+  -  Linkage desequilibrium figure: [`code/figures/ld_figure.R`](code/figures/ld_figure.R)
+  -  Forest plot showing HbS-*Pf* slope estimates: [`code/figures/forest_ggplot.R`](code/figures/forest_ggplot.R)
+  -  Summarises data for the manuscript: [`code/data_summary.R`](code/data_summary.R)
 
 ## Pipeline installation
 
