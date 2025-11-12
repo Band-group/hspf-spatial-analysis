@@ -8,6 +8,8 @@ It consists of a set of pipelines written in [snakemake](https://snakemake.readt
 
 The pipelines have been run on CentOS Linux and on Mac OS X (Monterey and Sequoia).
 
+In the [`theory/html/hspf-gpu`](./theory/html/hspf-gpu) folder there is also a javascript/WebGPU implementation of the parasite evolution model described in the above paper.
+
 This code is licensed using the BOOST software license - see the enclosed [LICENSE.txt](./LICENSE.txt) file for details.
 
 ## Structure
