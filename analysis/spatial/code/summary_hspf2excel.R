@@ -3,9 +3,9 @@ suppressMessages(library(readr))
 suppressMessages(library(openxlsx))
 
 # Args for testing
-# args <- list()
-# args$input <- "output/pf=pf8-version/all_hspf_analyses_summary.tsv"
-# args$output <- "output/pf=pf8-version/all_hspf_analyses_summary.xlsx"
+args <- list()
+args$input <- "output/pf=pf8-version/all_hspf_analyses_summary.tsv"
+args$output <- "output/pf=pf8-version/all_hspf_analyses_summary.xlsx"
 
 # Read TSV
 result <- read_tsv(args$input)

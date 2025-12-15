@@ -3,6 +3,7 @@ library( dplyr )
 library( viridis )
 library( argparse )
 library( ggtext )
+library(forcats)
 
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
@@ -10,8 +11,8 @@ source( "code/figures/fig1_impl.R" )
 
 # for testing Andre##################################################################################
 args <- list()
-args$loci <- c('Pfsa1')
-args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
+args$loci <- c('Pfsa3')
+args$output <- "output/pf=pf8-version/figures/temporal/Pfsa3-temporal-area=africa.pdf"
 args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
 args$countries <- readr::read_tsv(args$pf_aggregated)
 args$countries <- unique(args$countries$majority_country)
@@ -128,6 +129,12 @@ data_avg <- dataplot %>%
   group_by(majority_country, year, locus) %>%
   summarise(f_avg = mean(`f+`, na.rm = TRUE), .groups = "drop")
 
+#keep only if we have more than 5 distinct years
+dataplot <- dataplot %>%
+  group_by(majority_country) %>%
+  filter(n_distinct(year) >= 5) %>%
+  ungroup()
+
 # Find gaps
 dataplot_gaps <- dataplot %>%
   arrange(majority_country, year) %>%
@@ -240,71 +247,74 @@ dataplot <- dataplot %>%
 library(dplyr)
 library(broom)
 
-trend_results <- dataplot %>%
-  group_by(majority_country) %>%
-  group_modify(~ {
-    if (n_distinct(.x$year) <= 1 || nrow(.x) < 3) {
-      return(tibble(estimate = NA, p.value = NA, std.error = NA, hex_F.E = NA))
-    }
-    
-    use_fe <- FALSE
-    
-    if (n_distinct(.x$polygon_id) > 1 && nrow(.x) > 3) {
-      m <- lm(`f+` ~ year + factor(polygon_id), data = .x)
-      slope <- broom::tidy(m) %>% filter(term == "year")
-      
-      if (!is.na(slope$p.value)) {
-        use_fe <- TRUE
-      } else {
-        m <- lm(`f+` ~ year, data = .x)
-        slope <- broom::tidy(m) %>% filter(term == "year")
-      }
-    } else {
-      m <- lm(`f+` ~ year, data = .x)
-      slope <- broom::tidy(m) %>% filter(term == "year")
-    }
-    
-    tibble(
-      estimate = slope$estimate,
-      std.error = slope$std.error,
-      p.value = slope$p.value,
-      hex_F.E  = use_fe
+regress.it = function(
+    data,
+    formula = Y ~ time,
+    family = binomial( link = "logit"  )
+) {
+  data = (
+    data
+    %>% mutate(
+      Y = (`Pfsa+` / N),
+      time = year - min( data$year )
     )
-  }) %>%
-  ungroup() %>%
+  )
+  tryCatch({
+    g = glm( formula, weight = N, data = data, family = family )
+    coeff = summary(g)$coeff
+    colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+    return(
+      bind_cols(
+        tibble( parameter = rownames(coeff) ),
+        coeff,
+        tibble( N = sum( data$N ))
+      )
+    )
+  }, error = function(e) {
+    return( NA )
+  })
+}
+
+
+temporal = dplyr::bind_rows(
+  (dataplot
+   %>% group_by( locus, majority_country )
+   %>% reframe( regress.it( pick( `Pfsa+`, `N`, year ), `f+` ~ year + polygon_id, family = gaussian( link = "identity" )), model = "lm" )
+  ),
+  (dataplot
+   %>% group_by( locus, majority_country )
+   %>% reframe( regress.it( pick( `Pfsa+`, `N`, year ), Y ~ year + polygon_id, family = binomial( link = "logit" )), model = "logistic" )
+  ),
+  (dataplot
+   %>% group_by( locus, majority_country )
+   %>% reframe( regress.it( pick( `Pfsa+`, `N`, year ), Y ~ year + polygon_id, family = binomial( link = "identity" )), model = "logistic-linear-link"
+   )
+  )
+)
+trend_results <- temporal %>% filter( model== 'logistic' & parameter == 'year' )
+
+trend_results <- trend_results %>%
   mutate(
-    labelmean = sprintf("mean = %.3f", estimate),
-    labelpvalue = sprintf("p = %.3g", p.value),
-    ci_lower = estimate - 1.96 * std.error,
-    ci_upper = estimate + 1.96 * std.error
+    labelmean   = sprintf("%.1f%%", estimate * 100),
+  #  labelpvalue = sprintf("p = %.3g", pvalue),
+    ci_lower = estimate - 1.96 * sd,
+    ci_upper = estimate + 1.96 * sd
   ) %>%
   filter(!is.na(labelmean))
 
-
-
- print(trend_results,n=21)
+print(trend_results)
 
  
- # Remove rows without slope
- library(forcasts)
- library(ggplot2)
- library(dplyr)
- library(forcats)
-
- 
+ #remove rows with huge uncertainty
+trend_results <- trend_results %>%
+   filter((ci_upper - ci_lower) <= 1.75)
  # Reorder countries by slope
- trend_results_clean <- trend_results %>%
-   filter(!is.na(estimate)) %>%
+ trend_results <- trend_results %>%
    mutate(majority_country = fct_reorder(majority_country, estimate))
  
- # Compute offset for p-value label (right of plot)
- pvaluemove <- ifelse(args$loci == 'Pfsa3', 0.25,0.06)
- max_est <- max(trend_results_clean$estimate, na.rm = TRUE)
- trend_results_clean <- trend_results_clean %>%
-   mutate(labelpvalue_y = pvaluemove + abs(max_est))
- 
+ trend_results <- droplevels(trend_results)
  # Plot
- ptrend <- ggplot(trend_results_clean, aes(x = majority_country, y = estimate)) +
+ ptrend <- ggplot(trend_results, aes(x = majority_country, y = estimate)) +
    # Points
    geom_point(size = 3) +
    # 95% CI
@@ -312,17 +322,18 @@ trend_results <- dataplot %>%
    # Horizontal reference line at zero
    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey35", linewidth = 0.8) +
    # labelmean: on top of the point
-   geom_text(aes(label = labelmean), vjust = -1, size = 3) +
+ #  geom_text(aes(label = labelmean), vjust = -1, size = 5) +
    # labelpvalue: to the right of the plot
-   geom_text(aes(y = labelpvalue_y, label = labelpvalue), hjust = 0, size = 3) +
+   #geom_text(aes(y = labelpvalue_y, label = labelpvalue), hjust = 0, size = 5) +
    # Axis, theme
    xlab("")+
-   ylab(sprintf("Estimated <em>%s</em>+ frequency slope per year", args$loci) ) +
+   ylab("Estimated change in log(<em>f</em><sub>1+</sub> / (1 - <em>f</em><sub>1+</sub>)) per year")+
+   #ylab(sprintf("Estimated change in <em>%s</em>+ frequency per year", args$loci) ) +
    coord_flip() +    # Expand y-limits to make space for p-value labels
-   scale_y_continuous(expand = expansion(mult = c(0.05, 0.25)))+
+   scale_y_continuous()+
    theme_minimal(base_family = "sans", base_size = 16) + theme (
-     axis.title.x  = ggtext::element_markdown(),
-     axis.title.y  = ggtext::element_markdown()
+   axis.title.x  = ggtext::element_markdown(),
+    axis.title.y  = ggtext::element_markdown()
    )
 
  
@@ -395,4 +406,4 @@ trend_results <- dataplot %>%
   xlab("")
 
 print(p)
-ggsave(p, file = args$output, width = 14, height = 14)
+ggsave(p, file = args$output, width = 14, height = 16)
