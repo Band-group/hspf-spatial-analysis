@@ -103,8 +103,8 @@ rule all:
 			pf_data_version = config['params']['pf_data_version']
 		)
 
-include: "grid.snakefile"
-include: "hbs.snakefile"
-include: "pf.snakefile"
-include: "hspf.snakefile"
-include: "figures.snakefile"
+include: "rules/grid.snakefile"
+include: "rules/hbs.snakefile"
+include: "rules/pf.snakefile"
+include: "rules/hspf.snakefile"
+include: "rules/figures.snakefile"
