@@ -9,22 +9,23 @@ source( "code/figures/fig1_impl.R" )
 
 
 # for testing Andre##################################################################################
-args <- list()
-args$loci <- c('Pfsa1')
-args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
-args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
-args$countries <- readr::read_tsv(args$pf_aggregated)
-args$countries <- unique(args$countries$majority_country)
+# args <- list()
+# args$loci <- c('Pfsa1')
+# args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
+# args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
+# args$countries <- readr::read_tsv(args$pf_aggregated)
+# args$countries <- unique(args$countries$majority_country)
 
 # #####################################################################################################
 parse_arguments <- function() {
 	parser <- argparse::ArgumentParser( description = 'Plot frequencies over time' )
 	parser$add_argument("--pf_aggregated", type = "character", help = "Path to  pf aggregated data to use." )
 	parser$add_argument("--loci", type = "character", nargs = "+", help = "Loci to plot", required = T )
-	parser$add_argument("--output", type = "character", help = "Output pdf fike", required = T )
+	parser$add_argument("--output", type = "character", help = "Output pdf file", required = T )
 	parser$add_argument("--countries", type = "character", nargs = "+", help = "Countries to plot" )
 	return(parser$parse_args())
 }
+
 
 amalgamate <- function( grouped_data ) {
 	result = (
@@ -327,7 +328,7 @@ trend_results <- dataplot %>%
  
  print(ptrend)
  ptrendpath <- sub("\\.pdf$", "_trend.pdf", args$output)
- ggsave(ptrend, file = ptrendpath, width = 8, height = 5)
+ ggsave(ptrend, file = ptrendpath, width = 8, height = 5,create.dir = TRUE)
  
  
  #plot country longitudinal
@@ -394,4 +395,4 @@ trend_results <- dataplot %>%
   xlab("")
 
 print(p)
-ggsave(p, file = args$output, width = 14, height = 14)
+ggsave(p, file = args$output, width = 14, height = 14,create.dir = TRUE)
