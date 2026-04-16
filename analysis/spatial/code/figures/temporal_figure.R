@@ -286,7 +286,6 @@ trend_results <- dataplot %>%
 
  
  # Remove rows without slope
- library(forcasts)
  library(ggplot2)
  library(dplyr)
  library(forcats)
