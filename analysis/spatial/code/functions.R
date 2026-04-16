@@ -13,7 +13,7 @@ echo <- function( text, ... ) {
 install.prerequisites <- function() {
   #install packages
   #INLA used to fit Bayesian models
-  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx","terra")
+  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx","terra","forcats","ggdist")
   lapply( libraries, library, character.only = TRUE, quietly = TRUE )
   #basic packages and parallel computing packages (add more if needed)
 #  list.of.packages <- c("tictoc","fmesher", "parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
