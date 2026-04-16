@@ -105,6 +105,18 @@ rule compare_HbS_vs_piel_vs_data:
 	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --HbS_survey {input.HbS_survey} --output {output.tsv}
 	"""
 
+rule plot_HbS_vs_HbSobs:
+	output:
+		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_HbSobs.pdf"
+	input:
+		hbsvspiel = rules.compare_HbS_vs_piel_vs_data.output.tsv,
+		grid = rules.create_grid.output.rds
+	params:
+		script = srcdir( "code/plot_HbS_vs_HbSobs_grid.R" )
+	shell: """
+	Rscript --vanilla {params.script} --grid {input.grid} --hbsvspiel {input.hbsvspiel} --output {output.pdf}
+	"""
+
 rule summarise_HbS_fits:
 	output:
 		tsv = "output/HbS/HbS_fit_summary.tsv"

@@ -42,6 +42,12 @@ rule all:
 			area = [ 'global' ],
 			extension = [ 'pdf', 'tsv.gz' ]
 		),
+		HbS_fit_vs_HbSobs = expand(
+			"output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_HbSobs.{extension}",
+			**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
+			area = [ 'global' ],
+			extension = [ 'pdf' ]
+		),
 		aggregates = expand(
 			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-ld-by={by}.tsv",
 			pf_data_version = config['params']['pf_data_version'],
