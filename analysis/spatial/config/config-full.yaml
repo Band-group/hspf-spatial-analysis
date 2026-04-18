@@ -34,8 +34,8 @@ params:
       - "Pfsa2"
       - "Pfsa3"
       - "Pfsa4"
-      - "CRT"
-      - "AAT1"
+     # - "CRT"
+     # - "AAT1"
    regression_model:
       - "bym2"
    min_km_to_survey_pt:
@@ -48,6 +48,7 @@ params:
       - africa
       - waf
       - eaf
+      - DRC+eaf
       - gambia+senegal
       - mali
       - ghana
