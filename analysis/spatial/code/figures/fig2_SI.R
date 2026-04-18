@@ -11,14 +11,14 @@ source( "code/figures/fig1_impl.R" )
 #args <- parse_arguments()
 # Parse command-line arguments using argparse
 parse_arguments <- function() {
-	parser <- ArgumentParser( description = 'Create Figure 2' )
+	parser <- ArgumentParser( description = 'Create Figure 2 SI' )
 	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
 	parser$add_argument("--pf", type = "character", help = "Path to Pf data", default = "input/hbs-pf-pf8.sqlite" )
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", default = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid].tsv" )
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
-	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename", default = "tmp/figure_2/figure_2.pdf" )
-	parser$add_argument("--output_svg", type = "character", help = "Output svg filename", default = "tmp/figure_2/figure_2.svg" )
+	parser$add_argument("--output_pdf", type = "character", help = "Output pdf filename", default = "tmp/figure_2/figure_2_SI.pdf" )
+	parser$add_argument("--output_svg", type = "character", help = "Output svg filename", default = "tmp/figure_2/figure_2_SI.svg" )
     parser$add_argument("--outdir", type = "character", help = "General output file for plots except fig2" )
 	return(parser$parse_args())
 }
@@ -37,14 +37,14 @@ if( is.null( args )) {
 	args$hspf_fit = "output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds"
 	args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 	args$outdir = "tmp"
-	args$output_pdf = "output/pf=pf8-version/figures/figure_2/figure_2.pdf"
-	args$output_svg = "output/pf=pf8-version/figures/figure_2/figure_2.svg"
+	args$output_pdf = "output/pf=pf8-version/SI/forest_plot_SI.pdf"
+	args$output_svg = "output/pf=pf8-version/SI/forest_plot_SI.svg"
 
 # if (!dir.exists("tmp/figure_2")) {
 #   # Create the folder if it doesn't exist
 #   dir.create("tmp/figure_2")
 #   cat("Folder for figure 2 ('tmp/figure_2') did not exist so it has been created.\n")
-# } 
+} 
 
 
 map_projections	<- list( wgs84 = sf::st_crs(4326) )	# Common projection for plots
@@ -148,7 +148,7 @@ pfsf = df2sf(
 	library( stringr )
 	source( "code/figures/fig1_impl.R" )
 	loci = c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
-	areas = c( "waf", "eaf", "DRC", "DRC+east" )
+	areas = c( "waf", "eaf", "DRC", "DRC+eaf" )
 	hspf_plots = list()
 	for( locus in loci ) {
 		for( area in areas ) {
@@ -195,7 +195,7 @@ pfsf = df2sf(
 		# See master.snakefile for how these are defined
 		area = c( "global", "africa", "waf", "DRC+eaf", "eaf" ),
 		Region = c(
-			"Global", "Africa", "Western&nbsp;&nbsp;populations", "Central&nbsp;and&nbsp;Eastern&nbsp;&nbsp;populations", "Eastern populations only"
+		     "Global", "Africa", "West Africa", "Central and East Africa","East Africa"
 		),
 		order = c(
 			1, 1, 2, 2, 2
@@ -220,15 +220,15 @@ pfsf = df2sf(
 	fp_data <- (
 		fp_data
 		%>% left_join( area_mapping, by = c("area") )
-		%>% mutate(
-			RegionStyled = case_when(
-				order == 1 ~ paste0("<b>", Region, "</b>"),	# Bold for order 1
-				order == 2 ~ paste0("<span style='color:white;'>h</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
-				order == 3 ~ paste0("<span style='color:white;'>hi</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
-				order > 3  ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
-				TRUE       ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
-			)
-		)
+		# %>% mutate(
+		# 	RegionStyled = case_when(
+		# 		order == 1 ~ paste0("<b>", Region, "</b>"),	# Bold for order 1
+		# 		order == 2 ~ paste0("<span style='color:white;'>h</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
+		# 		order == 3 ~ paste0("<span style='color:white;'>hi</span><i><span style='margin-left: 1em;'>", Region, "</span></i>"),
+		# 		order > 3  ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>"),
+		# 		TRUE       ~ paste0("<span style='color:white;'>hih</span>","<span style='color:#6D6D6D;'>",Region,"</span>")#,
+		# 	)
+		# )
 #		%>% mutate(
 #			N = case_when(
 #				locus == "Pfsa1" ~ Pfsa1_N, 
@@ -238,7 +238,7 @@ pfsf = df2sf(
 #			)
 #		)
 	)
-	fp_data$RegionStyled <- factor( fp_data$RegionStyled, levels = rev(unique( fp_data$RegionStyled )) )
+	#fp_data$RegionStyled <- factor( fp_data$RegionStyled, levels = rev(unique( fp_data$RegionStyled )) )
 
 	source( "code/figures/fig1_impl.R" )
 	aesthetic$forest_plot = list(
@@ -255,7 +255,7 @@ pfsf = df2sf(
 
 	forestplot = make.forestplot(
 		fp_data, #%>% filter(order < 3 & include == 1 ),
-		xname = 'RegionStyled',
+		xname = 'Region',#'RegionStyled',
 		yname = 'slope',
 		brewerstyle = "VanGogh3",
 		xlim = c( -0.2, 0.5 ),
@@ -369,7 +369,7 @@ pfsf = df2sf(
 	}
 }
 
-# Alternative version, no map and join DRC+east
+# Alternative version, no map and join DRC+eaf
 if( 1 ) {
 	source( "code/figures/fig1_impl.R" )
 	library( gridExtra )
@@ -415,10 +415,10 @@ if( 1 ) {
 		hspf_plots[['Pfsa2-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
 		hspf_plots[['Pfsa3-area=waf']] + areascale + hspftheme + shapescale + yaxis + border,
 		hspf_plots[['Pfsa4-area=waf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
-		hspf_plots[['Pfsa1-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + border,
-		hspf_plots[['Pfsa2-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
-		hspf_plots[['Pfsa3-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + border,
-		hspf_plots[['Pfsa4-area=DRC+east']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa1-area=DRC+eaf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa2-area=DRC+eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
+		hspf_plots[['Pfsa3-area=DRC+eaf']] + areascale + hspftheme + shapescale + yaxis + border,
+		hspf_plots[['Pfsa4-area=DRC+eaf']] + areascale + hspftheme + shapescale + yaxis + rightaxis + border,
 		(
 			forestplot
 			+ theme(
@@ -459,5 +459,5 @@ if( 1 ) {
 	}
 }
 
-echo("++ End Fig2!! Great success!\n" )
+echo("++ End Fig2 SI!! Great success!\n" )
 #END
