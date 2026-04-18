@@ -123,7 +123,7 @@ library(stats)  # To calculate R-squared and p-value
 fit <- lm(hbs_fit ~ piel_et_al, data = grid)
 # Step 2: Extract R-squared and p-value from the linear model summary
 fit_summary <- summary(fit)
-r_squared <- round(fit_summary$r.squared, 2)  # R-squared value
+pearson_r <- round(sqrt(fit_summary$r.squared), 2)  # correlation value
 p_value <- round(fit_summary$coefficients[2, 4], 3)  # p-value for the slope (second row, fourth column)
 p_value <- ifelse(p_value<0.001, "< 0.001",p_value)
 unique_continents <- unique(grid$CONTINENT)
@@ -149,7 +149,7 @@ p = (
 		y = "Estimated mean HbS allele frequency by our model"
 	)
 	+ geom_text(
-		aes( x = 0.18, y = 0.02, label = paste0( "Overall fit\nR² = ", r_squared, "\np ", p_value )),
+		aes( x = 0.18, y = 0.02, label = paste0( "Correlation\nr = ", pearson_r, "\np ", p_value )),
 		data = subset(grid, CONTINENT == bottom_right_continent),  # Only show on the bottom-right panel
 		size = 5,
 		hjust = 0,
