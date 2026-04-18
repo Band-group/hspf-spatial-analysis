@@ -145,7 +145,13 @@ make_panel <- function(df, locus_name,
   }
 
   ggplot(df, aes(y = RegionLabel)) +
-    geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.35, colour = "grey40") +
+  geom_segment(
+   x = 0, xend = 0, y = 1, yend = length(y_levels),
+  linetype = "dashed",
+  linewidth = 0.35,
+  colour = "grey40"
+  ) +
+   # geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.35, colour = "grey40") +
     geom_errorbar(
       orientation = "y",
       aes(xmin = lower_pct, xmax = upper_pct),
@@ -154,23 +160,23 @@ make_panel <- function(df, locus_name,
       colour = "black"
     ) +
     geom_point(aes(x = estimate_pct), size = 2.0, colour = "black") +
-    geom_text(aes(x = x_n, label = N_lab), hjust = 0.5, size = 3) +
-    geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 3) +
+    geom_text(aes(x = x_n, label = N_lab), hjust = 0.5, size = 2.5) +
+    geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 2.5) +
     annotate(
-      "text", x = mean(xlim), y = Inf, label = expression("Posterior estimate"),
-      vjust = 1.2, size = 4
+      "text", x = 0.2, y = Inf, label = expression("Posterior estimate"),
+      vjust = 1.2, size = 3.5,hjust= 0.15
     ) +
     annotate(
       "text", x = x_n, y = Inf, label = "N",
-      vjust = 1.2, size = 4,hjust = 0.5,
+      vjust = 1.2, size = 3.5,hjust = 0.5,
     ) +
     annotate(
       "text", x = x_df, y = Inf, label = expression(delta * f["+"] ~ "(95% CrI)"),
-      vjust = 1.2, size = 4,hjust = 0.5
+      vjust = 1.2, size = 3.5,hjust = 0.5
     ) +
     annotate(
       "text", x = xlim[1], y = Inf, label = paste0(locus_name, "+"),
-      vjust = 1.2, fontface = "italic", size = 4.2,hjust = 0.5,
+      vjust = 1.2, fontface = "italic", size = 3.5,hjust = 0.5,
     ) +
     scale_x_continuous(
       limits = xlim,
@@ -239,8 +245,8 @@ main_fig <- (p1 | p2) / (p3 | p4)
 ggsave(
   args$output_main,
   main_fig,
-  width = 15,
-  height = 7.5,
+  width = 13.5,
+  height = 5,
   create.dir = TRUE
 )
 
