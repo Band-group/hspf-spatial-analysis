@@ -829,7 +829,7 @@ make.forestplot <- function(
 		+ labs(
 			title = "",
 			x = NULL,
-			y = "Posterior estimates of the difference (slope) in predicted Pfsa+ frequency between values corresponding to sickle allele frequency at 20% and 10%"
+			y = "Difference in predicted Pfsa+ freq. at HbS freq. 20% and 10%"
 		)
 		+ scale_y_continuous(
 			labels = scales::label_percent(scale = 100),	# Format y-axis as percentages, multiply by 100
