@@ -99,7 +99,6 @@ rule plot_unreestimated_tree:
 	-o {params.output}
 """
 
-
 rule estimate_pop_size:
 	output:
 		pdf = "outputs/pf7/relate/output/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize.pdf",
@@ -115,7 +114,7 @@ rule estimate_pop_size:
 		input_stub = rules.run_relate.output.anc.replace( ".anc", "" ),
 		output_stub = "outputs/pf7/relate/output/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.popsize",
 		years_per_gen = "1", # scale so output is in generations.
-		threads = 16
+	threads: 8
 	resources:
 		queues = "long"
 	shell: """
@@ -123,7 +122,7 @@ rule estimate_pop_size:
 	-i {params.input_stub} \
 	-o {params.output_stub} \
 	--poplabels {input.poplabels} \
-	--threads {threads} \
+	--threads 1 \
 	--years_per_gen {params.years_per_gen} \
 	--mu {wildcards.mu}
 """
@@ -232,14 +231,14 @@ rule relate_selection:
 
 rule relate_extract_tree:
 	output:
-		newick = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
-		pos = "outputs/pf7/relate/output/initial/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.pos"
+		newick = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
+		pos = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.pos"
 	input:
 		anc = rules.estimate_pop_size.output.anc,
 		mut = rules.estimate_pop_size.output.mut
 	params:
 		relate = "/well/band/users/iws573/Projects/Software/3rd_party/relate/bin/RelateExtract",
-		output_stub = "outputs/pf7/relate/output/trees/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}-{chromosome}:{position}",
+		output_stub = "outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}",
 		years_per_gen = lambda w: "%.3f" % (float(w.dpg) / 365.0)
 	shell: """
 		{params.relate} \

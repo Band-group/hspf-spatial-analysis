@@ -122,6 +122,13 @@ mutation_rates = [
 	# We previously used 4.35e-9 which is evidently on the low side.
 ]
 
+def flatten( list_of_lists ):
+	return [
+		x
+		for xs in list_of_lists
+		for x in xs
+	]
+
 rule all:
 	input:
 		relate = expand(
@@ -140,4 +147,22 @@ rule all:
 			chromosome_or_region = chromosomes,
 			mu = mutation_rates,
 			Ne = [ "100000" ]
-		)
+		),
+		trees = flatten([
+			expand(
+				"outputs/pf7/relate/output/trees/popsize/pf7.relate.{chromosome_or_region}.Ne={Ne}.mu={mu}.dpg={dpg}.bp={position}.newick",
+				chromosome_or_region = focus.split(":")[0],
+				mu = mutation_rates,
+				Ne = [ "100000" ],
+				dpg = [ "66", "180", "365" ],
+				position = focus.split(":")[1]
+			)
+			for focus in [
+				'Pf3D7_02_v3:631190',
+				'Pf3D7_02_v3:814288',
+				'Pf3D7_04_v3:1121472',
+				'Pf3D7_07_v3:403625',
+				'Pf3D7_11_v3:1058035',
+				'Pf3D7_11_v3:1057437'
+			]
+		])
