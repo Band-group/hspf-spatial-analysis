@@ -20,6 +20,12 @@ parse_arguments <- function() {
 		help = "path to grid polygons rds file"
 	)
 	parser$add_argument(
+		"--colname",
+		type = "character",
+		help = "Name of output column",
+		required = FALSE
+	)
+	parser$add_argument(
 		"--output",
 		type = "character",
 		help = "path to output .tsv file",
@@ -31,6 +37,12 @@ parse_arguments <- function() {
 
 args = parse_arguments()
 print( args )
+
+#andre test
+# args <- list()
+# args$raster <- "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif"
+# args$grid <- "output/grids/grid-type=hexagon-size=2-area=global.rds"
+# args$output <- "output/piel/piel_et_al-grid-type=hexagon-size=2-area=global.tsv.gz"
 
 #install packages
 source( 'code/functions.R' )
@@ -59,11 +71,21 @@ if( method == "stars" ) {
 
 result = tibble::tibble(
 	polygon_id = polygons$polygon_id,
+	longitude = sf::st_coordinates( polygons$centroid )[,1],
+	latitude = sf::st_coordinates( polygons$centroid )[,2],
 	value = summarised[[1]]
 )
+if (!is.null(args$colname) && length(args$colname) > 0){
+colnames(result)[4] = args$colname
+}
 
 echo( "++ Writing output to %s...\n", args$output )
+out_dir <- dirname(args$output)
+
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+} 
 readr::write_tsv( result, file = args$output )
 
-echo( "++ Great success!  I like!" )
-echo( "++ Thanks for using aggregate_raster_over_polygons.R!" )
+echo( "++ Great success!  I like!\n" )
+echo( "++ Thanks for using aggregate_raster_over_polygons.R!\n" )

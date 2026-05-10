@@ -6,6 +6,7 @@ export default class SimulationControls {
 	elt: HTMLElement ;
 	playbackControl: HTMLDivElement ;
 	fitnessControl: HTMLDivElement ;
+	fitnessFeaturesControl: HTMLDivElement ;
 	featuresControl: HTMLDivElement ;
 	resetControl: HTMLDivElement ;
 	spreadControl: HTMLDivElement ;
@@ -20,13 +21,15 @@ export default class SimulationControls {
 	</div>
 	<div class="control fitness">
 	</div>
-	<div class="control reset">
+	<div class="control fitnessfeatures">
 	</div>
-	<div class="control features">
+	<div class="control reset">
 	</div>
 	<div class="control fitness">
 	</div>
 	<div class="control spread">
+	</div>
+	<div class="control features">
 	</div>
 </div>` ;
 
@@ -38,18 +41,18 @@ export default class SimulationControls {
 			rows: string[],
 			values: { [key: string]: {[key: string]: number } }
 		) {
-			let table = '<table class="' + idtag + '-control"><tr><th></th>' ;
+			let table = '<table class="simulation-control ' + idtag + '-control"><tr><th></th>' ;
 			columns.forEach( function(a:string) { table += '<th>' + a + '</th>' }) ;
 			table += '</tr>' ;
 			rows.forEach( function(pa:string) {
 				table += '<tr class="rowheader"><td>' + pa + ' :</td>' ;
 				columns.forEach( function(ha:string) {
 					let key = ha + ':' + pa ;
-					table += '<td><input id="' + idtag + '-' + key + '" type="number" min = '
+					table += '<td><span class="control-border"><input id="' + idtag + '-' + key + '" type="number" min = '
 					+ values[key].min + ' max = '
 					+ values[key].max + ' step = '
 					+ values[key].step + ' value = "'
-					+ values[key].value + '"/></td>'
+					+ values[key].value + '"/></td></span>'
 				}) ;
 				table += '<tr>' ;
 			}) ;
@@ -61,70 +64,51 @@ export default class SimulationControls {
 			let elt = this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div' ) ;
 			this.playbackControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
 			this.playbackControl.innerHTML = (
-				'<table class="playback-control">'
+				'<fieldset id="simulation-control iteration_control">'
+				+ '<table class="playback-control">'
 				+ '<tr>'
 				+ '<td><button class="transport-control" id="playpause" state="paused"></button></td>'
 				+ '<td><button class="transport-control" id="snapshot" state="inactive"></button></td>'
 				+ '<td><label class="generation-counter">g=0</label></td>'
 				+ '</tr>'
 				+ '</table>'
+				+ '<legend>Simulation iteration controls:</legend>'
+				+ '<span class="control-border"><input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px"></span>'
+				+ '<label for="stop_every">Snapshot every nth generation?</label>'
+				+ '<p><small>Snapshots saved above can be loaded into R using <a href="load_hspf.R">this code</a>.</small></p>'
+				+ '</fieldset>'
 			) ;
 		}
 		{
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.fitness' ) ;
 			this.fitnessControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
-			this.fitnessControl.innerHTML = '<fieldset id="fitness"><legend>Fitness:</legend>' + buildTable(
-				'fitness',
-				['A', 'S'],
-				['--', '-+', '+-', '++'],
-				{
-					"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
-					"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
-					"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
-					"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
-					"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
-					"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
-					"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
-					"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
-				}
-			) + '</fieldset>' ;
-		}
-
-		{
-			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.reset' ) ;
-			this.resetControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' );
-			this.resetControl.innerHTML = (
-				'<fieldset id="reset_map">'
-				+ '<legend>Reset:</legend>'
-				+ '<button id="flat_10pc_pp">10% ++</button>'
-				+ '<button id="flat_20pc_pp">20% ++</button>'
-				+ '<button id="flat_1pc_ind">1%, unlinked</button>'
-				+ '<button id="flat_10pc_ind">10%, unlinked</button>'
-				+ '<button id="flat_20pc_ind">20%, unlinked</button>'
-				+ '<button id="flat_50pc_ind">50%, unlinked</button>'
+			this.fitnessControl.innerHTML = (
+				'<fieldset id="fitness"><legend>Relative fitnesses:</legend>'
+				+ buildTable(
+					'fitness',
+					['A', 'S'],
+					['--', '-+', '+-', '++'],
+					{
+						"A:--": { value: 1.0, min: 0, max: 1, step: 0.01 },
+						"A:-+": { value: 0.90, min: 0, max: 1, step: 0.01 },
+						"A:+-": { value: 0.90, min: 0, max: 1, step: 0.01 },
+						"A:++": { value: 0.82, min: 0, max: 1, step: 0.01 },
+						"S:--": { value: 0.01, min: 0, max: 1, step: 0.01 },
+						"S:-+": { value: 0.11, min: 0, max: 1, step: 0.01 },
+						"S:+-": { value: 0.11, min: 0, max: 1, step: 0.01 },
+						"S:++": { value: 0.82, min: 0, max: 1, step: 0.01 }
+					}
+				)
+				+ '<p><small>Adjusting these values affects the each infection succeeds, given the host and parasite genotypes.</small></p>'
 				+ '</fieldset>'
 			) ;
 		}
-		{
-			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.features' ) ;
-			this.featuresControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
-			this.featuresControl.innerHTML = (
-				'<fieldset id="iteration_control">'
-				+ '<legend>Iterations:</legend>'
-				+ '<input type="number" id="stop_every" name="stop_every" value=0 step=10 min=0 style="width: 60px; margin-right: 10px">'
-				+ '<label for="stop_every">Stop every nth generation?</label>'
-				+ '</fieldset>'
-				+ '<fieldset>'
-				+ '<legend>Weights</legend>'
-				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
-				+ '<label for="weights_checkbox">Weight by prevalence?</label>'
-				+ '</fieldset>'
-				+ '<fieldset>'
-				+ '<legend>Barrier mode:</legend>'
-				+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
-				+ '<label for="barrier_checkbox">Use barriers?</label>'
-				+ '</fieldset>'
-				+ '<fieldset id="fitness_mode_radio">'
+
+				{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.fitnessfeatures' ) ;
+			this.fitnessFeaturesControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.fitnessFeaturesControl.innerHTML = (
+				'<fieldset id="fitness_mode_radio">'
 				+ '<legend>Fitness mode:</legend>'
 				+ '<input type="radio" id="unconstrained" name="fitness_mode" value="unconstrained" checked />'
 				+ '<label for="unconstrained">Unconstrained</label>'
@@ -144,11 +128,44 @@ export default class SimulationControls {
 				+ '<input type="radio" id="no_selection" name="fitness_mode" value="no_selection"/>'
 				+ '<label for="overdominant">No selection</label>'
 				+ '<br/>'
+				+ '<p><small>These options constrain fitnesses for +- and -+ genotypes to specific forms.</small></p>'
 				+ '</fieldset>'
-				+ '<fieldset id="immunity_control">'
-				+ '<legend>Immunity contribution:</legend>'
+				+ '<fieldset id = "fitnessfeatures">'
+				+ '<legend>Bite weighting</legend>'
+				+ '<input type="checkbox" id="weights_checkbox" name="weights" checked />'
+				+ '<label for="weights_checkbox">Weight by <em>Pf</em>PR2000?</label>'
+				+ '<p><small>When checked, mosquitos preferentially sample infections in regions of higher malaria transmission, as determined by the <a href="https://data.malariaatlas.org">Malaria Atlas Project <em>Pf</em>PR2000</a> map.</small></p>'
+				+ '</fieldset>'
+			) ;
+		}
+
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.reset' ) ;
+			this.resetControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' );
+			this.resetControl.innerHTML = (
+				'<fieldset id="reset_map">'
+				+ '<legend>Reset starting conditions:</legend>'
+				+ '<button id="flat_10pc_pp">10% ++</button>'
+				+ '<button id="flat_20pc_pp">20% ++</button>'
+				+ '<button id="flat_1pc_ind">1%, unlinked</button>'
+				+ '<button id="flat_10pc_ind">10%, unlinked</button>'
+				+ '<button id="flat_20pc_ind">20%, unlinked</button>'
+				+ '<button id="flat_50pc_ind">50%, unlinked</button>'
+				+ '<p><small>Pressing these buttons resets the map to the given initial condition.</small></p>'
+				+ '</fieldset>'
+			) ;
+		}
+		{
+			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.features' ) ;
+			this.featuresControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
+			this.featuresControl.innerHTML = (
+				'<fieldset>'
+				+ '<legend>Experimental features:</legend>'
+				+ '<input type="checkbox" id="barrier_checkbox" name="barriers" />'
+				+ '<label for="barrier_checkbox">Use barriers?</label>'
+				+ '<br/>'
 				+ '<input type="number" id="immunity" name="lambda"  value = 0.0 min = 0.0 max = 1.0 step=0.1 />'
-				+ '<label for="immunity">Lambda</label>'
+				+ '<label for="immunity">Freq-dependent immunity?</label>'
 				+ '</fieldset>'
 
 			) ;
@@ -156,19 +173,19 @@ export default class SimulationControls {
 		{
 			let elt = <HTMLDivElement> this.elt.getElementsByTagName( 'div' )[0].querySelector( 'div.spread' ) ;
 			this.spreadControl = elt ? elt : <HTMLDivElement> document.createElement( 'div' ) ;
-			this.spreadControl.innerHTML = '<fieldset><legend>Spread:</legend>' + buildTable(
+			this.spreadControl.innerHTML = '<fieldset><legend>Biting distance:</legend>' + buildTable(
 				'spread',
 				[ 'value' ],
 				[ 'twoBiteRate%', 'mapWidthInKm', 'maxDistanceInKm', 'concentration', 'n' ],
 				{
 					'value:twoBiteRate%': { value: 15, min: 0.0, max: 100.0, step: 1 },
-					'value:mapWidthInKm': { value: 12000, min: 1000, max: 10000, step: 100 },
+					'value:mapWidthInKm': { value: 11018.34, min: 1000, max: 12000, step: 100 },
 					'value:maxDistanceInKm': { value: 2000, min: 10, max: 10000, step: 100 },
 					'value:concentration':  { value: 6, min: 0.5, max: 30, step: 0.5 },
 					'value:n': { value: 2500, min: 1000, max: 25000, step: 500 }
 				}
 			) + '</fieldset>';
-			d3.select( this.spreadControl ).append( 'svg' ) ;
+			d3.select( this.spreadControl ).select( 'fieldset').append( 'svg' ) ;
 		}
 		this.m_callbacks = {
 			playback: [],
@@ -181,16 +198,26 @@ export default class SimulationControls {
 		let self = this ;
 		let playpause = document.getElementById( "playpause" ) ;
 		let snapshot = document.getElementById( "snapshot" ) ;
+		let stop_every = document.querySelector( 'input[name="stop_every"]' ) ;
 		if( !playpause ) {
 			throw Error( "Unable to create play/pause element" ) ;
 		}
 		if( !snapshot ) {
 			throw Error( "Unable to create snapshot element" ) ;
 		}
+		if( !stop_every ) {
+			throw Error( "Unable to create stop_every element" ) ;
+		}
+		this.fitnessControl.addEventListener(
+			'input',
+			function( _elt ) {
+				self.trigger( 'features' ) ;
+			}
+		) ;
+
 		playpause.addEventListener(
 			'click',
 			function( _elt ) {
-				console.log( "CLICK" ) ;
 				let oldstate = playpause.getAttribute( 'state' ) ;
 				oldstate = oldstate ? oldstate : 'paused' ;
 				let newstate = ( oldstate == 'paused' ? 'playing' : 'paused' ) ;
@@ -208,11 +235,27 @@ export default class SimulationControls {
 				self.trigger( 'snapshot' ) ;
 			}
 		) ;
+		stop_every.addEventListener(
+			'input',
+			function(_elt) {
+				self.trigger( 'features' ) ;
+			} 
+		) ;
 		this.fitnessControl.addEventListener(
-			'input', function(_elt) {
+			'input',
+			function(_elt) {
 				self.constrain_fitness() ;
 				self.trigger( 'fitness' ) ;
 			} 
+		) ;
+		this.fitnessFeaturesControl.addEventListener(
+			'input',
+			function( _elt ) {
+				self.constrain_fitness() ;
+				// Features may change fitness values if the constrain changes, so update that too.
+				self.trigger( 'fitness' ) ;
+				self.trigger( 'features' ) ;
+			}
 		) ;
 		this.featuresControl.addEventListener(
 			'input',
@@ -391,7 +434,7 @@ export default class SimulationControls {
 		let set_value = function( selector: string, value: number ) {
 			let elt = ( <HTMLInputElement> document.querySelector( selector )) ;
 			if( elt ) {
-				elt.value = "" + value ;
+				elt.value = "" + Math.round(value * 100000.0)/100000.0 ; // Maintain 5 dps accuracy
 			}
 		} ;
 
@@ -433,6 +476,23 @@ export default class SimulationControls {
 			set_value(   'input[id="fitness-S:-+"]', s1 / 2.0 ) ;
 			set_value(   'input[id="fitness-S:+-"]', s1 / 2.0 ) ;
 		} else if( mode == "no_selection" ) {
+			set_enabled( 'input[id="fitness-A:--"]', false ) ;
+			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-A:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-A:++"]', false ) ;
+			set_enabled( 'input[id="fitness-S:--"]', false ) ;
+			set_enabled( 'input[id="fitness-S:+-"]', false ) ;
+			set_enabled( 'input[id="fitness-S:-+"]', false ) ;
+			set_enabled( 'input[id="fitness-S:++"]', false ) ;
+			set_value(   'input[id="fitness-A:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-A:++"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:--"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:+-"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:-+"]', 1.0 ) ;
+			set_value(   'input[id="fitness-S:++"]', 1.0 ) ;
+		} else if( mode == "preset1" ) {
 			set_enabled( 'input[id="fitness-A:--"]', false ) ;
 			set_enabled( 'input[id="fitness-A:+-"]', false ) ;
 			set_enabled( 'input[id="fitness-A:-+"]', false ) ;

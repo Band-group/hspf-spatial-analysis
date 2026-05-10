@@ -94,7 +94,7 @@ rule extract_dataset:
 		pf8 = "input/pf8/data.bgen",
 		variants = variants
 	params:
-		script = "input/scripts/extract_{dataset}_counts.R",	
+		script = "code/input/extract_{dataset}_counts.R",	
 		indir = lambda w: (
 			{
 				"pf7":     "/well/band/projects/pf7",

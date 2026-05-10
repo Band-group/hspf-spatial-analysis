@@ -1,5 +1,5 @@
-configfile: "config.yaml"
-include: "functions.snakefile"
+configfile: "config/config-main.yaml"
+include: "rules/functions.snakefile"
 
 print( "++ Welcome to the hs-pf spatial analysis pipeline" )
 
@@ -17,7 +17,7 @@ config['areas'] = get_area_definitions( config['params']['area'] )
 # master_hspf_analyses = dict_product( config['params'] )
 #master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
 
-localrules: combine_hspf_summaries, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
+localrules: combine_hspf_summaries, hspf_summaries_to_excel, summarise_HbS_fits, create_figure1, create_figure2, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
 	min_N = "[0-9]+",
@@ -42,15 +42,30 @@ rule all:
 			area = [ 'global' ],
 			extension = [ 'pdf', 'tsv.gz' ]
 		),
+		HbS_fit_vs_HbSobs = expand(
+			"output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_HbSobs.{extension}",
+			**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
+			area = [ 'global' ],
+			extension = [ 'pdf' ]
+		),
 		aggregates = expand(
 			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-ld-by={by}.tsv",
 			pf_data_version = config['params']['pf_data_version'],
 			area = config['params']['area'],
 			by = [ 'none', 'year' ]
 		),
-		pfsa_hspf_plots = expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
-			**config['params']
+		pfsa_hspf_plots = (
+			expand(
+				# no-covariates plot in all areas
+				"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
+				**( remove_keys( config['params'], keys_to_remove = [ 'hspf_covariates' ] )),
+				hspf_covariates = [ 'none' ]
+			) + expand(
+				# plot with covariates in specific areas
+				"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}-clean.pdf",
+				**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
+				area = [ 'global', 'africa', 'eaf', 'waf' ]
+			)
 		),
 #		hspf_area_plots = expand(
 #			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
@@ -69,13 +84,17 @@ rule all:
 			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg",
 			**config['params']
 		),
-		fig2 = expand(
-			"output/pf={pf_data_version}/figures/figure_2/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-new.{extension}",
+		fig2_SI = expand(
+			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.{extension}",
 			**config['params'],
 			extension = [ 'pdf', 'svg' ]
-		),
+		),	
 		forest_plot = expand(
 			"output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+			**config['params']
+		),
+		fig2 = expand(
+			"output/pf={pf_data_version}/figures/figure_2/figure_2_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']
 		),
 # This wasn't working so commented out for now:
@@ -94,8 +113,8 @@ rule all:
 			pf_data_version = config['params']['pf_data_version']
 		)
 
-include: "grid.snakefile"
-include: "hbs.snakefile"
-include: "pf.snakefile"
-include: "hspf.snakefile"
-include: "figures.snakefile"
+include: "rules/grid.snakefile"
+include: "rules/hbs.snakefile"
+include: "rules/pf.snakefile"
+include: "rules/hspf.snakefile"
+include: "rules/figures.snakefile"

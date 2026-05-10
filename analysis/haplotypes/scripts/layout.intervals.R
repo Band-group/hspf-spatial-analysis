@@ -18,22 +18,24 @@ layout.intervals <- function(
 	level = rep( NA, nrow( intervals ))
 	level[1] = 1
 	level.endpoints = ( intervals[1, columns['end']] + spacer['end'] )
-	for( i in 2:nrow(intervals)) {
-		region = intervals[i,]
-		end_with_spacer = region[[ columns['end'] ]] + spacer['end'] ;
-		# Try to put gene in an existing level
-		for( l in 1:length(level.endpoints) ) {
-			if( (region[[ columns['start'] ]] - spacer['start']) > level.endpoints[l] ) {
-				level[i] = l ;
-				level.endpoints[l] = end_with_spacer
-				break ;
+	if( nrow( intervals ) > 1 ) {
+		for( i in 2:nrow(intervals)) {
+			region = intervals[i,]
+			end_with_spacer = region[[ columns['end'] ]] + spacer['end'] ;
+			# Try to put gene in an existing level
+			for( l in 1:length(level.endpoints) ) {
+				if( (region[[ columns['start'] ]] - spacer['start']) > level.endpoints[l] ) {
+					level[i] = l ;
+					level.endpoints[l] = end_with_spacer
+					break ;
+				}
 			}
-		}
-	
-		# Otherwise add a new level
-		if( is.na( level[i] )) {
-			level.endpoints = c( level.endpoints, end_with_spacer )
-			level[i] = length( level.endpoints ) ;
+		
+			# Otherwise add a new level
+			if( is.na( level[i] )) {
+				level.endpoints = c( level.endpoints, end_with_spacer )
+				level[i] = length( level.endpoints ) ;
+			}
 		}
 	}
 	return( level ) ;

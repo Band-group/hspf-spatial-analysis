@@ -1,364 +1,311 @@
-library( dplyr )
-library( argparse )
+library(readr)
+library(tidyverse)
+library(ggtext)
+library(ggdist)
+library(patchwork)
+library(MetBrewer)
+library(scales)
+library(argparse)
 
-echo <- function( message, ... ) {
-	cat( sprintf( message, ... ))
+echo <- function(message, ...) {
+  cat(sprintf(message, ...))
 }
 
 parse_arguments <- function() {
-	parser = ArgumentParser(
-		description = 'Plot pf against HbS'
-	)
-	parser$add_argument(
-		"--type",
-		type = "character",
-		help = "Type of grid to use",
-		default = "hexagon"
-	)
-	parser$add_argument(
-		"--size",
-		type = "numeric",
-		help = "Size of grid to use",
-		default = 1
-	)
-	parser$add_argument(
-		"--divide",
-		type = "character",
-		help = "Grid division to use",
-		default = "none"
-	)
-	parser$add_argument(
-		'--r0',
-		type = "character",
-		help = "r0 value to use.",
-		required = TRUE
-	)
-	parser$add_argument(
-		'--sigma0',
-		type = "character",
-		help = "sigma0 value to use.",
-		required = TRUE
-	)
-	parser$add_argument(
-		'--covariates',
-		type = "character",
-		help = "fixed covariates to use.",
-		default = "none"
-	)
-	parser$add_argument(
-		"--min_km_to_survey_pt",
-		type = "double",
-		help = "distance in km to a survey point",
-		required = T
-	)
-	parser$add_argument(
-		"--min_N",
-		type = "double",
-		help = "exclude hexagons with less than this number of points",
-		required = T
-	)
-	parser$add_argument(
-		'--regression_model',
-		type = "character",
-		help = "regression model to use",
-		default = "bym2"
-	)
-	parser$add_argument(
-		'--output',
-		type = "character",
-		help = "Name of output pdf file",
-		required = TRUE
-	)
-	return( parser$parse_args() )
+  parser <- ArgumentParser(description = "Plot forest plot")
+  parser$add_argument(
+    "--output_main",
+    type = "character",
+    help = "Name of output pdf file for main figure",
+    required = TRUE
+  )
+  parser$add_argument(
+    "--output_si",
+    type = "character",
+    help = "Name of output pdf file for SI figure",
+    required = TRUE
+  )
+  parser$add_argument(
+    "--input_template",
+    type = "character",
+    help = "Name of input template file",
+    required = TRUE
+  )
+  parser$parse_args()
 }
 
-get_fit_filenames = function(
-	substitutions,
-	templates = c(
-		fit = "output/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/grid-type={type}-size={size}-division={divide}/{locus}-model={regression_model}+fc={covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
-		hbs = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc={covariates}/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv",
-		pf = "output/pf/aggregated/grid-type={type}-size={size}-division={divide}-area={area}.tsv"
-	)
-) {
-	result = templates
-	for( name in names(substitutions)) {
-		for( i in 1:length(templates)) {
-			result[i] = gsub( sprintf( "[{]%s[}]", name ), substitutions[name], result[i] )
-		}
-	}
-	return( result )
+source("code/figures/fig1_impl.R")
+
+# Generalised link function
+gl <- function(v, parameters) {
+  x <- parameters[["intercept"]] + parameters[["beta"]] * v
+  nu <- exp(parameters[["log_nu"]])
+  1 / (1 + exp(-x))^(1 / nu)
 }
 
-
-options( width = 300 )
-args = parse_arguments()
-source('code/functions.R')
-
-loci = sprintf( "Pfsa%d", 1:4 )
-areas = c( "global", "waf", "eaf" )
-
-filenames = list()
-for( locus in loci ) {
-	filenames[[locus]] = list()
-	for( area in areas ) {
-		filenames[[locus]][[area]] = get_fit_filenames(
-			c(
-				r0 = args$r0,
-				sigma0 = args$sigma0,
-				covariates = args$covariates,
-				type = args$type,
-				size = args$size,
-				divide = args$divide,
-				locus = locus,
-				area = area,
-				min_km_to_survey_pt = args$min_km_to_survey_pt,
-				min_N = args$min_N,
-				regression_model = args$regression_model
-			)
-		)
-	}
+calc_slope <- function(intercept, beta, log_nu) {
+  gl(0.2, list(intercept = intercept, beta = beta, log_nu = log_nu)) -
+    gl(0.1, list(intercept = intercept, beta = beta, log_nu = log_nu))
 }
 
-data = list()
-for( locus in loci ) {
-	data[[locus]] = list()
-	for( area in areas ) {
-		data[[locus]][[area]][['fit']] = readRDS( filenames[[locus]][[area]][['fit']] )
-		data[[locus]][[area]][['hbs']] = readr::read_tsv( filenames[[locus]][[area]][['hbs']], show_col_types = FALSE )
-		data[[locus]][[area]][['pf']] = readr::read_tsv( filenames[[locus]][[area]][['pf']], show_col_types = FALSE )
-		print( table( data[[locus]][[area]][['pf']]$source ))
-		data[[locus]][[area]][['pf']]$datatype = c(
-			'Greenwood Uganda 2017-2022' = 'WGS',
-			'MalariaGEN Pf7' = 'WGS',
-			'Moser et al 2021' = 'MIP',
-			'Schaffner et al Senegal 2023' = 'WGS',
-			'Verity et al 2021' = 'MIP'
-		)[ data[[locus]][[area]][['pf']]$source ]
-		print( table( data[[locus]][[area]][['pf']]$datatype ))
-	}
+args <- parse_arguments()
+print(args)
+
+# Region mapping from the original script
+area_mapping <- tibble::tibble(
+  area = c(
+    "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana",
+    "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf",
+    "DRC+eaf", "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania"
+  ),
+  Region = c(
+    "Global", "Africa", "West Africa", "West Africa (Western)", "West Africa (Eastern)",
+    "Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo",
+    "Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa",
+    "Central and East Africa", "Democratic Republic of Congo", "East Africa",
+    "Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"
+  ),
+  order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 4, 4),
+  include = c(1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0),
+  parent = c(
+    "Global", "Global", "Africa", "West Africa", "West Africa",
+    "Eastern West Africa", "West Africa", "West Africa", "West Africa",
+    "West Africa", "Africa", "Central Africa", "Africa",
+    "Central and East Africa", "Central and East Africa", "Central and East Africa", "Central and East Africa"
+  )
+)
+
+# Main figure uses only these 4 regions
+region_order_main <- c("Global", "Africa", "West Africa", "Central and East Africa")
+region_label_main <- c("Global", "Africa", "West Africa", "Central and East Africa")
+
+
+# SI figure uses all regions, in the order they appear in the mapping
+region_order_si <- unique(area_mapping$Region)
+region_label_si <- unique(area_mapping$Region)
+
+
+make_region_labels <- function(region_order,region_label) {
+  tibble::tibble(
+    Region = region_order,
+    RegionLabel = region_label
+  )
 }
 
-plot.fit <- function(
-	hbs, pf, fit,
-	aesthetic = list(
-		colour = list(
-			grid = rgb( 0, 0, 0, 0.1 ),
-			country = country.colours()
-		)
-	)
-) {
-	echo( "++ Restricting to model fit points...\n")
-	pf = pf[ pf$polygon_id %in% fit$data$polygon_id, ]
-	hbs = hbs[ hbs$polygon_id %in% fit$data$polygon_id, ]
-	hbsm = as.matrix( hbs[,grep("posterior_sample", colnames(hbs))])
-	hbs_mean = rowMeans(hbsm)
-	hbs_median = sapply( 1:nrow( hbsm ), function(i) { median(hbsm[i,])})
+make_summary <- function(raw, region_order, region_labels) {
+  area_meta <- raw %>%
+    distinct(locus, area, Region, N, `Pfsa+`)
 
-	fit$data$hbs_mean = hbs_mean[ match( fit$data$polygon_id, hbs$polygon_id )]
-	fit$data$hbs_median = hbs_median[ match( fit$data$polygon_id, hbs$polygon_id )]
+  region_meta <- area_meta %>%
+    group_by(locus, Region) %>%
+    summarise(
+      N = sum(N, na.rm = TRUE),
+      Pfsa_plus = sum(`Pfsa+`, na.rm = TRUE),
+      .groups = "drop"
+    )
 
-	fit$data$hbas_or_ss_mean = fit$data$hbs_mean^2 + 2*fit$data$hbs_mean*(1-fit$data$hbs_mean)
-	fit$data$hbas_or_ss_median = fit$data$hbs_median^2 + 2*fit$data$hbs_median*(1-fit$data$hbs_median)
+  region_draws <- raw %>%
+    group_by(locus, Region, hbs.sample) %>%
+    summarise(
+      slope = mean(slope, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(Region %in% region_order) %>%
+    mutate(Region = factor(Region, levels = region_order))
 
-	w = which( fit$data$N >= 0 )
+  res_sum <- region_draws %>%
+    group_by(locus, Region) %>%
+    summarise(
+      estimate = median(slope, na.rm = TRUE),
+      lower = quantile(slope, 0.025, na.rm = TRUE),
+      upper = quantile(slope, 0.975, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    left_join(region_meta, by = c("locus", "Region")) %>%
+    left_join(region_labels, by = "Region") %>%
+    mutate(
+      estimate_pct = 100 * estimate,
+      lower_pct = 100 * lower,
+      upper_pct = 100 * upper,
+      N_lab = scales::comma(N),
+      df_lab = sprintf("%.2f (%.2f-%.2f)", estimate, lower, upper),
+      freq = Pfsa_plus / N,
+      freq_lab = scales::percent(freq, accuracy = 0.1)
+    )
 
-	# These definitions should match the link functions in bym.cpp
-	#print( "LINK!" )
-	#print( fit$link )
-	link_fn = list(
-		logit = function( v, parameters ) {
-			x = parameters[['intercept']] + parameters[['beta']]*v
-			return( exp(x)/(1+exp(x)) )
-		},
-		`generalised-logit` = function( v, parameters ) {
-			x = parameters[['intercept']] + parameters[['beta']]*v
-			nu = exp( parameters[['log_nu']] )
-			return( 1/(1 + exp(-x))^(1/nu))
-		},
-		linear = function( v, parameters ) {
-			x = parameters[['intercept']] + parameters[['beta']]*v
-			return( pmax( pmin( x, 0.999 ), 0.001 ))
-		}
-	)[[fit$link]]
-	xs = seq( from = 0, to = 0.3, by = 0.01 )
-	curves = tibble(
-		x = xs,
-		median = NA,
-		mean = NA,
-		lower_2.5 = NA,
-		upper_97.5 = NA
-	)
-	for( i in 1:length(xs)) {
-		x = xs[i]
-		yvalues = link_fn( x, fit$sampled.parameters )
-		q = quantile( yvalues, c( 0.025, 0.5, 0.975 ))
-		curves[['lower_2.5']][i] = q[1]
-		curves[['median']][i] = q[2]
-		curves[['upper_97.5']][i] = q[3]
-		curves[['mean']][i] = mean( yvalues )
-	}
-
-	palette = aesthetic$colour$country
-	echo( "++ Setting colour.\n")
-	fit$data$colour = palette[ fit$data$SOVEREIGNT ]
-	fit$data$colour[ is.na(fit$data$colour)] = palette['other']
-	echo( "++ Set colour.\n")
-	blank.plot( xlim = c( 0, 0.3 ), ylim = c( 0, 1 ))
-	abline( h = seq( from = 0, to = 1, by = 0.1 ), col = aesthetic$colour$grid, lwd = 0.5 )
-	abline( v = seq( from = 0, to = 0.3, by = 0.05 ), col = aesthetic$colour$grid, lwd = 0.5 )
-#	borders = c(
-#		'WGS' = NA,
-#		'MIP' = 'black'
-#	)[ fit$data$datatype ]
-	points(
-		fit$data$hbas_or_ss_mean[w],
-		fit$data$y[w] / fit$data$N[w],
-		cex = sqrt(fit$data$N)/10,
-		col = fit$data$colour,
-		pch = 19
-	)
-#	axis( 1 )
-#	axis( 2, las = 1 )
-	grid()
-	points(
-		curves$x,
-		curves$mean,
-		type = 'l',
-		lwd = 3,
-		col = "black"
-	)
-	polygon(
-		c( curves$x, rev(curves$x)),
-		c( curves$lower_2.5, rev( curves$upper_97.5 )),
-		col = rgb( 0, 0, 0, 0.1 ),
-		border = NA
-	)
+  res_sum
 }
 
-blank.plot = function(xlim = c( 0, 1 ), ylim = c( 0, 1 ), xlab = '', ylab = '', ... ) {
-	plot( 0, 0, col = 'white', xlim = xlim, ylim = ylim, bty = 'n', xaxt = 'n', yaxt = 'n', xlab = xlab, ylab = ylab, ... )
+make_panel <- function(df, locus_name,panel_id,
+                       xlim = c(-20, 95),
+                       x_breaks = c(-20, 0, 20, 40),
+                       x_n = 55,
+                       x_df = 71,
+                       x_f = 88,
+                       y_levels = NULL) {
+  if (is.null(y_levels)) {
+    y_levels <- unique(df$RegionLabel)
+  }
+  #labels frequency and delta freq.
+  freq_header <- sprintf("f[%d*'+']", panel_id)
+  delta_header <- sprintf("Delta*f[%d*'+']", panel_id)#bquote(Delta[f[.(panel_id) * "+"]] ~ "(95% CrI)")
+
+  ggplot(df, aes(y = RegionLabel)) +
+  geom_segment(
+   x = 0, xend = 0, y = 1, yend = length(y_levels),
+  linetype = "dashed",
+  linewidth = 0.35,
+  colour = "grey40"
+  ) +
+   # geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.35, colour = "grey40") +
+    geom_errorbar(
+      orientation = "y",
+      aes(xmin = lower_pct, xmax = upper_pct),
+      height = 0.16,
+      linewidth = 0.6,
+      colour = "black"
+    ) +
+    geom_point(aes(x = estimate_pct), size = 2.0, colour = "black") +
+    geom_text(aes(x = x_n, label = N_lab), hjust = 0.5, size = 2.5) +
+    geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 2.5) +
+    geom_text(aes(x = x_f, label = freq_lab), hjust = 0.5, size = 2.5) +
+    annotate(
+      "text", x = 0.2, y = Inf, label = expression("Posterior estimate"),
+      vjust = 1.2, size = 3.5,hjust= 0.15
+    ) +
+    annotate(
+      "text", x = x_n, y = Inf, label = "N",
+      vjust = 1.2, size = 3.5,hjust = 0.5,
+    ) +
+    annotate(
+      "text", x = x_df, y = Inf, label = paste0(delta_header, " ~ '(95% CrI)'"),
+  parse = TRUE,
+      vjust = 1.2, size = 3.5,hjust = 0.5
+    ) +
+    annotate(
+      "text", x = x_f, y = Inf, label = freq_header, parse = TRUE,
+      vjust = 1.2, size = 3.5, hjust = 0.5
+    ) +
+    annotate(
+      "text", x = xlim[1], y = Inf, label = paste0(locus_name, "+"),
+      vjust = 1.2, fontface = "italic", size = 3.5,hjust = 0.5,
+    ) +
+    scale_x_continuous(
+      limits = xlim,
+      breaks = x_breaks,
+      labels = function(x) paste0(x, "%")
+    ) +
+    scale_y_discrete(limits = rev(y_levels)) +
+    coord_cartesian(clip = "off") +
+    theme_minimal(base_family = "sans") +
+    theme(
+      panel.grid.major = element_line(colour = "grey85", linetype = "dotted", linewidth = 0.35),
+      panel.grid.minor = element_blank(),
+      axis.title = element_blank(),
+      axis.text.x = element_text(size = 9),
+      axis.text.y = element_text(size = 10, colour = "black"),
+      axis.ticks = element_blank(),
+      plot.margin = margin(8, 26, 8, 8)
+    )
 }
 
-make_fig2 <- function( loci = sprintf( "Pfsa%d", c( 1, 3, 2, 4 ) ))  {
-	zeros = c(  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0, 0,  0,  0,  0 )
-	row =   c( NA, 0, NA, 1, NA, 2, NA, 3, NA, 4, NA, 5, NA, NA, NA )
-	layout.m = matrix(
-		c(
-			zeros,
-			row + 1, # titles
-			zeros,
-			row + 7, # Pfsa1
-			zeros,
-			row + 13, # Pfsa2
-			zeros,
-			row + 19, # Pfsa3
-			zeros,
-			row + 25, # Pfsa4
-			zeros,
-			row + 31, # axis
-			zeros
-		),
-		nrow = 13,
-		byrow = T
-	)
-	layout.m[is.na(layout.m)] = 0
-	layout.m[,14] = c( 0, rep( max(layout.m)+1, 11 ), 0 )
+# ------------------------------------------------------------------
+# Load posterior draws and compute slope
+# ------------------------------------------------------------------
+raw <- load.forestplot.data(area_mapping$area, template = args$input_template) %>%
+  mutate(
+    slope = calc_slope(intercept, beta, log_nu)
+  ) %>%
+  left_join(area_mapping, by = "area")
 
-	layout(
-		layout.m,
-		widths = c( 0.05, 0.35, 0.15, 0.15, 0.05, 1, 0.1, 1, 0.1, 1, 0.1, 0.25, 0.05, 0.4, 0.05 ),
-		heights = c( 0.05, 0.25, 0.05, 1, 0.1, 1, 0.1, 1, 0.1, 1, 0.05, 0.25, 0.05)
-	)
-	par( mar = c( 0, 0, 0, 0 ))
-	area.names = c(
-		eaf = "eastern Africa region",
-		waf = "western Africa region",
-		africa = "Africa",
-		global = "Global"
-	)
+# ------------------------------------------------------------------
+# Build summaries for main and SI figures
+# ------------------------------------------------------------------
+region_labels_main <- make_region_labels(region_order_main,region_label_main)
+region_labels_si <- make_region_labels(region_order_si,region_label_si)
 
-	sizes = list(
-		title = 1.5,
-		subtitle = 1,
-		axis = 1,
-		axis_labels = 1
-	)
-
-	blank.plot()
-	blank.plot()
-	for( area in areas ) {
-		blank.plot()
-		text( 0.5, 0, adj = c( 0.5, 0 ), area.names[area], font = 1, cex = sizes$title )
-	}
-	blank.plot()
-
-	at = list(
-		x = seq( from = 0, to = 0.3, by = 0.1 ),
-		y = seq( from = 0, to = 1, by = 0.2 )
-	)
-	for( locus in loci ) {
-		blank.plot()
-		text( 1, 0.5, sprintf( "%s+", locus ), adj = 1, font = 3, cex = sizes$title )
-		text( 1, 0.35, "frequency", adj = 1, font = 1, cex = sizes$subtitle )
-		blank.plot( ylim = c(0,1) )
-		text( 1, at$y, sprintf( "%.0f%%", at$y*100 ), adj = 1, xpd = NA, cex = sizes$axis )
-		for( area in areas ) {
-			include = (
-				(locus %in% c( "Pfsa1", "Pfsa3" ))
-				|| (area %in% c( "eaf", "waf" ))
-			)
-			if( include ) {
-				elt = data[[locus]][[area]]
-				plot.fit(
-					elt$hbs,
-					elt$pf,
-					elt$fit
-				)
-			} else {
-				blank.plot()
-			}
-		}
-		blank.plot( ylim = c(0,1) )
-	}
-
-	blank.plot()
-	blank.plot()
-	for( area in areas ) {
-		blank.plot( xlim = c( 0, 0.3 ))
-		text( at$x, 1, adj = c( 0.5, 1 ), sprintf( "%.0f%%", at$x * 100 ), xpd = NA, cex = sizes$axis )
-		text( mean(at$x), 0, "HbAS or SS frequency", adj = c( 0.5, 0.5 ), xpd = NA, cex = sizes$axis_labels )
-	}
-	blank.plot()
-
-	# country legend
-	blank.plot()
-	all.countries = c(
-		unique( data[['Pfsa1']][['waf']]$fit$data$SOVEREIGNT ),
-		"",
-		setdiff( data[['Pfsa1']][['africa']]$fit$data$SOVEREIGNT, union( data[['Pfsa1']][['waf']]$fit$data$SOVEREIGNT, data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT )),
-		"",
-		unique( data[['Pfsa1']][['eaf']]$fit$data$SOVEREIGNT )
-	)
-	country.palette = country.colours()
-	legend(
-		"center",
-		all.countries,
-		pch = 19,
-		col = country.palette[all.countries],
-		bty = 'n',
-		xpd = NA
-	)
-	
-}
+res_sum_main <- make_summary(raw, region_order_main, region_labels_main)
+res_sum_si <- make_summary(raw, region_order_si, region_labels_si)
 
 
+# ------------------------------------------------------------------
+# Main figure: 4 regions only
+# ------------------------------------------------------------------
+p1 <- make_panel(
+  filter(res_sum_main, locus == "Pfsa1"),
+  "Pfsa1",panel_id = 1,
+  y_levels = region_labels_main$RegionLabel
+)
+p2 <- make_panel(
+  filter(res_sum_main, locus == "Pfsa2"),
+  "Pfsa2",  panel_id = 2,
+  y_levels = region_labels_main$RegionLabel
+) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+p3 <- make_panel(
+  filter(res_sum_main, locus == "Pfsa3"),
+  "Pfsa3", panel_id = 3,
+  y_levels = region_labels_main$RegionLabel
+)
+p4 <- make_panel(
+  filter(res_sum_main, locus == "Pfsa4"),
+  "Pfsa4",  panel_id = 4,
+  y_levels = region_labels_main$RegionLabel
+) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
 
-# save plot as svg
-#svg(file = sub(".pdf", ".svg", args$output), width = 18, height = 14)
-#make_fig2( loci = sprintf( "Pfsa%d", c( 1, 3, 2, 4 )))
-#dev.off()  
+main_fig <- (p1 | p2) /
+            plot_spacer() /
+            (p3 | p4) +
+  plot_layout(heights = c(1, 0.01, 1))
 
-# save plot as pdf
-pdf( file = args$output, width = 9, height = 7 )
-make_fig2( loci = sprintf( "Pfsa%d", c( 1, 3, 2, 4 ) ))
-dev.off()
+ggsave(
+  args$output_main,
+  main_fig,
+  width = 12,
+  height = 6,
+  create.dir = TRUE
+)
+
+# ------------------------------------------------------------------
+# SI figure: all regions
+# ------------------------------------------------------------------
+p1_si <- make_panel(
+  filter(res_sum_si, locus == "Pfsa1"),
+  "Pfsa1",  panel_id = 1,
+  y_levels = region_labels_si$RegionLabel
+)
+p2_si <- make_panel(
+  filter(res_sum_si, locus == "Pfsa2"),
+  "Pfsa2",  panel_id = 2,
+  y_levels = region_labels_si$RegionLabel
+) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+p3_si <- make_panel(
+  filter(res_sum_si, locus == "Pfsa3"),
+  "Pfsa3",  panel_id = 3,
+  y_levels = region_labels_si$RegionLabel
+)
+p4_si <- make_panel(
+  filter(res_sum_si, locus == "Pfsa4"),
+  "Pfsa4",  panel_id = 4,
+  y_levels = region_labels_si$RegionLabel
+) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+si_fig <- (p1_si | p2_si) /
+          plot_spacer() /
+          (p3_si | p4_si) +
+  plot_layout(heights = c(1, 0.01, 1))
+
+ggsave(
+  args$output_si,
+  si_fig,
+  width = 18,
+  height = 14.5,
+  create.dir = TRUE
+)

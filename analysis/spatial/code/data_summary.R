@@ -1,6 +1,6 @@
 #extract key values/statistics about our data for the main specification
 #########################################################################
-#setwd("D:/OneDrive/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial")
+#setwd("/Users/andre/Library/CloudStorage/OneDrive-Personal/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial")
 library(argparse)
 
 # Simple echo function to print messages
@@ -34,7 +34,7 @@ library("RSQLite"); library("tidyr");library("dplyr"); library("sf")
 sf::sf_use_s2(FALSE)
 
 #define grid size here##########################################################
-cellsize <- 1.35 #-size=1, size=1.35,...
+cellsize <- 1 #-size=1, size=1.35,...
 min_N <- 0 #N=0 or N=5
 surveykm <- 200
 ################################################################################
@@ -44,7 +44,7 @@ args = NULL
 args <- parse_arguments()
 if( is.null( args )) {
 args$grid = paste0("output/grids/grid-type=hexagon-size=",cellsize,"-division=none-area=global.rds")
-args$pf = "input/hbs-pf-v3.sqlite"
+args$pf = "input/hbs-pf-v5.sqlite"
 args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid]"
 args$hspf_fit = paste0("output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=",cellsize,"-division=none/Pfsa1-model=bym2+fc=none-",surveykm,"km-area=global-min_N=",min_N,".rds")
 args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
@@ -56,7 +56,161 @@ source('code/functions.R')
 source('code/figures/fig1_impl.R')
 
 #get world map to link continent to datasets
-world_sf <- load.entry.from.Rdata('geodata/naturalearthdata.Rdata',"world_sf")
+worldsimple <- geodata::world(resolution=5, level=0, version="latest",path = 'output/summary')
+#pf extent
+pf <-terra::rast(paste0("input/2020_GBD2019_Global_PfPR_2019.tif"))
+pf <- project(pf , crs(worldsimple))
+#replace 0 by very small values (truncate)
+pf[pf >= 0.001] <- 1 #0.000001
+pf[pf < 0.001] <- NA
+##############OPTIONAL#########################
+#to cover more areas, interpolate malaria maps
+#we assume that P(malaria) is very close to 0 (or 0) outside the MAP study domain
+pf[is.na(pf[])] <- NA
+
+
+
+r_poly <- as.polygons(pf, values=TRUE, dissolve=TRUE)
+r_poly <- r_poly[!is.na(r_poly[[1]]), ]  # Remove NA polygons
+
+# Convert to sf object
+r_poly <- st_as_sf(r_poly)
+
+# Plot using ggplot2
+p <- ggplot(r_poly) +
+  geom_sf(fill = "grey10", color = "white", size = 0.1) +
+  theme_void()
+
+# Save as SVG
+ggsave("output/summary/pf.svg", plot = p, width = 10, height = 6, device = "svg")
+
+#WHO: World Health Organization.
+# In the World malaria report 2024, a country or area is considered endemic when it has reported at least one indigenous case since 2021.
+malaria_countries <- c( 
+  # WHO African Region
+  "Angola", "Benin", "Botswana","Burkina Faso", "Burundi", "Cameroon",
+  "Central African Republic", "Chad", "Comoros", "Congo", "Côte d'Ivoire",
+  "Democratic Republic of the Congo", "Equatorial Guinea", "Eritrea", "Eswatini",
+  "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau", "Kenya",
+  "Liberia", "Madagascar", "Malawi", "Mali", "Mauritania", "Mayotte", "Mozambique",
+  "Namibia", "Niger", "Nigeria", "Rwanda", "São Tomé and Príncipe", "Senegal",
+  "Sierra Leone", "South Africa", "South Sudan", "Togo", "Uganda",
+  "Tanzania",  # corrected from "United Republic of Tanzania"
+  "Zambia", "Zimbabwe",
+  
+  # WHO Eastern Mediterranean Region
+  "Afghanistan", "Djibouti", "Iran",  # changed from "Iran (Islamic Republic of)"
+  "Pakistan", "Somalia", "Sudan", "Yemen",
+  
+  # WHO Region of the Americas
+  "Bolivia",  # changed from "Bolivia (Plurinational State of)"
+  "Brazil", "Colombia", "Costa Rica", "Dominican Republic", "Ecuador",
+  "French Guiana", "Guatemala", "Guyana", "Haiti", "Honduras", "Mexico",
+  "Nicaragua", "Panama", "Peru", "Suriname", "Venezuela",
+  
+  # WHO South-East Asia Region
+  "Bangladesh", "Bhutan", "North Korea",  # changed from "Democratic People's Republic of Korea"
+  "India", "Indonesia", "Myanmar", "Nepal", "Thailand",
+  
+  # WHO Western Pacific Region
+  "Cambodia", "Laos",  # changed from "Lao People's Democratic Republic"
+  "Papua New Guinea", "Philippines", "South Korea",  # changed from "Republic of Korea"
+  "Solomon Islands", "Vanuatu", "Vietnam"
+)
+malariaendem <- worldsimple[worldsimple$NAME_0 %in% malaria_countries, ]
+#malariaendem <- worldsimple[relate(worldsimple, r_poly, "intersects"), ]
+
+library(dplyr)
+
+# Create the data frame (Pfsa number of samples by country) from ST2
+pfsa_data <- tribble(
+  ~country, ~Pfsa1, ~Pfsa2, ~Pfsa3, ~Pfsa4,
+  "Bangladesh", 1308, 1310, 1304, 1300,
+  "Benin", 150, 150, 150, 150,
+  "Burkina Faso", 57, 57, 55, 55,
+  "Cambodia", 1267, 1267, 1235, 1264,
+  "Cameroon", 264, 264, 263, 264,
+  "Colombia", 135, 113, 92, 135,
+  "Côte d'Ivoire", 71, 71, 71, 71,
+  "Democratic Republic of the Congo", 1938, 1753, 1677, 1811,
+  "Ethiopia", 21, 21, 21, 21,
+  "Gabon", 55, 55, 55, 55,
+  "Gambia", 859, 862, 841, 856,
+  "Ghana", 3306, 3271, 3255, 3243,
+  "Guinea", 151, 151, 148, 151,
+  "India", 300, 300, 293, 298,
+  "Indonesia", 121, 121, 116, 121,
+  "Kenya", 690, 690, 668, 690,
+  "Laos", 991, 991, 990, 990,
+  "Madagascar", 24, 24, 24, 24,
+  "Malawi", 265, 265, 265, 265,
+  "Mali", 1167, 1167, 1154, 1157,
+  "Mauritania", 92, 92, 92, 92,
+  "Mozambique", 34, 34, 34, 34,
+  "Myanmar", 983, 985, 967, 979,
+  "Nigeria", 109, 110, 109, 104,
+  "Papua New Guinea", 221, 221, 220, 216,
+  "Peru", 21, 21, 21, 21,
+  "Senegal", 432, 439, 424, 404,
+  "Sudan", 76, 76, 71, 75,
+  "Tanzania", 1372, 1162, 1133, 1271,
+  "Thailand", 954, 954, 946, 951,
+  "Uganda", 69, 273, 274, 272,
+  "Venezuela", 2, 2, 2, 2,
+  "Vietnam", 1404, 1403, 1398, 1379,
+  "Zambia", 107, 88, 96, 93
+)
+# Check mismatches
+setdiff(pfsa_data$country, unique(malariaendem$NAME_0))
+
+#CAMBODIA,
+#iso3_list <- c("BEN", "BFA", "KHM", "CMR", "COL", "CIV", "COD", "ETH", "GAB", "GMB", "GHA", "GIN",
+#               "IND", "IDN", "KEN", "LAO", "MDG", "MWI", "MLI", "MRT", "MOZ", "MMR", "NGA",
+#               "PNG", "PER", "SEN", "SDN", "TZA", "THA", "UGA", "VEN", "VNM", "ZMB")
+# Subset using ISO3
+#pfcountries <- worldsimple[worldsimple$GID_0 %in% iso3_list, ]
+
+malariaendem <- st_as_sf(malariaendem)
+malariaendem <- malariaendem %>%
+  left_join(pfsa_data, by = c("NAME_0" = "country"))
+malariaendem$avgsample <- malariaendem$Pfsa1+malariaendem$Pfsa2+malariaendem$Pfsa3+malariaendem$Pfsa4
+malariaendem$avgsample <-malariaendem$avgsample/4
+# Plot using ggplot2
+worldsimple <- st_as_sf(worldsimple)
+worldsimple <- worldsimple[worldsimple$NAME_0 != 'Antarctica', ]
+tmp <- getOption("ggplot2.continuous.fill") # store current setting
+options(ggplot2.continuous.fill = scale_fill_distiller)
+p <- ggplot()  +
+  geom_sf(data=worldsimple,fill = "grey95", color = "white", size = 0.2) +
+  geom_sf(data=malariaendem,aes(fill = avgsample), color = "white", size = 0.2) +
+  scale_fill_binned(type = 'gradient',breaks=seq(0, 3500, by = 500),
+                    na.value = "darkgrey",
+                    name = "Pf sample size\naverage (Pfsa1–Pfsa4)",
+                   guide = guide_colorsteps(
+                    title.position = "top",
+                  #    title.hjust = 0.5,
+                     barwidth = unit(6, "cm"),
+                    barheight = unit(0.5, "cm")
+                   ))+
+                    #,
+                  #    direction = "horizontal"
+                  #  )) +
+ # scale_fill_viridis_c(na.value = "darkgrey",name = "Pf sample size\naverage (Pfsa1–Pfsa4)") +
+ theme_void()+
+  theme(
+    legend.position = "bottom",     # Inside bottom center
+    legend.justification = "center"
+  )
+
+# Save as SVG
+ggsave(
+  "output/summary/pfcountries.svg",
+  plot = p,
+  width = 10,
+  height = 6,
+  device = "svg"
+)
+options(ggplot2.continuous.fill = tmp) # restore previous setting
 
 #some functions##########################################################################
 df2sf <- function(df, coords, crs = 4326) {

@@ -31,6 +31,7 @@ focus = tibble::tibble(
 focus$start = args$start
 focus$end = args$end
 
+samples = readr::read_tsv( args$samples )
 H = bgen.load(
 	args$pf7,
 	ranges = focus,
@@ -40,12 +41,21 @@ H = bgen.load(
 
 # Parasites are haplopid but encoded as if homozygous diploid
 # For phased data comes back as 4 probabiites (0/1 + 0/1) so take 2nd
+
+# Fix haplotypes: we remove one variant, at 
+
 haplotypes = H$data[,,2]
+
 variants = as_tibble(H$variants)
 variants$freq = rowSums( haplotypes, na.rm = T ) / rowSums( !is.na( haplotypes ))
 
-wFocus = which( variants$position == focus$position )
+# We remove a variant that does not look compatible with the tree
+# In the original VCF this overlaps an insertion/deletion and so may be multiallelic
+w = which( variants$position == 630737 )
+variants = variants[-w,]
+haplotypes = haplotypes[-w,]
 
+wFocus = which( variants$position == focus$position )
 
 # Find high LD variants
 find_high_ld_variants <- function( HD, focus.variant ) {
@@ -53,7 +63,7 @@ find_high_ld_variants <- function( HD, focus.variant ) {
 	for( i in 1:nrow(HD)) {
 		A = table( HD[focus.variant,], HD[i,] )
 		if( dim(A)[1] == 2 & dim(A)[2] == 2 ) {
-			if( A[2,2] > 10 & A[1,2] < 10 ) {
+#			if( A[2,2] > 10 & A[1,2] < 10 ) {
 				high_ld_variants = dplyr::bind_rows(
 					high_ld_variants,
 					dplyr::bind_cols(
@@ -68,12 +78,16 @@ find_high_ld_variants <- function( HD, focus.variant ) {
 					)
 				)
 			}
-		}
+#		}
 	}
 	return( high_ld_variants )
 }
 
-print( find_high_ld_variants( haplotypes, wFocus) %>% filter( freq > 0.02 ), width = 1000 )
+FHV = find_high_ld_variants( haplotypes, wFocus) %>% mutate( `f+` = `++`/(`+-`+`++`), `f-` = `-+`/(`--`+`-+`))
+print( FHV %>% filter( freq > 0.02 ) %>% filter( `++` > 10 & `-+` < 10 ), width = 1000 )
+print( FHV %>% filter( freq > 0.02 & `f-` < 0.05 & `f+` > 5*`f-` ), width = 1000 )
+
+print( FHV %>% filter( freq > 0.02 & `f-` > 0.05 & `f+` > 0.05 ), width = 1000 )
 
 # List all samples and Pfsa genotypes
 result1 = tibble::tibble(
@@ -87,7 +101,6 @@ num_nonmissing <- function( i, j ) {
 		sum( !is.na( haplotypes[,i[n]]+haplotypes[,j[n]] ))
 	})
 }
-
 pairwise.distances = as.matrix(
 	dist( t( haplotypes ), method = "manhattan" )
 )
@@ -235,7 +248,7 @@ p = (
 		col = rgb( 0.9, 0.9, 0.9 ),
 		linewidth = 0.1
 	)
-	+ geom_point( aes( x = index, y = time, colour = within ), size = 0.5 )
+	+ geom_point( aes( x = index, y = time ), size = 0.2 )
 	+ geom_hline(
 		data = summary %>% filter( Ne == 50000 ),
 		aes( yintercept = split.time ),
@@ -251,7 +264,7 @@ p = (
 		size = 2
 	)
 	+ theme_minimal()
-	+ ylab( "Time\n(generations)")
+	+ ylab( "Time\n(transmissions)")
 	+ facet_grid( mitoses.per.generation ~ pairtype, scales = "free" )
 	+ xlab( "" )
 	+ theme(
@@ -260,4 +273,4 @@ p = (
 		strip.text.y = element_text( angle = 0, vjust = 0.5, hjust = 0 )
 	)
 )
-ggsave( p, file = sprintf( "outputs/figures/Pf3D7_02_v3:631190_allele_age-%s.pdf", args$analysis ), width = 8, height = 4 )
+ggsave( p, file = sprintf( "outputs/figures/Figure S7 - GEVA allele age.pdf" ), width = 6, height = 4 )

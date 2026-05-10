@@ -260,11 +260,15 @@ HbSbbox <- st_bbox( hbsmask[[1]] )
 			pt.thick = 0.1,
 			pfcoltype = pfcoltypes[[j]],
 			viridisoption = list( scale = "rocket", direction = 1 ),
-			countrybordercol = 'gray95',
+			countrybordercol = 'gray10',
 			countrybuffer = FALSE,
 			HbSbreaks = aesthetic$HbS$breaks,
 			HbSlabels = aesthetic$HbS$labels,
-			aesthetic = aesthetic$map
+			aesthetic = list(
+				oceancolor		= "transparent",	 # Ocean fill color
+				landcolor		= "transparent",				 # Land color (medium grey)
+				lakecolor		= "#2d56af"
+			)
 		)
 		# Add distinguished hexagon
 		#fig1bhexa[[1]] = fig1bhexa[[1]] + geom_sf( data = discrete.grid %>% filter( polygon_id == 8339 ), fill = "transparent", col = "white", lwd = 2 )

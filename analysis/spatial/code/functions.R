@@ -13,7 +13,7 @@ echo <- function( text, ... ) {
 install.prerequisites <- function() {
   #install packages
   #INLA used to fit Bayesian models
-  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx","terra")
+  libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx","terra","forcats","ggdist")
   lapply( libraries, library, character.only = TRUE, quietly = TRUE )
   #basic packages and parallel computing packages (add more if needed)
 #  list.of.packages <- c("tictoc","fmesher", "parallel","raster","sf","cowplot", "viridis", "geodata", "rnaturalearth", "malariaAtlas", "ggplot2",
@@ -2168,23 +2168,37 @@ aggregate_pf_data_in_polygons <- function( data, polygons, polygon_id_column ) {
 country.colours <- function() {
   	return(
       c(
-        "Morocco" = "#292933",
-        "Mauritania" = "#090953",
-        "Gambia" = "#0c0c83",
-        "Senegal" = "#2323f6",
-        'Guinea-Bissau' = "#0000CD",
-        'Guinea' = "#3a3a9f",
-        "Mali" = "#42426F",
-        "Burkina_Faso" = "#82EEFD",
-        "Burkina Faso" = "#82EEFD",
-        "Sierra Leone" = "#42628D",
-        "Liberia" = "#377EB8",
-        "IvoryCoast" = "#2ecdab",
-        "Ivory Coast" = "#2ecdab",
-        "Cote_dIvoire" = "#2ecdab",
-        "Cote d'Ivoire" = "#2ecdab",
-        "Togo" = "#98FB98",
-        "Ghana" = "#03B4CC",
+        #"Morocco" = "#292933",
+        "Morocco"        = "#2B2B2B",  # keep neutral dark
+        "Mauritania"     = "#081D58",  # very dark navy (almost black-blue)
+        #"Gambia" = "#0c0c83",
+        #"Senegal" = "#2323f6",
+        'Guinea-Bissau'  = "#0000CD", # pure blue (anchor)
+        #'Guinea' = "#3a3a9f",
+        #"Mali" = "#42426F",
+        "Gambia"         = "#084594",  # dark blue (clearly lighter than Mauritania)
+        "Senegal"        = "#2171B5",  # medium blue 
+        "Guinea"         = "#41B6C4",  # blue-teal (shift hue!)
+        "Mali"           = "#7FCDBB",  # light teal (not just lighter blue)
+        #"Burkina_Faso"   = "#82EEFD",
+        #"Burkina Faso"   = "#82EEFD",
+        "Burkina_Faso"   = "#C7E9F1",  # very light cyan (almost pastel)
+        "Burkina Faso"   = "#C7E9F1",  # very light cyan (almost pastel)
+        #"Sierra Leone" = "#42628D",
+        "Sierra Leone"   = "#4292C6",  # lighter blue
+        #"Liberia" = "#377EB8",
+        "Liberia"        = "#6BAED6",  # pale blue (distinct)
+        "IvoryCoast"     = "#2ECDAB",  # green-teal (already distinct)
+        "Ivory Coast"    = "#2ECDAB",  # green-teal (already distinct)
+        "Cote_dIvoire"   = "#2ECDAB",  # green-teal (already distinct)
+        "Cote d'Ivoire"  = "#2ECDAB",  # green-teal (already distinct)
+        #"IvoryCoast"     = "#2ecdab",
+        #"Ivory Coast"    = "#2ecdab",
+        #"Cote_dIvoire"   = "#2ecdab",
+        #"Cote d'Ivoire"  = "#2ecdab",
+        "Togo"           = "#98FB98",
+        #"Ghana" = "#03B4CC",
+        "Ghana"          = "#00A9CF",  # strong cyan (keeps identity)
         "Benin" = "#03cc53",
         "Nigeria" = "#708238",
         "Niger" = "#4B5320",
@@ -2289,4 +2303,18 @@ load_HbS_mean = function( filename ) {
   result$HbS = rowMeans(G)
   result = result %>% mutate( HbAS_or_SS = HbS^2 + 2*HbS*(1-HbS) )
   return( result )
+}
+
+
+logistic = function( data, formula = Y ~ year ) {
+	data = ( data %>% mutate( Y = (`Pfsa+` / N) ))
+	g = glm( formula, weight = N, data = data, family = "binomial" )
+	coeff = summary(g)$coeff
+	colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+	return(
+		bind_cols(
+			tibble( parameter = rownames(coeff) ),
+			coeff
+		)
+	)
 }

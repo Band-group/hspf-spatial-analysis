@@ -17,6 +17,7 @@ plot.genes = function(
 			arrow = 'black'
 		)
 	),
+	spacer = NULL,
 	verbose = FALSE
 ) {
 	wGeneInRegion = which( genes$seqid == region$chromosome & genes$end >= region$start & genes$start <= region$end )
@@ -27,22 +28,28 @@ plot.genes = function(
 	wExon = which( genes$type == 'exon' )
 	wTranscript = which( genes$type %in% c( 'mRNA', 'transcript' ))
 	wCDS = which( genes$type == 'CDS' )
-	genes$layout_level[ wGene ] =  layout.intervals(
-		genes[ wGene, ],
+	if( is.null( spacer )) {
 		spacer = c(
 			start = (region$end - region$start) / 10,
 			end = (region$end - region$start) / 10
 		)
+	}
+	genes$layout_level[ wGene ] = layout.intervals(
+		genes[ wGene, ],
+		spacer
 	)
 	genes$layout_level[ wTranscript ] = genes[match(genes$Parent[wTranscript], genes$ID),]$layout_level
-	genes$layout_level[ wExon ] = genes[match(genes$Parent[wExon], genes$ID),]$layout_level
-	genes$layout_level[ wCDS ] = genes[match(genes$Parent[wCDS], genes$ID),]$layout_level
+	transcripts = genes[ wTranscript, ]
+	genes$layout_level[ wExon ] = transcripts[match(genes$Parent[wExon], transcripts$ID),]$layout_level
+	genes$layout_level[ wCDS ] = transcripts[match(genes$Parent[wCDS], transcripts$ID),]$layout_level
 
 	print( genes )
 
 	if( verbose ) {
 		cat( "GENES:\n" )
 		print( genes[wGene,] )
+		cat( "TRANSCRIPTS:\n" )
+		print( genes[wTranscript,] )
 		cat( "EXONS:\n" )
 		print( genes[wExon,] )
 		cat( "CDS:\n" )
@@ -50,7 +57,7 @@ plot.genes = function(
 	}
 	print( region )
 	if( is.null( ylim )) {
-		ylim = c( -0.1, max( max( genes$layout_level[wGene] ) + 1.1, 2.5 ) )
+		ylim = c( -0.1, max( max( genes$layout_level[wGene] ) + 0.1, 2.5 ) )
 	}
 	xlim = c( region$start, region$end )
 	blank.plot(
