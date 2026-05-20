@@ -10,7 +10,13 @@ CREATE TABLE `by_sample` (
   `ID` TEXT,
   `exclude` TEXT DEFAULT 'no',
   `locus` TEXT,
+  `chromosome` TEXT,
+  `position` INT,
+  `ref_allele` TEXT,
+  `alt_allele` TEXT,
   `ref` INTEGER,
   `mixed` INTEGER,
-  `nonref` INTEGER
+  `nonref` INTEGER,
+  `read_count_ref` INT,
+  `read_count_alt` INT
 ) ;

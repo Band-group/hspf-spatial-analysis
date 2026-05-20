@@ -1,5 +1,5 @@
 # This is from Table 1 of https://doi.org/10.1038/s41467-023-43087-4
-# Long/Lat is by manual inspection of FIg 1 & Google Maps.
+# Long/Lat is by manual inspection of Fig 1 & Google Maps.
 Site	Map	Region	District	Incidence	M	M	P	longitude	latitude
 GMK	STL	Saint Louis	Richard Toll	0.5	0	4	0	-16.076832	16.398757
 ROS	STL	Saint Louis	Richard Toll	0.8	0	5	2	-15.700055	16.454659

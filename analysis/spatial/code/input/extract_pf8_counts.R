@@ -1,10 +1,9 @@
 library( tidyverse )
 library( dplyr )
 library( dbplyr )
-library( rbgen )
 library( argparse )
 
-source( "input/scripts/functions.R" )
+source( "code/input/functions.R" )
 
 options(width=200)
 
@@ -39,7 +38,7 @@ args = parse_arguments()
 
 paths = list(
 	samples = sprintf( "%s/Pf8_samples.txt", args$indir ),
-	genotypes = sprintf( "%s/data.bgen", args$indir )
+	genotypes = sprintf( "%s/pf8.vcf.gz", args$indir )
 )
 
 samples = (
@@ -67,11 +66,45 @@ samples = (
 
 echo( "++ Loading data from %s...\n", paths$genotypes )
 variants = readr::read_tsv( args$variants )
-genotypes = load.genotypes.from.bgen( paths$genotypes, variants )
-by_sample = generate_long_form_table(
-	samples,
-	genotypes$variants,
-	genotypes$dosage
+genotypes = load.genotypes.from.vcf( paths$genotypes, variants )
+
+# Filter to required samples and put in correct format
+by_sample = (
+	samples
+	%>% inner_join(
+		(
+			genotypes
+			%>% transmute(
+				ID,
+				locus, chromosome, position, ref_allele = ref, alt_allele = alt, 
+				ref      = as.integer( GT == '0/0' ),
+				mixed    = as.integer( GT == '0/1' | GT == '1/0' ),
+				nonref   = as.integer( GT == '1/1' ),
+				read_count_ref,
+				read_count_alt
+			)
+		),
+		by = "ID",
+		relationship = "many-to-many"
+	)
+	%>% select(
+		source,
+		study,
+		datatype,
+		country,
+		year,
+		site,
+		latitude,
+		longitude,
+		ID,
+		exclude,
+		locus, chromosome, position, ref_allele, alt_allele, 
+		ref,
+		mixed,
+		nonref,
+		read_count_ref,
+		read_count_alt
+	)
 )
 
 echo( "++ Outputting to %s...\n", args$output )

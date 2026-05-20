@@ -1,6 +1,8 @@
 library( dplyr )
 library( argparse )
 
+source( "code/input/functions.R" )
+
 options(width=300)
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -44,12 +46,12 @@ data = readr::read_tsv( paths$data )
 samples = (
 	data
 	%>% mutate(
-		source = "Greenwood Uganda 2017-2022",
-		study = "Greenwood Uganda 2017-2022",
-		datatype = "WGS",
-		country = "Uganda",
-		exclude = "no",
-		site = NA
+		source    = "Uganda UCSF EppiCenter",
+		study     = "UCSF EppiCenter Uganda 2017-2022",
+		datatype  = "WGS",
+		country   = "Uganda",
+		exclude   = "no",
+		site      = NA
 	)
 	%>% select(
 		ID = sample_name, latitude, longitude, source, study, datatype, country, year, site, exclude
@@ -87,14 +89,16 @@ for( i in 1:nrow( variants )) {
 	}
 }
 
-source( "input/scripts/functions.R" )
 by_sample = generate_long_form_table(
 	samples,
 	variants,
 	dosage
+) %>% mutate(
+	read_count_ref = NA,
+	read_count_alt = NA
 )
 
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'Greenwood Uganda 2017-2022', args$output )
+output_to_db( by_sample, 'Uganda UCSF EppiCenter', args$output )
 echo( "++ Success!  Thanks for using extract_uganda_counts.R.\n" )
 

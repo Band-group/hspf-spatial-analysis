@@ -48,6 +48,41 @@ load.genotypes.from.bgen <- function( filename, SNPs ) {
 	return(G)
 }
 
+load.genotypes.from.vcf <- function( filename, variants ) {
+	library( dplyr )
+	t1 = tempfile()
+	data = readr::read_tsv( 
+		pipe(
+			sprintf(
+				"bcftools query -f '[%%SAMPLE\t%%CHROM\t%%POS\t%%REF\t%%ALT\t%%GT\t%%AD\n]' %s",
+				filename
+			)
+		),
+		col_names = c( "ID", "chromosome", "position", "ref", "alt", "GT", "AD")
+	)
+	data$GT[ data$GT == './.' ] = NA
+
+	# Fix chromosomes written as chr%d.
+	data$chromosome_number = as.integer( stringr::str_extract( data$chromosome, '(Pf3D7_|chr)([0-9]+)(_v3|)', group = 2 ) )
+	data$chromosome = sprintf( "Pf3D7_%02d_v3", data$chromosome_number )
+
+	data = (
+		data
+		%>% inner_join(
+			variants,
+			by = c( 'chromosome', 'position' )
+		)
+	)
+	data = (
+		data
+		%>% mutate(
+			read_count_ref = as.integer( stringr::str_extract( AD, "([0-9]+),([0-9]+)(,[0-9]+|)", group = 1 )),
+			read_count_alt = as.integer( stringr::str_extract( AD, "([0-9]+),([0-9]+)(,[0-9]+|)", group = 2 ))
+		)
+	)
+	return(data)
+}
+
 generate_long_form_table <- function(
 	samples,
 	variants,
@@ -59,11 +94,15 @@ generate_long_form_table <- function(
 	result = tibble()
 	for( i in 1:nrow( variants )) {
 		X = tibble::tibble(
-			ID = colnames(dosage),
-			locus = variants$locus[i],
-			ref = as.integer( dosage[i,,drop=F] == 0 ),
-			mixed = as.integer( dosage[i,,drop=F] == 1 ),
-			nonref = as.integer( dosage[i,,drop=F] == 2 )
+			ID         = colnames(dosage),
+			locus      = variants$locus[i],
+			chromosome = variants$chromosome[i],
+			position   = variants$position[i],
+			ref_allele = variants$ref_allele[i],
+			alt_allele = variants$alt_allele[i],
+			ref        = as.integer( dosage[i,,drop=F] == 0 ),
+			mixed      = as.integer( dosage[i,,drop=F] == 1 ),
+			nonref     = as.integer( dosage[i,,drop=F] == 2 )
 		)
 		result = dplyr::bind_rows(
 			result,
