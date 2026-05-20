@@ -1,21 +1,13 @@
-choice = "random"
+choice = "pf8"
 
 choices = {
-	"random": {
-		"output": "input/hbs-pf-random-variants.sqlite",
-		"variants": "input/random_variants_f_ge_10pc.tsv"
-	},
-	"annie": {
-		"output": "input/hbs-pf-annie.sqlite",
-		"variants": "input/variants.tsv"
-	},
 	"pf8": {
 		"output": "input/hbs-pf-pf8.sqlite",
 		"variants": "input/variants.tsv"
 	}
 }
 
-output = choices[choice]['output']
+output   = choices[choice]['output']
 variants = choices[choice]['variants']
 
 rule all:
@@ -34,20 +26,23 @@ rule initialise_db:
 
 rule download_or_extract_data:
 	output:
-		bgen = "input/{dataset}/data.bgen",
-		bgi = "input/{dataset}/data.bgen.bgi"
+		vcf = "input/{dataset}/{dataset}.vcf.gz",
+		tbi = "input/{dataset}/{dataset}.vcf.gz.tbi"
 	input:
 		tsv = variants
+	wildcard_constraints: dataset = "pf8|GAMCC|tanzania"
 	params:
 		url = lambda w: ({
-			'pf8': "https://pf8-release.cog.sanger.ac.uk/vcf/{chromosome}.filt.vcf.gz",
-			'GAMCC': "/well/band/projects/pf-GAMCC/data/called_genotypes/B-VQSR_version/GAMCC_final/{chromosome}.GAMCC_final.final.vcf.gz"
+			'pf8'       : "https://pf8-release.cog.sanger.ac.uk/vcf/{chromosome}.filt.vcf.gz",
+			'GAMCC'     : "/well/band/projects/pf-GAMCC/data/called_genotypes/B-VQSR_version/GAMCC_CP1_final/raw_VQSR/{chromosome}.GAMCC_CP1_final.final.vcf.gz",
+			'tanzania'  : "input/tanzania/Moser_et_al_2021/IBC_variants.fixed_genos.biallelic.targets_only.recode.vcf.gz"
 		}[w.dataset]),
+		# regexp to convert phased genotype to unphased, as some datasets are mixed for this.
 		sed_string = 's:\([0-9.]\)[|]\([0-9.]\):\\1/\\2:g',
 		tmpdir = "input/{dataset}/tmp",
 		qctool = "qctool_v2.2.4"
 	run:
-		bgens = []
+		vcfs = []
 		shell( "mkdir -p {params.tmpdir}" )
 		variants = {}	
 		with open( input.tsv, "rt" ) as f:
@@ -69,41 +64,58 @@ rule download_or_extract_data:
 					"alt_allele": alt_allele
 				})
 		print( variants )
-		for chromosome in variants.keys():
-			url = params.url.format( chromosome = chromosome )
-			print(
-				"""++ Fetching data for {chromosome} from {url}...""".format(
-					chromosome = chromosome, url = url
-				))
-			tmpfilename = "%s/%s.tmp.vcf" % ( params.tmpdir, chromosome )
-			positions = [ "%s:%s-%s" % ( e['chromosome'], e['position'], e['position'] ) for e in variants[chromosome] ]
+		if '{chromosome}' in params.url:
+			for chromosome in variants.keys():
+				url = params.url.format( chromosome = chromosome )
+				print(
+					"""++ Fetching data for {chromosome} from {url}...""".format(
+						chromosome = chromosome, url = url
+					))
+				tmpfilename = "%s/%s.tmp.vcf" % ( params.tmpdir, chromosome )
+				positions = [ "%s:%s-%s" % ( e['chromosome'], e['position'], e['position'] ) for e in variants[chromosome] ]
+				shell( """tabix -h '{url}' %s | bcftools sort > {tmpfilename}""" % ' '.join( positions ) )
+				shell( """sed -i -e '{params.sed_string}' '{tmpfilename}'""" )
+				vcfs.append( tmpfilename )
+			shell( """bcftools concat -Oz -o {output.vcf} {vcfs}""" )
+		else:
+			url = params.url
+			print( """++ Fetching data from {url}...""".format( url = url ) )
+			tmpfilename = "%s/tmp.vcf" % ( params.tmpdir )
+			positions = [ "%s:%s-%s" % ( e['chromosome'], e['position'], e['position'] ) for chromosome in variants.keys() for e in variants[chromosome] ]
+			print( positions )
 			shell( """tabix -h '{url}' %s > {tmpfilename}""" % ' '.join( positions ) )
 			shell( """sed -i -e '{params.sed_string}' '{tmpfilename}'""" )
-			bgenfilename = tmpfilename.replace( ".vcf", ".bgen" )
-			shell( """{params.qctool} -g {tmpfilename} -og {bgenfilename} -bgen-bits 8 -bgen-compression zstd""" )
-			bgens.append( bgenfilename )
-		shell( """cat-bgen -g {bgens} -og {output.bgen}""")
-		shell( """bgenix -g {output.bgen} -index""" )
+			vcfs = [ tmpfilename ]
+			shell( """bgzip {tmpfilename}""" )
+			shell( """cp {tmpfilename}.gz {output.vcf}""" )
+		shell( """bcftools index --tbi {output.vcf}""" )
 
 rule extract_dataset:
 	output:
 		flag = touch( temp( "input/status/{dataset}.ok" ))
 	input:
 		db = rules.initialise_db.output.db,
-		GAMCC = "input/GAMCC/data.bgen",
-		pf8 = "input/pf8/data.bgen",
+		calls = lambda w: (
+			{
+				"pf8":      "input/pf8/pf8.vcf.gz",
+				"tanzania": "input/tanzania/tanzania.vcf.gz",
+				"dr_congo": "input/dr_congo/biallelic_processed0.rds",
+				"senegal":  "input/senegal/senegal.vcf.gz",
+				"uganda":   "input/uganda/pfsa_data_uganda_wgs.tsv",
+				"GAMCC":    "input/GAMCC/GAMCC.vcf.gz"
+			}[w.dataset]
+		),
 		variants = variants
 	params:
 		script = "code/input/extract_{dataset}_counts.R",	
 		indir = lambda w: (
 			{
-				"pf7":     "/well/band/projects/pf7",
-				"pf8":     "input/pf8",
-				"TZ":      "input/tanzania",
-				"DRC":     "input/dr_congo",
-				"senegal": "input/senegal",
-				"uganda":  "input/uganda",
-				"GAMCC":   "input/GAMCC"
+				"pf8":       "input/pf8",
+				"tanzania":  "input/tanzania",
+				"dr_congo":  "input/dr_congo",
+				"senegal":   "input/senegal",
+				"uganda":    "input/uganda",
+				"GAMCC":     "input/GAMCC"
 			}[w.dataset]
 		)
 	shell: """
@@ -121,8 +133,8 @@ rule finalise:
 			dataset = [
 				"pf8",
 				"GAMCC",
-				"TZ",
-				"DRC",
+				"tanzania",
+				"dr_congo",
 				"senegal",
 				"uganda"
 			]
@@ -137,5 +149,5 @@ rule summarise:
 	input:
 		db = rules.finalise.output.db
 	shell: """
-	sqlite3 -separator $'\t' -header {input.db} "SELECT source, locus, SUM(ref) AS ref, SUM(mixed) AS mixed, SUM(nonref) AS nonref FROM by_sample GROUP BY source, locus" > {output.tsv}
+	sqlite3 -separator $'\t' -nullvalue 'NA' -header {input.db} "SELECT source, locus, SUM(ref) AS ref, SUM(mixed) AS mixed, SUM(nonref) AS nonref FROM by_sample GROUP BY source, locus" > {output.tsv}
 	"""
