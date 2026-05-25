@@ -30,6 +30,7 @@ params:
       - "Pfsa1"
       - "Pfsa2"
       - "Pfsa3"
+      - "Pfsa3-alt1"
       - "Pfsa4"
    regression_model:
       - "bym2"

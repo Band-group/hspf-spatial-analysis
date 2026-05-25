@@ -58,8 +58,10 @@ load.genotypes.from.vcf <- function( filename, variants ) {
 				filename
 			)
 		),
-		col_names = c( "ID", "chromosome", "position", "ref", "alt", "GT", "AD")
+		col_names = c( "ID", "chromosome", "position", "ref", "alt", "GT", "AD"),
+		col_types = c( "ccicccc" )
 	)
+	stopifnot( nrow( data ) > 0 )
 	data$GT[ data$GT == './.' ] = NA
 
 	# Fix chromosomes written as chr%d.
