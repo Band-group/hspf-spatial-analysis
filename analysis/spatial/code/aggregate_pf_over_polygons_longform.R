@@ -49,6 +49,18 @@ parse_arguments <- function() {
 }
 
 args = parse_arguments()
+
+if( !exists( 'args' )) {
+	# for testing
+	stop()
+	args = list(
+		pf = "input/hbs-pf-pf8.sqlite",
+		crs = "+proj=longlat +datum=WGS84 +no_defs",
+		polygons = "output/grids/grid-type=hexagon-size=1-area=africa.rds",
+		group_by = c(),
+		output = "/tmp"
+	)
+}
 print( args )
 
 #install packages
@@ -59,8 +71,9 @@ polygons = readRDS( args$polygons )
 
 library( RSQLite )
 db = dbConnect( dbDriver( "SQLite" ), args$pf )
-data = dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" )
+data = tibble::as_tibble( dbGetQuery( db, "SELECT * FROM by_sample WHERE exclude == 'no'" ))
 
+# Verify the input data is per-sample
 stopifnot( max( data$`ref` + data$`mixed` + data$`nonref`, na.rm = T ) <= 1 )
 
 # For these loci, the Pfsa+ allele is assumed to be the reference allele...
@@ -82,8 +95,14 @@ longform = (
 	data
 	%>% filter( exclude == "no" )
 	%>% mutate(
-		`Pfsa-` = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
-		`Pfsa+` = ifelse( locus %in% flipped_loci, `ref`, `nonref` )
+		`Pfsa-`                     = ifelse( locus %in% flipped_loci, `nonref`, `ref` ),
+		`Pfsa+`                     = ifelse( locus %in% flipped_loci, `ref`, `nonref` ),
+		`missing`                   = (1 - (ref+mixed+nonref)),
+		`Pfsa-_readcount`           = ifelse( locus %in% flipped_loci, `read_count_alt`, `read_count_ref` ),
+		`Pfsa+_readcount`           = ifelse( locus %in% flipped_loci, `read_count_ref`, `read_count_alt` ),
+		`has_at_least_10_reads`     = as.integer((`Pfsa-_readcount`+`Pfsa+_readcount`) >= 10),
+		`Pfsa+_freq_by_read_counts` = ifelse( has_at_least_10_reads == 1, `Pfsa+_readcount` / ( `Pfsa-_readcount` + `Pfsa+_readcount` ), NA ),
+		year                        = as.character( year )
 	)
 	%>% select(
 		`locus`,
@@ -96,24 +115,33 @@ longform = (
 		`Pfsa-`,
 		`mixed`,
 		`Pfsa+`,
+		`missing`,
+		`has_at_least_10_reads`,
+		`Pfsa-_readcount`,
+		`Pfsa+_readcount`,
+		`Pfsa+_freq_by_read_counts`,
 		source_countries = country
 	)
 )
-
-
+print( longform, width = 1000 )
 # Now aggregate into polygons...
 aggregated = aggregate_pf_across_polygons(
 	longform,
 	polygons,
 	args$crs,
 	c( "polygon_id", "longitude", "latitude", "locus", args$group_by )
+) %>% mutate(
+	`Pfsa+_freq_by_read_counts` = `Pfsa+_freq_by_read_counts` / has_at_least_10_reads
 )
+print( aggregated, width = 1000 )
 
 aggregatedsource = aggregate_pf_across_polygons(
 	longform,
 	polygons,
 	args$crs,
 	c( "polygon_id", "longitude", "latitude", "locus", "sources", args$group_by )
+) %>% mutate(
+	`Pfsa+_freq_by_read_counts` = `Pfsa+_freq_by_read_counts` / has_at_least_10_reads
 )
 
 # Remove the geometry column, which ain't needed.
