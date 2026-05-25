@@ -50,11 +50,11 @@ samples = (
 		datatype = "WGS"
 	)
 	%>% mutate(
-		exclude = case_match(
-			status,
-			"Severe_malaria" ~ "yes",
-			"Mild_malaria" ~ "no",
-			NA ~ "yes"
+		exclude = case_when(
+			(exclude != 'no')                              ~ "yes",
+			(exclude == 'no' & status == 'Severe_malaria') ~ "yes",
+			(exclude == 'no' & status == 'Mild_malaria')   ~ "no",
+			.default                                       = "yes"
 		)
 	)
 	%>% select(
@@ -71,10 +71,14 @@ samples = (
 	)
 )
 
+print( samples )
+
 echo( "++ Loading data from %s...\n", paths$genotypes )
-variants = readr::read_tsv( args$variants )
+variants = readr::read_tsv( args$variants, col_types = c( "cicccc" ) )
+print( variants )
 
 genotypes = load.genotypes.from.vcf( paths$genotypes, variants )
+print( genotypes )
 
 # Filter to required samples and put in correct format
 by_sample = (
