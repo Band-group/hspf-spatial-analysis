@@ -8,10 +8,6 @@ echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
 }
 
-blank.plot <- function( xlim = c(0,1), ylim = c(0,1), ... ) {
-	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlim = xlim, ylim = ylim, ... )
-}
-
 arg_sets = list(
 	`Pfsa1` = list(
 		pf7 = "outputs/pf7/vcf/07_ancestral/Pf3D7_02_v3.bgen",
@@ -176,6 +172,7 @@ if( is.null(args$countries)) {
 	args$countries = levels( samples$Country )
 }
 
+source( "scripts/haplotype_figure_impl.R" )
 H = load.genotypes( args$pf7, focus )
 
 # The data is haploid, and usually biallelic, just take the alt / 2nd allele calls 
@@ -189,6 +186,8 @@ annotations = simplify_alleles(
 		by = c( "chromosome", "position" )
 	)
 )
+stopifnot( nrow( annotations ) == nrow( variants ))
+stopifnot( all( annotations$position == variants$position ))
 variants = bind_cols(
 	variants,
 	purrr::map_dfr( 1:nrow(variants), function(i) { split_annotations( variants[i,], annotations$annotation[i] ) })

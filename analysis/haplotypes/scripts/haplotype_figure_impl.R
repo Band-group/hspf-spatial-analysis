@@ -1,3 +1,120 @@
+load.samples <- function(
+	filename,
+	geographical_regions = c(
+		Gambia       = "west",
+		Senegal      = "west",
+		Guinea       = "west",
+		Mauritania   = "west",
+		Cote_dIvoire = "west",
+		Mali         = "west",
+		Burkina_Faso = "west",
+		Ghana        = "west",
+		Benin        = "west",
+		Nigeria      = "west",
+		Gabon        = "west",
+		Cameroon     = "west",
+		Democratic_Republic_of_the_Congo = "central",
+		Sudan        = "east",
+		Uganda       = "east",
+		Malawi       = "east",
+		Tanzania     = "east",
+		Mozambique   = "east",
+		Kenya        = "east",
+		Ethiopia     = "east",
+		Madagascar   = "east"
+	)
+) {
+	echo( "++ Loading samples from %s...\n", filename )
+	{
+		samples = (
+			read_tsv( filename )
+			%>% mutate( relate_sample_index = sprintf( "%d", 0:(length(Sample)-1)) )
+			%>% mutate( region = geographical_regions[Country] )
+		)
+		# Turn pop and country into factors
+		populations        = unique( samples$Population[ order( samples$`Country longitude`)] )
+		countries          = unique( (samples %>% arrange( `Country longitude`))$Country )
+		samples$Population = factor( samples$Population, levels = populations )
+		samples$Country    = factor( samples$Country,    levels = countries )
+		samples$region     = factor( samples$region,     levels = c( "west", "central", "east") )
+
+		if( is.null(args$countries)) {
+			args$countries = levels( samples$Country )
+		}
+	}
+	echo( "++ Ok, %d samples loaded.\n", nrow( samples ))
+	return( samples )
+}
+
+load.focus.haplotypes.and.tree <- function( spec, samples ) {
+	# spec should be a list with these fields:
+	# genotypes (path of genotypes)
+	# focus (data frame of focal position etc.)
+	# annotation (path of annotation file with consequence etc.)
+	# tree (path of genealogy in newick format)
+	# treesamples (path of RELATE tree samples)
+	# tree_annotated_positions (positions that will be annotated on the tree)
+	region = spec
+	focus = spec$focus
+	H = load.genotypes( region$genotypes, region$focus, samples )
+	HD = H$data[,,2]
+
+	variants = as_tibble( H$variants )
+	variants$freq = rowSums( HD, na.rm = T ) / rowSums( !is.na( HD ))
+	annotations = simplify_alleles(
+		variants %>% select( chromosome, position )
+		%>% inner_join(
+			readr::read_tsv( region$annotation ),
+			by = c( "chromosome", "position" )
+		)
+	)
+	stopifnot( nrow( annotations ) == nrow( variants ))
+	stopifnot( all( annotations$position == variants$position ))
+	variants = bind_cols(
+		variants,
+		purrr::map_dfr( 1:nrow(variants), function(i) { split_annotations( variants[i,], annotations$annotation[i] ) })
+	)
+	variants$consequence[ variants$consequence_allele != variants$allele0 & variants$consequence_allele != variants$allele1 ] = 'none'
+	stopifnot( nrow( variants ) == nrow( HD ))
+
+	variants = (
+		variants
+		%>% mutate(
+			included = (
+				freq >= args$min_maf
+				& freq <= (1-args$min_maf)
+				& position >= focus$position - 10000
+				& position <= focus$position + 10000
+			),
+			focused = ( variants$position == region$focus$position )
+		)
+	)
+
+	tree = ape::read.tree( region$tree )
+	tree$tip.sample = samples$Sample[ match( tree$tip.label, samples$relate_sample_index )]
+
+	treesamples = readr::read_tsv( region$treesamples )
+	treesamples = lapply(
+		1:nrow( treesamples ),
+		function(i) {
+			ape::read.tree( text = treesamples$tree[i] )
+		}
+	)
+
+	result = list(
+		focus                = focus,
+		annotation_positions = region$tree_annotated_positions,
+		haplotypes           = HD,
+		variants             = variants,
+		focus_genotype       = HD[ which( variants$position == focus$position), ],
+		focus_tree           = tree,
+		focus_tree_samples   = treesamples,
+		annotations          = annotations
+	)
+
+	return( result )
+}
+
 simplify_alleles = function( data ) {
 	result = data
 	for( i in 1:nrow( data )) {
@@ -55,7 +172,7 @@ split_annotations = function( variant, annotation ) {
 	return( result )
 }
 
-load.genotypes = function( filename, focus ) {
+load.genotypes = function( filename, focus, samples ) {
 	if( !'start' %in% names( focus )) {
 		focus$start = focus$position
 	}
@@ -83,7 +200,8 @@ load.haplotypes = function( filename, focus ) {
 }
 
 # Find high LD variants
-find_high_ld_variants <- function( HD, focus.variant ) {
+find_high_ld_variants <- function( haplotypes, variants, focus.variant ) {
+	HD = haplotypes
 	high_ld_variants = tibble()
 	for( i in 1:nrow(HD)) {
 		A = table( HD[focus.variant,], HD[i,] )
@@ -172,18 +290,18 @@ assign.mutations <- function(
 			cat( sprintf( "++ MATCH %d\n", node ))
 			print( w )
 			edge = which( tree$edge[,2] == node )
+			print( edge )
 			parent = tree$edge[edge,1]
-			print( which( tree$edge[,2] == node ))
 			result = dplyr::bind_rows(
 				result,
 				dplyr::bind_cols(
 					tibble(
 						variant_index = w,
-						node = node,
-						parent = parent,
-						edge = edge,
-						depth = NA,   # will be filled in below
-						height = NA   # will be filled in below
+						node          = node,
+						parent        = parent,
+						edge          = edge,
+						depth         = NA,   # will be filled in below
+						height        = NA   # will be filled in below
 					),
 					variants[w,]
 				)
@@ -445,6 +563,10 @@ plot.hjoiners <- function( as, bs, ys = c( 0, 0.25, 0.5, 0.75, 1 ), ... ) {
 	)
 }
 
+blank.plot <- function( xlim = c(0,1), ylim = c(0,1), ... ) {
+	plot( 0, 0, col = 'white', bty = 'n', xaxt = 'n', yaxt = 'n', xlim = xlim, ylim = ylim, ... )
+}
+
 figure_3 <- function(
 	spec,
 	colour.column = "Country",
@@ -699,7 +821,7 @@ figure_3 <- function(
 	echo( "PLOT4 DONE\n")
 
 	# PLOT 5 - genes
-	if(1) {
+	{
 		limits = plot.genes(
 			spec$genes,
 			region = spec$zoom_region,
