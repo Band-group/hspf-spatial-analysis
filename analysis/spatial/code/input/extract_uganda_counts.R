@@ -38,8 +38,40 @@ parse_arguments <- function() {
 args = parse_arguments()
 
 paths = list(
-	data = sprintf( "%s/pfsa_data_uganda_wgs.tsv", args$indir )
+	data = sprintf( "%s/pfsa_data_uganda_wgs.tsv", args$indir ),
+	ref_counts = sprintf( "%s/ref_depths_pfsa_alleles.tsv", args$indir ),
+	alt_counts = sprintf( "%s/alt_depths_pfsa_alleles.tsv", args$indir )
 )
+
+{
+	read_counts <- function( filename ) {
+		header = tibble::as_tibble(t(readr::read_tsv( filename, n_max = 4, col_names = FALSE )))
+		colnames(header) = header[1,]
+		header = header[-1,]
+		header[['POS']] = as.integer( header[['POS']] )
+
+		data = readr::read_tsv( filename, skip = 4, col_names = F )
+		colnames(data) = c( "ID", sprintf( "%s:%d", header$CHROM, header$POS ))
+		long = (
+			data
+			%>% tidyr::pivot_longer( cols = 2:ncol(data), names_to = "variant", values_to = "count" )
+			%>% mutate(
+				chromosome = stringr::str_extract( variant, "^[^:]*" ),
+				position = as.integer(stringr::str_extract( variant, "[0-9]*$" ))
+			)
+		)
+		return( long )
+	}
+	counts = (
+		read_counts( paths$ref_counts )
+		%>% select( ID, variant, chromosome, position, read_count_ref = count )
+		%>% left_join(
+			read_counts( paths$alt_counts )
+			%>% select( ID, variant, chromosome, position, read_count_alt = count ),
+			by = c( "ID", "variant", "chromosome", "position" )
+		)
+	)
+}
 
 data = readr::read_tsv( paths$data )
 
@@ -93,9 +125,10 @@ by_sample = generate_long_form_table(
 	samples,
 	variants,
 	dosage
-) %>% mutate(
-	read_count_ref = NA,
-	read_count_alt = NA
+) %>% left_join(
+		counts
+		%>% select( ID, chromosome, position, read_count_ref, read_count_alt ),
+		by = c( "ID", "chromosome", "position" )
 )
 
 echo( "++ Outputting to %s...\n", args$output )
