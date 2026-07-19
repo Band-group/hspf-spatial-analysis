@@ -8,7 +8,7 @@ params:
    pf_data_version:
       - "pf8-version"
    r0:
-      - "5.0"
+      - "25.0"
    sigma0:
       - "0.6"
    type:
@@ -30,7 +30,7 @@ params:
       - "Pfsa1"
       - "Pfsa2"
       - "Pfsa3"
-      - "Pfsa3-alt1"
+      #- "Pfsa3-alt1"
       - "Pfsa4"
    regression_model:
       - "bym2"
@@ -44,3 +44,6 @@ params:
       - waf
       - eaf
       - DRC+eaf
+
+#Note that it tries to run fig2_SI.R (rule create_figure2_SI:) and cannot do it (since other files are missing). Here is the error
+#  Rscript --vanilla code/figures/fig2_SI.R                --grid output/grids/grid-type=hexagon-size=1-area=global.rds               --pf input/hbs-pf-pf8.sqlite            --HbS_aggregated output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/grid-type=hexagon-size=1-area=global.tsv     --hspf_fit output/pf=pf8-version/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/{locus}/{locus}-model=bym2+fc=none-200km-area={area}-min_N=0.rds            --pf_prevalence_map geodata/2024_GBD2023_Global_PfPR_2000.tif              --output_pdf output/pf=pf8-version/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/model=bym2-200km-min_N=0-forest_plot_SI.pdf          --output_svg output/pf=pf8-version/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/model=bym2-200km-min_N=0-forest_plot_SI.svg
