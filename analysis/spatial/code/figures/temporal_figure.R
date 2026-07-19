@@ -3,7 +3,7 @@ library( dplyr )
 library( viridis )
 library( argparse )
 library( ggtext )
-
+library( ggrepel)
 source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
