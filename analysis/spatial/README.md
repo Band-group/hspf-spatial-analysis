@@ -73,14 +73,14 @@ Once R is installed, the function `install.prerequisites()` from [`code/function
 
 ### Data prerequisites
 
-To replicate the analysis, you also need to create a `geodata/` folder (excluded from github) with the prerequisite large geographical data files in.  The needed prerequisite files are:
+To replicate the analysis, you also need to create a `geodata/` folder (excluded from github) in `hspf-spatial-analysis/analysis/spatial/` with the prerequisite large geographical data files in.  The needed prerequisite files are:
 
 - HbS map by Piel et al.: `2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif` 
 - spatial polygons (countries): `naturalearthdata.Rdata` 
 - country borders (simplified): `ne_110m_admin_0_countries` ,`adm1`, and `adm2` folders containing shape files
 - malaria prevalence (covariate) raster data: `2024_GBD2023_Global_PfPR_2000.tif`
 
-A .zip file of the folder geodata (1.7 Gb) is available here:
+A .zip file of the folder geodata (772 Mb zipped, 1.74 Gb unzipped) is available here:
 
 [https://1drv.ms/f/s!At2csG1tWRgenchXzqpT8OK024wQLw?e=f16DTd](https://1drv.ms/u/c/1e18596d6db09cdd/EZk0TmliAO9MpTi_G0IP7d8B9y67py8Ht_uKT7sHGERo8Q?e=kyH35G)
 
