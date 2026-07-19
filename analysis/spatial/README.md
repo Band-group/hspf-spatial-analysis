@@ -18,7 +18,7 @@ To run the pipeline, first follow the [installation instructions below](#pipelin
 ```sh
 snakemake -s master.snakefile --configfile config/config-main.yaml --cores 1
 ```
-would run the pipeline using 1 core on your local machine.  (See the [snakemake documentation](https://snakemake.readthedocs.io/en/stable/) for other ways to run snakemake.)
+would run the pipeline using 1 core on your local machine. Note that this command line needs to run inside the subfolder `analysis/spatial/`. See the [snakemake documentation](https://snakemake.readthedocs.io/en/stable/) for other ways to run snakemake.
 
 ## Pipeline details
 ### Configuration
