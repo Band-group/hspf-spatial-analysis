@@ -467,6 +467,11 @@ plot_hspf = function(
 ) {
 	hspf <- readRDS(hspfrdspath)
 	hspf$data$grid = hspf$data$centroid = NULL
+	# Detect which Pfsa variant (Pfsa1, Pfsa2, Pfsa3, Pfsa4...) this fit corresponds
+	# to from the input file path, for labeling purposes only.
+	pfsa_label <- regmatches( hspfrdspath, regexpr( "Pfsa[0-9]+", hspfrdspath ) )
+	if( length( pfsa_label ) == 0 ) pfsa_label <- "Pfsa"
+
 	link_fn = list(
 		logit = function( v, parameters ) {
 			x = parameters[['intercept']] + parameters[['beta']]*v
@@ -650,13 +655,13 @@ plot_hspf = function(
 					linewidth = 0.5,
 					col = rgb( 0, 0, 0, 0.55 )
 				)
-				+ geom_path(
-					data = curves.mean,
-					aes( x = x, y = y, ),
-					linetype = 1,
-					linewidth = 0.05,
-					col = rgb( 1, 1, 1, 0.97)
-				)
+				# + geom_path(
+				# 	data = curves.mean,
+				# 	aes( x = x, y = y, ),
+				# 	linetype = 1,
+				# 	linewidth = 0.05,
+				# 	col = rgb( 1, 1, 1, 0.97)
+				# )
 			)
 		}
 		if( show_tzadf && nrow(tzadf) > 0 ) {	
@@ -678,41 +683,85 @@ plot_hspf = function(
 				)
 			)
 		}
-		if( show_size_legend ) {
-			legend_data = tibble::tibble(
-				x = 0.2875,
-				y = 0.11,
-				text_y = c( 0.05, 0.15, 0.21 ),
-				N = c( 30, 300, 3605 ),
-				display = c( "30", "300", "3,605" )
-			)
-			hspf_plot = (
-				hspf_plot
-				+ geom_point(
-					data = legend_data,
-					aes( x = x, y = y, size = N ),
-					shape = 21,
-					colour = 'black',
-					fill = rgb(0,0,0,0)
-				)
-				+ geom_text(
-					data = legend_data,
-					aes( x = x, y = text_y, label = display ),
-					vjust = 0,
-					hjust = 0.5,
-					size = 2
-				)
-				+ geom_segment(
-					data = tibble::tibble(
-						x = 0.2875,
-						y = 0.07,
-						yend = 0.10
-					),
-					aes( x = x, xend = x, y = y, yend = yend ),
-					linewidth=0.05,color='gray10'
-				)
-			)
-		}
+		if (show_size_legend) {
+
+    ## ----- choose automatic legend values ------------------------
+
+    Nmax <- max(hspf$data$N, na.rm = TRUE)
+
+    exp_max <- floor(log10(Nmax))
+
+    legend_breaks <- c(1, 10, 30) * 10^(exp_max - 1)
+    legend_breaks <- legend_breaks[legend_breaks <= Nmax]
+
+    ## if there are only two breaks, prepend another one
+    if(length(legend_breaks) < 3){
+        legend_breaks <- c(legend_breaks[1]/3, legend_breaks)
+    }
+
+    legend_breaks <- unique(round(legend_breaks))
+
+    ## ----- convert N into plotted radius -------------------------
+
+    max_size <- 9        # same as scale_size_area()
+
+    radii <- sqrt(legend_breaks / max(hspf$data$N)) * max_size
+
+    ## ----- legend position --------------------------------------
+
+    legend_x <- 0.2875
+    legend_y <- 0.15
+
+    legend_data <- tibble(
+        x = legend_x,
+        y = legend_y,
+        N = rev(legend_breaks),
+        radius = rev(radii),
+        display = scales::comma(rev(legend_breaks))
+    )
+
+    ## text positions (just beneath each circle)
+  legend_data$rel_radius <- sqrt(legend_data$N / max(legend_data$N))
+
+  legend_data$text_y <-
+    legend_y -
+    0.005 -
+    0.05 * legend_data$rel_radius
+
+    hspf_plot <- hspf_plot +
+
+        geom_point(
+            data = legend_data,
+            aes(x = x, y = y, size = N),
+            shape = 21,
+            colour = "black",
+            fill = NA
+        ) +
+
+    ggtext::geom_richtext(
+    data = legend_data,
+    aes(x = x, y = text_y, label = display),
+    size = 0.65,
+    vjust = 1,
+    fill = "white",
+    label.color = NA,      # removes border
+    label.padding = grid::unit(c(0.05, 0.05, 0.05, 0.05), "pt")
+) +
+        ggtext::geom_richtext(
+            data = tibble(
+                x = tail(legend_data$x, 1),
+                y = min(legend_data$text_y) - 0.005,
+                label = "Pfsa<br>sample size"
+            ),
+            aes(x = x, y = y, label = label),
+            size = 0.7 + 2/.pt,   # +2pt relative to the legend number labels
+            hjust = 0.5,
+            vjust = 1,
+            lineheight = 1,
+            fill = NA,
+            label.color = NA
+        )
+}
         
 		hspf_plot = (
 			hspf_plot
@@ -729,7 +778,7 @@ plot_hspf = function(
 				labels = sprintf( "%.0f%%", at$y * 100 ),
 				expand = c( 0, 0 )
 			)
-			+ ylab( "<em>Pfsa+</em> frequency" )
+			+ ylab( paste0( "<em>", pfsa_label, "+</em> frequency" ) )
 			+ xlab( "Combined frequency of HbAS and HbSS genotypes" )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
@@ -738,6 +787,10 @@ plot_hspf = function(
 			+ scale_colour_manual(
 				values = c( rgb( 0, 0, 0, 0.9 ), rgb( 0, 0, 0, 0.1 ) ),
 				guide = "none"
+			)
+			+ scale_size_area(
+    			max_size = 9,
+    			guide = "none"
 			)
 			+  theme(
       			axis.title.x  = ggtext::element_markdown(),
