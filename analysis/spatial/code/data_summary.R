@@ -2,6 +2,7 @@
 #########################################################################
 #setwd("/Users/andre/Library/CloudStorage/OneDrive-Personal/MOCHIALL/MOCHI/PROJECT/MED/MED2_HBSPF/hspf-spatial-analysis/analysis/spatial")
 library(argparse)
+library(terra)
 
 # Simple echo function to print messages
 echo <- function(message, ...) {
@@ -41,12 +42,12 @@ surveykm <- 200
 
 #arguments
 args = NULL
-args <- parse_arguments()
+#args <- parse_arguments()
 if( is.null( args )) {
-args$grid = paste0("output/grids/grid-type=hexagon-size=",cellsize,"-division=none-area=global.rds")
-args$pf = "input/hbs-pf-v5.sqlite"
+args$grid = paste0("output/grids/grid-type=hexagon-size=",cellsize,"-area=global.rds")
+args$pf = "input/hbs-pf-v8.sqlite"
 args$HbS_aggregated = "output/HbS/fixed-r0=25.0-sigma0=0.6-fc=none/aggregated/[grid]"
-args$hspf_fit = paste0("output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=",cellsize,"-division=none/Pfsa1-model=bym2+fc=none-",surveykm,"km-area=global-min_N=",min_N,".rds")
+args$hspf_fit = paste0("output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=",cellsize,"/Pfsa1-model=bym2+fc=none-",surveykm,"km-area=global-min_N=",min_N,".rds")
 args$pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif"
 args$HbS_survey = "input/HbS_survey.csv"
 args$extended = "input/HbSgooglesheet.csv"
@@ -58,8 +59,8 @@ source('code/figures/fig1_impl.R')
 #get world map to link continent to datasets
 worldsimple <- geodata::world(resolution=5, level=0, version="latest",path = 'output/summary')
 #pf extent
-pf <-terra::rast(paste0("input/2020_GBD2019_Global_PfPR_2019.tif"))
-pf <- project(pf , crs(worldsimple))
+pf <-terra::rast(args$pf_prevalence_map )
+pf <- terra::project(pf , crs(worldsimple))
 #replace 0 by very small values (truncate)
 pf[pf >= 0.001] <- 1 #0.000001
 pf[pf < 0.001] <- NA
