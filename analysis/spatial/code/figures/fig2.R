@@ -84,6 +84,20 @@ region_label_main <- c("Global", "Africa", "West Africa", "Central and East Afri
 region_order_si <- unique(area_mapping$Region)
 region_label_si <- unique(area_mapping$Region)
 
+# A couple of region labels are renamed to be more descriptive, and are
+# wrapped onto two lines for the y-axis. Applied to both the main and SI
+# figures since both draw on the same "West Africa" / "Central and East
+# Africa" region names.
+relabel_region <- function(x) {
+  dplyr::case_when(
+    x == "West Africa" ~ "Western populations,\nCameroon and Gabon",
+    x == "Central and East Africa" ~ "DRC and\neastern populations",
+    TRUE ~ x
+  )
+}
+region_label_main <- relabel_region(region_label_main)
+region_label_si <- relabel_region(region_label_si)
+
 
 make_region_labels <- function(region_order,region_label) {
   tibble::tibble(
@@ -137,22 +151,25 @@ make_summary <- function(raw, region_order, region_labels) {
 }
 
 make_panel <- function(df, locus_name,panel_id,
-                       xlim = c(-20, 95),
-                       x_breaks = c(-20, 0, 20, 40),
+                       xlim = c(-10, 95),
+                       x_breaks = c(-10, 0, 10,20, 30, 40),
                        x_n = 55,
                        x_df = 71,
                        x_f = 88,
-                       y_levels = NULL) {
+                       y_levels = NULL,
+                       show_x_labels = TRUE,
+                       vline_pad = 0,
+                       panel_tag = NULL) {
   if (is.null(y_levels)) {
     y_levels <- unique(df$RegionLabel)
   }
   #labels frequency and delta freq.
   freq_header <- sprintf("f[%d*'+']", panel_id)
   delta_header <- sprintf("Delta*f[%d*'+']", panel_id)#bquote(Delta[f[.(panel_id) * "+"]] ~ "(95% CrI)")
-
-  ggplot(df, aes(y = RegionLabel)) +
+  annotatevjust = 0.3
+  p <- ggplot(df, aes(y = RegionLabel)) +
   geom_segment(
-   x = 0, xend = 0, y = 1, yend = length(y_levels),
+   x = 0, xend = 0, y = 1 + vline_pad, yend = length(y_levels) - vline_pad,
   linetype = "dashed",
   linewidth = 0.35,
   colour = "grey40"
@@ -166,47 +183,82 @@ make_panel <- function(df, locus_name,panel_id,
       colour = "black"
     ) +
     geom_point(aes(x = estimate_pct), size = 2.0, colour = "black") +
-    geom_text(aes(x = x_n, label = N_lab), hjust = 0.5, size = 2.5) +
-    geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 2.5) +
-    geom_text(aes(x = x_f, label = freq_lab), hjust = 0.5, size = 2.5) +
-    annotate(
-      "text", x = 0.2, y = Inf, label = expression("Posterior estimate"),
-      vjust = 1.2, size = 3.5,hjust= 0.15
+    geom_text(
+      aes(x = x_n, label = N_lab),
+      hjust = 0.5, size = 2.5, colour = "grey50"
     ) +
+    geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 2.5, colour = "grey50") +
+    geom_text(aes(x = x_f, label = freq_lab), hjust = 0.5, size = 2.5, colour = "grey50") +
     annotate(
-      "text", x = x_n, y = Inf, label = "N",
-      vjust = 1.2, size = 3.5,hjust = 0.5,
-    ) +
+      "text", x = x_n, y = Inf, label = "N", vjust = annotatevjust, size = 3.5,hjust = 0.5) +
     annotate(
       "text", x = x_df, y = Inf, label = paste0(delta_header, " ~ '(95% CrI)'"),
   parse = TRUE,
-      vjust = 1.2, size = 3.5,hjust = 0.5
+      vjust = annotatevjust, size = 3.5,hjust = 0.5
     ) +
     annotate(
       "text", x = x_f, y = Inf, label = freq_header, parse = TRUE,
-      vjust = 1.2, size = 3.5, hjust = 0.5
+      vjust = annotatevjust, size = 3.5, hjust = 0.5
     ) +
     annotate(
-      "text", x = xlim[1], y = Inf, label = paste0(locus_name, "+"),
-      vjust = 1.2, fontface = "italic", size = 3.5,hjust = 0.5,
+      "text", x = -5, y = Inf, label = locus_name,
+      vjust = annotatevjust, fontface = "italic", size = 4.5, hjust = 0.5,
     ) +
     scale_x_continuous(
       limits = xlim,
       breaks = x_breaks,
-      labels = function(x) paste0(x, "%")
+      labels = if (show_x_labels) function(x) paste0(x, "%") else NULL
     ) +
-    scale_y_discrete(limits = rev(y_levels)) +
+    scale_y_discrete(
+      limits = rev(y_levels),
+      expand = expansion(add = 0.4) #Default discrete expansion (~0.6 units each side) (too large gap)
+    ) +
     coord_cartesian(clip = "off") +
     theme_minimal(base_family = "sans") +
     theme(
-      panel.grid.major = element_line(colour = "grey85", linetype = "dotted", linewidth = 0.35),
-      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(colour = "grey85", linetype = "dotted", linewidth = 0.35),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
       axis.title = element_blank(),
-      axis.text.x = element_text(size = 9),
+      axis.text.x = element_text(size = 10, margin = margin(t = 2)),
       axis.text.y = element_text(size = 10, colour = "black"),
       axis.ticks = element_blank(),
-      plot.margin = margin(8, 26, 8, 8)
+      plot.margin = margin(6, 26, 3, 8)
     )
+
+  # Only show x-axis tick labels in the requested panels (lower row).
+  # guides(x = "none") disables the axis guide itself (a different, more
+  # robust mechanism than theme(axis.text.x = element_blank()) alone),
+  # while the panel's gridlines/breaks are untouched so columns still align.
+  if (!show_x_labels) {
+    p <- p + guides(x = "none") + theme(axis.text.x = element_blank())
+  }
+
+  # Nature-style panel tag (a, b, c, d...) at the top-left of the full
+  # plot area (outside the panel, in the margin), bold, lowercase.
+  if (!is.null(panel_tag)) {
+p <- p +
+  labs(tag = panel_tag) +
+  theme(
+    plot.tag = element_text(
+      size = 14,
+      face = "bold",
+      family = "sans"
+    ),
+    plot.tag.position = c(-0.03, 1.03),
+    plot.tag.location = "plot",
+    plot.margin = margin(t = 18, r = 26, b = 3, l = 20)
+  )
+    # p <- p +
+    #   labs(tag = panel_tag) +
+    #   theme(
+    #     plot.tag = element_text(size = 14, face = "bold", family = "sans"),
+    #     plot.tag.position = c(0, 1)
+    #   )
+  }
+
+  p
 }
 
 # ------------------------------------------------------------------
@@ -234,24 +286,30 @@ res_sum_si <- make_summary(raw, region_order_si, region_labels_si)
 p1 <- make_panel(
   filter(res_sum_main, locus == "Pfsa1"),
   "Pfsa1",panel_id = 1,
-  y_levels = region_labels_main$RegionLabel
+  y_levels = region_labels_main$RegionLabel,
+  show_x_labels = FALSE,
+  panel_tag = "a"
 )
 p2 <- make_panel(
   filter(res_sum_main, locus == "Pfsa2"),
   "Pfsa2",  panel_id = 2,
-  y_levels = region_labels_main$RegionLabel
+  y_levels = region_labels_main$RegionLabel,
+  show_x_labels = FALSE,
+  panel_tag = "b"
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
 p3 <- make_panel(
   filter(res_sum_main, locus == "Pfsa3"),
   "Pfsa3", panel_id = 3,
-  y_levels = region_labels_main$RegionLabel
+  y_levels = region_labels_main$RegionLabel,
+  panel_tag = "c"
 )
 p4 <- make_panel(
   filter(res_sum_main, locus == "Pfsa4"),
   "Pfsa4",  panel_id = 4,
-  y_levels = region_labels_main$RegionLabel
+  y_levels = region_labels_main$RegionLabel,
+  panel_tag = "d"
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
@@ -265,7 +323,7 @@ ggsave(
   args$output_main,
   main_fig,
   width = 12,
-  height = 6,
+  height = 5.5,
   create.dir = TRUE
 )
 
@@ -275,24 +333,30 @@ ggsave(
 p1_si <- make_panel(
   filter(res_sum_si, locus == "Pfsa1"),
   "Pfsa1",  panel_id = 1,
-  y_levels = region_labels_si$RegionLabel
+  y_levels = region_labels_si$RegionLabel,
+  show_x_labels = FALSE,
+  panel_tag = "a"
 )
 p2_si <- make_panel(
   filter(res_sum_si, locus == "Pfsa2"),
   "Pfsa2",  panel_id = 2,
-  y_levels = region_labels_si$RegionLabel
+  y_levels = region_labels_si$RegionLabel,
+  show_x_labels = FALSE,
+  panel_tag = "b"
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
 p3_si <- make_panel(
   filter(res_sum_si, locus == "Pfsa3"),
   "Pfsa3",  panel_id = 3,
-  y_levels = region_labels_si$RegionLabel
+  y_levels = region_labels_si$RegionLabel,
+  panel_tag = "c"
 )
 p4_si <- make_panel(
   filter(res_sum_si, locus == "Pfsa4"),
   "Pfsa4",  panel_id = 4,
-  y_levels = region_labels_si$RegionLabel
+  y_levels = region_labels_si$RegionLabel,
+  panel_tag = "d"
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
@@ -305,7 +369,7 @@ si_fig <- (p1_si | p2_si) /
 ggsave(
   args$output_si,
   si_fig,
-  width = 18,
-  height = 14.5,
+  width = 16,
+  height = 12.5,
   create.dir = TRUE
 )
