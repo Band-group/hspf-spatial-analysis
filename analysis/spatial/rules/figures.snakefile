@@ -1,7 +1,7 @@
 rule create_figure1:
 	output:
 		pdf = "output/pf={pf_data_version}/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1.pdf",
-		SI = "output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg"
+		SI = "output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1_SI.pdf",
 	input:
 		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
 		pf = lambda w: config['data']['pf'][w.pf_data_version],
