@@ -21,8 +21,8 @@ parse_arguments <- function() {
 	parser$add_argument("--hspf_fit", type = "character", help = "path to hs-pf fit RDS file", default = "output/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/[grid]/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds" )
 	parser$add_argument("--pf_prevalence_map", type = "character", help = "PAth to MAP pf prevalence map", default = "geodata/2024_GBD2023_Global_PfPR_2000.tif" )
 	parser$add_argument("--outdir", type = "character", help = "Output directory for component plots" )
-	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE)
-	parser$add_argument("--SI", type = "character", help = "Output SI (svg) filename", required = TRUE)
+	parser$add_argument("--output", type = "character", help = "Output Figure 1 pdf filename", required = TRUE)
+	parser$add_argument("--SI", type = "character", help = "Output SI (Figure 1 SI) filename", required = TRUE)
 	return(parser$parse_args())
 }
 
@@ -302,8 +302,8 @@ pfworldmap <- ggplot()  +
 			)
 		)
 		if(j==1) {
-			fig1bhexafrica <- fig1bhexa
-			ggsave(filename =  args$SI, fig1bhexafrica[[1]], width = 6, height = 7 )
+		fig1bhexafrica <- fig1bhexa
+		# 	ggsave(filename =  args$SI, fig1bhexafrica[[1]], width = 6, height = 7 )
 		}
 	}
 	echo( "++ Fig1: Hexagon map completed.\n" )
@@ -620,6 +620,279 @@ heights = c(
 			ggsave( z, filename =  args$output, width = 14, height = 10, device = cairo_pdf  )
 		}
 	)
+}
+
+#add SI figure, with hbs-pf plot for each allele
+
+#add SI figure, with hbs-pf plot for each allele, split into two 2x2 blocks
+#(West Africa on the left, DRC + Eastern Africa on the right)
+
+{
+	echo( "++ Fig1 SI: HSPF 2x2x2 panel started...\n" )
+
+	# Region mapping (used here only to look up readable group titles).
+	# Matches the fig2.R snakemake wildcard convention, where the hspf fit
+	# path already contains an "area={area}" component
+	# (".../area=global-min_N=0.rds" by default).
+	area_mapping <- tibble::tibble(
+		area = c( "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana",
+						 "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf",
+						 "drc+east", "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania"),
+		Region = c("Global","Africa", "West Africa", "Western region", "Eastern region",
+						"Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo",
+						"Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa",
+						"DRC+east", "Democratic Republic of Congo", "East Africa",
+						"Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania"),
+		order = c(1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 4, 4),
+		include = c(1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0),
+		parent = c("Global","Global", "Africa", "West Africa", "West Africa",
+					 "Eastern West Africa", "West Africa", "West Africa", "West Africa",
+					 "West Africa", "Africa", "Central Africa", "Africa",
+					 "DRC+east", "DRC+east", "DRC+east", "DRC+east")
+	)
+
+	
+    #labelling
+	hspf_area_left  <- "waf"
+	hspf_area_right <- "DRC+eaf"
+
+	hspf_area_label <- function(area_code) {
+
+    dplyr::case_when(
+        area_code == "waf" ~
+            "Western populations,\nCameroon and Gabon",
+
+        area_code == "DRC+eaf" ~
+            "DRC and\neastern populations",
+
+        TRUE ~ {
+            lab <- area_mapping$Region[area_mapping$area == area_code]
+            if(length(lab) == 0) area_code else lab[1]
+        }
+    )
+}
+
+	# Same substitution pattern already used for hspf_plot_2 (Pfsa1->Pfsa3),
+	# extended to also swap the "area=global" component of the path for the
+	# requested area code.
+	make_hspf_fit_path <- function( pfsa, area_code ) {
+		p <- gsub( "Pfsa1", pfsa, args$hspf_fit, fixed = TRUE )
+		gsub( "area=global", paste0( "area=", area_code ), p, fixed = TRUE )
+	}
+
+	hspf_si_theme <- theme(
+		axis.title		= ggtext::element_markdown( size = 11, angle = 0 ),
+		axis.title.y	= ggtext::element_markdown( size = 12, angle = 90, hjust = 0.5, vjust = 0.5 ),
+		axis.text.x		= element_text( size = 12 ),
+		axis.text.y		= element_text( size = 12, hjust = 1, angle = 0 ),
+		panel.spacing	= unit(0.1, "lines"),
+		plot.margin		= unit( c( 0.3, 0.3, 0.3, 0.3 ), "lines" )
+	)
+
+	# plot_hspf() draws its sample-size legend directly into the panel (it's
+	# not a normal ggplot guide), so repeating it on every panel of a block
+	# would just repeat the same legend four times over. It's switched off
+	# for the first three panels of each 2x2 block and kept only on the
+	# fourth (bottom-right), giving each block a single common legend. Each
+	# panel is still self-labelled -- plot_hspf() sets the y-axis to
+	# "<em>PfsaN+</em> frequency" automatically based on the fit file path.
+	make_hspf_si_panel <- function( fit_path, show_size_legend,show_x_label = TRUE ) {
+		p <- (
+			plot_hspf(
+				fit_path,
+				uncertainty = "simple",
+				show_tzadf = FALSE,
+				show_size_legend = show_size_legend
+			)
+			+ scale_size_area( max_size = 9, guide = "none" )
+			+ theme_minimal( base_family = "sans" )
+			+ hspf_si_theme
+		)
+		if (!show_x_label) {
+          p <- p + theme(axis.title.x = element_blank())}
+
+		p
+	}
+
+	pfsa_ids <- c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
+
+	# Left block: West Africa. Title sits on the top-left panel (Pfsa1);
+	# legend sits on the bottom-right panel (Pfsa4).
+	hspf_left <- lapply( pfsa_ids, function( pfsa ) {
+		make_hspf_si_panel(
+			make_hspf_fit_path( pfsa, hspf_area_left ),
+			show_size_legend = ( pfsa == "Pfsa4" ),
+			show_x_label = (pfsa %in% c("Pfsa3","Pfsa4"))
+		)
+	})
+	names( hspf_left ) <- pfsa_ids
+
+	# Right block: DRC + Eastern Africa, mirroring the left block's layout.
+	hspf_right <- lapply( pfsa_ids, function( pfsa ) {
+		make_hspf_si_panel(
+			make_hspf_fit_path( pfsa, hspf_area_right ),
+			show_size_legend = ( pfsa == "Pfsa4" ),
+			show_x_label = (pfsa %in% c("Pfsa3","Pfsa4"))
+			)
+	})
+	names( hspf_right ) <- pfsa_ids
+
+	plot_countries <- function( p ) {
+		plot_data <- c(
+			list( p$data ),
+			lapply( p$layers, function( layer ) layer$data )
+		)
+
+		unique( unlist( lapply( plot_data, function( d ) {
+			if( is.data.frame( d ) && "country" %in% names( d ) ) {
+				as.character( d$country )
+			} else {
+				character(0)
+			}
+		}), use.names = FALSE ))
+	}
+
+	si_country_palette <- country.colours()
+	si_country_names <- unique( unlist( lapply(
+		c( hspf_left, hspf_right ),
+		plot_countries
+	), use.names = FALSE ))
+	si_country_names <- si_country_names[
+		!is.na( si_country_names ) & nzchar( si_country_names )
+	]
+
+	# Keep the palette's ordering so that the legend is stable across runs.
+	si_country_names <- names( si_country_palette )[
+		names( si_country_palette ) %in% si_country_names
+	]
+
+	if( length( si_country_names ) == 0 ) {
+		stop( "No country values were found in the z_si plot data." )
+	}
+
+	si_legend_data <- tibble::tibble(
+		country = factor(
+			si_country_names,
+			levels = rev( si_country_names )
+		)
+	)
+
+	si_country_legend <- (
+		ggplot( si_legend_data, aes( x = 0, y = country, fill = country ))
+		+ geom_point(
+			shape = 21,
+			size = 3.8,
+			stroke = 0.35,
+			colour = "grey25"
+		)
+		+ geom_text(
+			aes( x = 0.14, label = country ),
+			hjust = 0,
+			size = 3,
+			colour = "grey15"
+		)
+		+ scale_fill_manual(
+			values = si_country_palette,
+			guide = "none"
+		)
+		+ scale_x_continuous(
+			limits = c( -0.08, 1 ),
+			expand = expansion( mult = 0 )
+		)
+		+ scale_y_discrete( expand = expansion( mult = c( 0.03, 0.06 ) ) )
+		+ labs( title = "African country" )
+		+ theme_void( base_family = "sans" )
+		+ theme(
+			plot.title = element_text(
+				size = 11,
+				face = "bold",
+				hjust = 0,
+				margin = margin( b = 7 )
+			),
+			plot.margin = margin( t = 2, r = 4, b = 2, l = 6 )
+		)
+	)
+
+	panel_grid = gridExtra::arrangeGrob(
+		ggplotGrob( hspf_left[["Pfsa1"]]  + border ),
+		ggplotGrob( hspf_left[["Pfsa2"]]  + border ),
+		ggplotGrob( hspf_right[["Pfsa1"]] + border ),
+		ggplotGrob( hspf_right[["Pfsa2"]] + border ),
+		ggplotGrob( hspf_left[["Pfsa3"]]  + border ),
+		ggplotGrob( hspf_left[["Pfsa4"]]  + border ),
+		ggplotGrob( hspf_right[["Pfsa3"]] + border ),
+		ggplotGrob( hspf_right[["Pfsa4"]] + border ),
+		layout_matrix = rbind(
+			c( 1, 2, 3, 4 ),
+			c( 5, 6, 7, 8 )
+		)
+	)
+
+title_row <- gridExtra::arrangeGrob(
+  grid::textGrob(
+    hspf_area_label(hspf_area_left),
+    x = 0.01,
+    hjust = 0,
+    gp = grid::gpar(
+      fontsize = 12,
+      fontface = "bold"
+    )
+  ),
+  grid::textGrob(
+    hspf_area_label(hspf_area_right),
+    x = 0.01,
+    hjust = 0,
+    gp = grid::gpar(
+      fontsize = 12,
+      fontface = "bold"
+    )
+  ),
+  ncol = 2
+)
+
+# Add an empty cell above the legend so the country legend uses exactly the
+# same vertical space as the combined upper and lower plot panels.
+title_row_with_spacer <- gridExtra::arrangeGrob(
+  title_row,
+  grid::nullGrob(),
+  ncol = 2,
+  widths = c(1, 0.16)
+)
+
+panel_grid_with_legend <- gridExtra::arrangeGrob(
+  panel_grid,
+  ggplotGrob(si_country_legend),
+  ncol = 2,
+  widths = c(1, 0.16)
+)
+
+#add titles
+z_si <- gridExtra::arrangeGrob(
+  title_row_with_spacer,
+  panel_grid_with_legend,
+  ncol = 1,
+  heights = c(0.07, 1)
+)
+
+	tryCatch(
+		{
+			ggsave( z_si, filename = args$SI, width = 18, height = 9 )
+		},
+		error = function(e) {
+			message ('ggsave standard failed, using ggsave with cairo instead')
+			ggsave( z_si, filename = args$SI, width = 18, height = 9, device = cairo_pdf )
+		}
+	)
+	tryCatch(
+		{
+			ggsave( z_si, filename =  gsub( ".pdf", ".svg", args$SI ), width = 18, height = 9 )
+		},
+		error = function(e) {
+			message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
+			ggsave( z_si, filename = gsub( ".pdf", ".svg", args$SI ), width = 18, height = 9, device = cairo_pdf )
+		}
+	)
+	echo( "++ Fig1 SI: HSPF 2x2x2 panel completed.\n" )
 }
 
 echo("++ End Fig1: plot HbS\n")
