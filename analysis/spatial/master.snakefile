@@ -81,7 +81,7 @@ rule all:
 			**config['params']
 		),
 		figSI = expand(
-			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figSI.svg",
+			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1_SI.pdf",
 			**config['params']
 		),
 		fig2_SI = expand(
