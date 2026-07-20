@@ -354,7 +354,7 @@ pfworldmap <- ggplot()  +
 	replacements <- c(
 		"Burkina_Faso" = "Burkina Faso",
 		"Democratic_Republic_of_the_Congo" = "DRC",
-		"Cote_dIvoire" = "Ivory Coast",
+		"Cote_dIvoire" = "Cote d'Ivoire",
 		"Papua_New_Guinea" = "Papua New Guinea"
 	)
 	figure_data = figure_data %>% mutate(
