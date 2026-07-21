@@ -78,18 +78,6 @@ rule aggregate_piel:
 	--output {output.tsv}
 """
 
-rule plot_HbS_vs_piel:
-	output:
-		pdf = "output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_piel.pdf"
-	input:
-		HbS = rules.aggregate_HbS.output.tsv,
-		piel = rules.aggregate_piel.output.tsv,
-		grid = rules.create_grid.output.rds
-	params:
-		script = srcdir( "code/plot_HbS_vs_piel_grid.R" )
-	shell: """
-	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --output {output.pdf}
-	"""
 
 rule compare_HbS_vs_piel_vs_data:
 	output:
