@@ -156,7 +156,7 @@ p <- ggplot() +
 	labels = scales::label_number(accuracy = 0.01),
 	guide = guide_colourbar(
     barwidth = unit(4, "cm"),   # increase length of the color bar
-    barheight = unit(0.5, "cm"),  # keep the thickness small
+    barheight = unit(0.4, "cm"),  # keep the thickness small
 	order = 1,ticks=TRUE
   )) +
 
@@ -174,7 +174,7 @@ p <- ggplot() +
    labels = scales::label_number(accuracy = 0.01),  
    guide = guide_colourbar(
     barwidth = unit(4, "cm"),   # increase length of the color bar
-    barheight = unit(0.5, "cm")
+    barheight = unit(0.4, "cm")
   )) +
 
   # Facets
@@ -186,11 +186,11 @@ p <- p + geom_sf(
 # Regions highlighted in panels c-f (defined here so both the rectangles drawn
 # on panel a, and the inset panels themselves, use identical bounding boxes)
 regions_df <- tibble::tribble(
-  ~letter, ~name,                    ~xmin, ~xmax, ~ymin, ~ymax,
-  "c",     "East South America",     -46,   -33,   -18,    -1,
-  "d",     "Tanzania & surrounds",    28,    42,   -12,     5,
-  "e",     "West Africa",            -18,    12,     0,    18,
-  "f",     "South Asia",              68,    92,     5,    30
+  ~letter, ~name,                        ~xmin, ~xmax, ~ymin, ~ymax,
+  "c",     "South America",               -80,   -45,   -7,     16,
+  "d",     "Tanzania, DRC & surrounds",    14,    45,   -14,     5.5,
+  "e",     "West Africa",                 -18,    12,     0,    18,
+  "f",     "South Asia",                   68,    92,     5,    30
 )
 
 if (args$continent == "global") {
@@ -230,8 +230,8 @@ p <- p + theme_minimal(base_family = "Helvetica") +
     legend.position = "bottom",            # vertical legend on the right
 	legend.direction = "horizontal",
     legend.title.position = "top",
-    legend.title = element_markdown(size = 11), 
-    legend.text  = element_text(size = 9),
+    legend.title = element_markdown(size = 9), 
+    legend.text  = element_text(size = 7),
     strip.text   = element_text(size = 12, face = "bold",hjust = 0),
 	panel.spacing.x = unit(0, "lines"),
 	panel.spacing.y = unit(0, "lines") ,
@@ -304,10 +304,11 @@ if (args$continent == "global") {
 		make_inset_panel(letter, name, xmin, xmax, ymin, ymax, raster = r_natural, region_sf = region)
 	})
 
-	bottom_row <- inset_panels[[1]] | inset_panels[[2]] | inset_panels[[3]] | inset_panels[[4]]
+	bottom_row <- patchwork::wrap_elements(inset_panels[[1]]) | patchwork::wrap_elements(inset_panels[[2]]) |
+              patchwork::wrap_elements(inset_panels[[3]]) | patchwork::wrap_elements(inset_panels[[4]])
 
 	final_plot <- (p / bottom_row) +
-		patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
+		patchwork::plot_layout(heights = c(1.55, 1), guides = "collect") &
 		theme(legend.position = "bottom")
 
 } else {
