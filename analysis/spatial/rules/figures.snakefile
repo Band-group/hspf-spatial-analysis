@@ -75,59 +75,6 @@ rule create_figure2:
 	--output_si {output.si}
 	"""
 
-rule create_figure2_SI:
-	output:
-		pdf = "output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.pdf",
-		svg = "output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.svg"
-	input:
-		grid = "output/grids/grid-type={type}-size={size}-area=global.rds",
-		pf = lambda w: config['data']['pf'][w.pf_data_version],
-		HbS_aggregated = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/aggregated/grid-type={type}-size={size}-area=global.tsv",
-		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
-		hspf_fit = lambda w: expand(
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
-			pf_data_version = w.pf_data_version,
-			r0 = w.r0,
-			sigma0 = w.sigma0,
-			hbs_covariates = w.hbs_covariates,
-			type = w.type,
-			size = w.size,
-			locus = [ 'Pfsa1', 'Pfsa2', 'Pfsa3', 'Pfsa4' ],
-			regression_model = w.regression_model,
-			min_km_to_survey_pt = w.min_km_to_survey_pt,
-			area = config['areas'].keys(),
-			min_N = w.min_N,
-			hspf_covariates = "none"
-		)
-	params:
-		script = srcdir( "code/figures/fig2_SI.R" ),
-		hspf_fit_template = lambda w: (
-			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/{locus}/{locus}-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
-				pf_data_version = w.pf_data_version,
-				r0 = w.r0,
-				sigma0 = w.sigma0,
-				hbs_covariates = w.hbs_covariates,
-				type = w.type,
-				size = w.size,
-				locus = '{locus}',
-				regression_model = w.regression_model,
-				min_km_to_survey_pt = w.min_km_to_survey_pt,
-				area = '{area}',
-				min_N = w.min_N,
-				hspf_covariates = "none"
-			)
-		)
-	shell: """
-	Rscript --vanilla {params.script} \
-		--grid {input.grid} \
-		--pf {input.pf} \
-		--HbS_aggregated {input.HbS_aggregated} \
-		--hspf_fit {params.hspf_fit_template} \
-		--pf_prevalence_map {input.pf_prevalence_map} \
-		--output_pdf {output.pdf} \
-		--output_svg {output.svg}
-"""
-
 rule create_summary_list:
 	output:
 		rds = "output/pf={pf_data_version}/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds"
