@@ -60,6 +60,28 @@ echo( "++ Loading world from %s folder...\n", args$geodata )
 world <- rnaturalearth::ne_countries(type = "countries", scale = "small", returnclass = "sf")
 # remove Antarctica
 world <- world %>% filter(continent != "Antarctica")
+# projections
+map_crs <- "+proj=robin"
+# Load observed HbS survey locations
+HbSdata <- read.csv("input/cleanHbSdata.csv")
+
+pt <- sf::st_as_sf(
+  HbSdata,
+  coords = c("longitude", "latitude"),
+  crs = sf::st_crs(world)
+)
+
+pt$longitude <- sf::st_coordinates(pt)[,1]
+pt$latitude  <- sf::st_coordinates(pt)[,2]
+pt = sf::st_intersection( pt, world )
+
+# Project to Mollweide only for the global map
+if (args$continent == "global") {
+  pt <- sf::st_transform(pt, map_crs)
+}
+
+# Restrict to the median facet only
+pt$stat <- "median"
 
 #load.entry.from.Rdata( sprintf( "%s/naturalearthdata.Rdata", args$geodata ), "world_sf" )
 hbs = predictions$prediction_locations
@@ -72,7 +94,7 @@ hbs = predictions$prediction_locations
 if( args$continent == "global" ) {
 	region = world	
 	crop_box <- st_as_sfc(
-  	st_bbox(c(xmin = -150, xmax = 150, ymin = -90, ymax = 90)),
+  	st_bbox(c(xmin = -166, xmax = 166, ymin = -55, ymax = 75)),
   	crs = st_crs(world)
 )
 # crop geometries
@@ -112,9 +134,8 @@ names(r_all) <- c("median", "sd")
 r_all <- terra::project(r_all, st_crs(region)$wkt)
 # Keep an unprojected (lon/lat) copy for the regional inset panels (c-f), built below
 r_natural <- r_all
-moll_crs <- "+proj=moll +datum=WGS84 +no_defs"
 # Reproject raster
-r_all <- terra::project(r_all, moll_crs)
+r_all <- terra::project(r_all, map_crs)
 
 # Convert to data frame first (with geometry dropped)
 r_df <- as.data.frame(r_all, xy = TRUE, na.rm = TRUE)
@@ -134,10 +155,8 @@ r_long <- r_long |>
 
 
 facet_labels <- c(
-  "median" = "a",
-  #"q25"    = "b",
-  #"q75"    = "c",
-  "sd"     = "b"
+  "median" = "b",
+  "sd"     = "c"
 )
 maxsd <- max(r_long$value[r_long$stat == "sd"], na.rm = TRUE)
 
@@ -145,18 +164,18 @@ p <- ggplot() +
   # Country borders
   geom_sf(data = region, fill = 'grey45', colour = "transparent") +
   # DISCRETE bins for q25/median/q75
+  # add points HbS only in median facet (can be changed)
   geom_tile(
     data = dplyr::filter(r_long, stat %in% c("median")),
-    aes(x = x, y = y, fill = value)
-  ) +
+    aes(x = x, y = y, fill = value) ) +
 	scale_fill_viridis_c(option = "magma", direction = 1, 
 	name = "<b>Estimated HbS frequency</b><br>median",
 	#limits = c(0, 0.16),          # max value for color scale
 	#oob = scales::squish,         # values above limit are "squished" to limit
 	labels = scales::label_number(accuracy = 0.01),
 	guide = guide_colourbar(
-    barwidth = unit(4, "cm"),   # increase length of the color bar
-    barheight = unit(0.4, "cm"),  # keep the thickness small
+    barwidth = unit(0.5, "cm"),   # increase length of the color bar
+    barheight = unit(1, "cm"),  # keep the thickness small
 	order = 1,ticks=TRUE
   )) +
 
@@ -173,8 +192,8 @@ p <- ggplot() +
 	#oob = scales::squish,         # values above limit are "squished" to limit
    labels = scales::label_number(accuracy = 0.01),  
    guide = guide_colourbar(
-    barwidth = unit(4, "cm"),   # increase length of the color bar
-    barheight = unit(0.4, "cm")
+    barwidth = unit(0.5, "cm"),   # increase length of the color bar
+    barheight = unit(1, "cm"),ticks=TRUE
   )) +
 
   # Facets
@@ -187,10 +206,10 @@ p <- p + geom_sf(
 # on panel a, and the inset panels themselves, use identical bounding boxes)
 regions_df <- tibble::tribble(
   ~letter, ~name,                        ~xmin, ~xmax, ~ymin, ~ymax,
-  "c",     "South America",               -80,   -45,   -7,     16,
-  "d",     "Tanzania, DRC & surrounds",    14,    45,   -14,     5.5,
-  "e",     "West Africa",                 -18,    12,     0,    18,
-  "f",     "South Asia",                   68,    92,     5,    30
+  "d",     "South America",               -80,   -45,   -7,     16,
+  "e",     "Tanzania, DRC & surrounds",    14,    45,   -14,     5.5,
+  "f",     "West Africa",                 -18,    12,     0,    18,
+  "g",     "South Asia",                   60,    95,     8.3,    37.7
 )
 
 if (args$continent == "global") {
@@ -221,22 +240,23 @@ if (args$continent == "global") {
 
   # add projection conditionally
 if (args$continent == "global") {
-  p <- p + coord_sf(crs = "+proj=moll", datum = NA)
+  p <- p + coord_sf(crs = map_crs, datum = NA, expand = FALSE)
 } 
 p <- p + theme_minimal(base_family = "Helvetica") +
   theme(
     axis.title = element_blank(),         # remove x and y axis labels
     axis.text  = element_blank(),         # optionally remove axis text
-    legend.position = "bottom",            # vertical legend on the right
-	legend.direction = "horizontal",
+    legend.position = "right",            # vertical legend on the right
+	legend.direction = "vertical",
     legend.title.position = "top",
     legend.title = element_markdown(size = 9), 
     legend.text  = element_text(size = 7),
     strip.text   = element_text(size = 12, face = "bold",hjust = 0),
 	panel.spacing.x = unit(0, "lines"),
 	panel.spacing.y = unit(0, "lines") ,
-	legend.spacing.x = unit(2, "cm"),
-	plot.margin = margin(t = 5.5, r = 5.5, b = 0, l = 5.5)
+	legend.spacing.x = unit(-0.1, "cm"),
+	legend.spacing.y = unit(-0.1, "cm")#,
+	#plot.margin = margin(t = 5.5, r = 5.5, b = 0, l = 5.5)
   ) + guides(
 
   )
@@ -268,6 +288,17 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 	ggplot() +
 		geom_sf(data = region_crop, fill = 'grey45', colour = "transparent") +
 		geom_tile(data = df_crop, aes(x = x, y = y, fill = value)) +
+
+          geom_sf(
+			data = pt,
+			shape = 22,
+			fill = "#F28E2B",
+			colour = "white",
+			stroke = 0.07,
+			size = 1,
+			alpha = 0.85
+		) +
+
 		scale_fill_viridis_c(
 			option = "magma", direction = 1,
 			limits = c(0, 0.16),
@@ -294,9 +325,39 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 			panel.grid  = element_blank(),
 			panel.border = element_rect(colour = "grey30", fill = NA, linewidth = 0.4),
 			plot.title  = element_text(size = 12, face = "bold", hjust = 0),
-			plot.margin = margin(t = 0, r = 2, b = 2, l = 2)
+			plot.margin = margin(t = -10, r = 5.5, b = -8, l = 5.5)
 		)
 }
+
+p_pts <- ggplot() +
+
+  geom_sf(data = region,
+          fill = "grey45",
+          colour = "white",
+          linewidth = 0.1) +
+
+	geom_sf(
+		data = pt,
+		shape = 22,
+		fill = "#F28E2B",
+		colour = "white",
+		stroke = 0.07,
+		size = 1.3,
+		alpha = 0.85
+	)+
+
+  coord_sf(crs = map_crs, datum = NA, expand = FALSE) +
+
+  ggtitle("a") +
+
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+      axis.title = element_blank(),
+      axis.text  = element_blank(),
+      panel.grid = element_blank(),
+      plot.title = element_text(face = "bold", hjust = 0)#,
+   # plot.margin = margin(t = -5, r = 5.5, b = -5, l = 5.5)
+  )
 
 if (args$continent == "global") {
 
@@ -307,17 +368,17 @@ if (args$continent == "global") {
 	bottom_row <- patchwork::wrap_elements(inset_panels[[1]]) | patchwork::wrap_elements(inset_panels[[2]]) |
               patchwork::wrap_elements(inset_panels[[3]]) | patchwork::wrap_elements(inset_panels[[4]])
 
-	final_plot <- (p / bottom_row) +
-		patchwork::plot_layout(heights = c(1.55, 1), guides = "collect") &
-		theme(legend.position = "bottom")
+	final_plot <-	(wrap_elements(p_pts) / wrap_elements(p) / bottom_row) +
+		plot_layout(
+			heights = c(1.3, 1.1, 0.3), guides = "collect")
 
 } else {
 	final_plot <- p
 }
 
 # Save plot
-fig_height <- if (args$continent == "global") 5 else 6
-ggsave(final_plot, file = args$output, width = 8, height = fig_height)
-ggsave(final_plot, file = sub("\\.pdf$", ".svg", args$output), width = 10, height = fig_height)
+fig_height <- if (args$continent == "global") 10 else 6
+ggsave(final_plot, file = args$output, width = 10, height = fig_height)
+ggsave(final_plot, file = sub("\\.pdf$", ".svg", args$output), width = 9, height = fig_height)
 
 echo( "++ Thank you for using plot_HbS_fit.R.\n" )
