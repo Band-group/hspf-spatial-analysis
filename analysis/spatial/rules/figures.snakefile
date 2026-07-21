@@ -10,6 +10,9 @@ rule create_figure1:
 		HbS_predictions = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_predictions.rds",
 		HbS_fit = "output/HbS/fixed-r0={r0}-sigma0={sigma0}-fc=none/fit/fixed-r0={r0}-sigma0={sigma0}-fc=none_modelfit.rds",
 		hspf_fit = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa1/Pfsa1-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		hspf_fit2 = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa2/Pfsa2-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		hspf_fit3 = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa3/Pfsa3-model=bym2+fc=none-200km-area=global-min_N=0.rds",
+		hspf_fit4 = "output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc=none/grid-type={type}-size={size}/Pfsa4/Pfsa4-model=bym2+fc=none-200km-area=global-min_N=0.rds",
 		pf_prevalence_map = "geodata/2024_GBD2023_Global_PfPR_2000.tif",
 	params:
 		outdir = "tmp",
