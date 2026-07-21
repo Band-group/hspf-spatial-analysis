@@ -455,6 +455,7 @@ make_hspf_curves = function(
 plot_hspf = function(
 	hspfrdspath,
 	uncertainty = "lines", # or "areas" or "simple"
+	max_size = 9, #default of max circle size for plot
 	show_fit_line = TRUE,
 	show_size_legend = TRUE,
 	show_tzadf = TRUE,
@@ -687,7 +688,8 @@ plot_hspf = function(
 
     ## ----- choose automatic legend values ------------------------
 
-    Nmax <- max(hspf$data$N, na.rm = TRUE)
+    Nmax <- 3500 #we keep this fixed to have comparison betweeen plots with various allels (SI)
+	#max(hspf$data$N, na.rm = TRUE)
 
     exp_max <- floor(log10(Nmax))
 
@@ -702,10 +704,11 @@ plot_hspf = function(
     legend_breaks <- unique(round(legend_breaks))
 
     ## ----- convert N into plotted radius -------------------------
-
-    max_size <- 9        # same as scale_size_area()
-
-    radii <- sqrt(legend_breaks / max(hspf$data$N)) * max_size
+     
+	if( is.null(max_size) ) { 
+      max_size <- 9        # same as scale_size_area()
+	}
+    radii <- sqrt(legend_breaks / Nmax) * max_size
 
     ## ----- legend position --------------------------------------
 
@@ -789,7 +792,7 @@ plot_hspf = function(
 				guide = "none"
 			)
 			+ scale_size_area(
-    			max_size = 9,
+    			max_size = max_size,
     			guide = "none"
 			)
 			+  theme(

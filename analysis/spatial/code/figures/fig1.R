@@ -515,13 +515,15 @@ figure_data <- figure_data %>%
 
 {
 	echo( "++ HSPF plot started...\n" )
+	max_size = 7;
 	hspf_plot = (
 		plot_hspf(
-			args$hspf_fit,
+			args$hspf_fit,			
 			uncertainty = "simple",
+            max_size = max_size,	
 			show_tzadf = FALSE
 		)
-		+ scale_size_area( max_size = 7, guide = "none" )
+		+ scale_size_area( max_size = max_size, guide = "none" )
 		+ theme_minimal( base_family = "sans" )
 		+ theme(
 			axis.title		= ggtext::element_markdown( size = 9, angle = 0 ),
@@ -545,7 +547,7 @@ figure_data <- figure_data %>%
 			uncertainty = "simple",
 			show_tzadf = FALSE
 		)
-		+ scale_size_area( max_size = 7, guide = "none" )
+		+ scale_size_area( max_size = max_size, guide = "none" )
 		+ theme_minimal( base_family = "sans" )
 		+ theme(
 			axis.title		= ggtext::element_markdown( size = 9, angle = 0 ),
@@ -697,14 +699,16 @@ heights = c(
 	# panel is still self-labelled -- plot_hspf() sets the y-axis to
 	# "<em>PfsaN+</em> frequency" automatically based on the fit file path.
 	make_hspf_si_panel <- function( fit_path, show_size_legend,show_x_label = TRUE ) {
+	max_size = 9;
 		p <- (
 			plot_hspf(
 				fit_path,
 				uncertainty = "simple",
+				max_size = max_size,
 				show_tzadf = FALSE,
 				show_size_legend = show_size_legend
 			)
-			+ scale_size_area( max_size = 9, guide = "none" )
+			+ scale_size_area( max_size = max_size, guide = "none" )
 			+ theme_minimal( base_family = "sans" )
 			+ hspf_si_theme
 		)
