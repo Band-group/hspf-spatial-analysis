@@ -84,15 +84,16 @@ rule all:
 			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1_SI.pdf",
 			**config['params']
 		),
-		fig2_SI = expand(
-			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.{extension}",
-			**config['params'],
-			extension = [ 'pdf', 'svg' ]
-		),	
-		forest_plot = expand(
-			"output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
-			**config['params']
-		),
+# This is not necessary anymore as Fig1 is making also Fig S1 (forests lots etc.)
+#		fig2_SI = expand(
+#			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.{extension}",
+#			**config['params'],
+#			extension = [ 'pdf', 'svg' ]
+#		),	
+#		forest_plot = expand(
+#			"output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+#			**config['params']
+#		),
 		fig2 = expand(
 			"output/pf={pf_data_version}/figures/figure_2/figure_2_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']
