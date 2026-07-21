@@ -93,7 +93,8 @@ rule plot_HbS_vs_piel:
 
 rule compare_HbS_vs_piel_vs_data:
 	output:
-		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_piel.tsv.gz"
+		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_piel.tsv.gz",
+		si = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/continents={area}/figure3_SI.pdf"
 	input:
 		HbS = rules.aggregate_HbS.output.tsv,
 		HbS_survey = "input/cleanHbSdata.csv",
@@ -102,7 +103,7 @@ rule compare_HbS_vs_piel_vs_data:
 	params:
 		script = srcdir( "code/compare_HbS_vs_piel_vs_data.R")
 	shell: """
-	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --HbS_survey {input.HbS_survey} --output {output.tsv}
+	Rscript --vanilla {params.script} --grid {input.grid} --piel_aggregated {input.piel} --HbS_aggregated {input.HbS} --HbS_survey {input.HbS_survey} --output {output.tsv} --SI {output.si}
 	"""
 
 rule plot_HbS_vs_HbSobs:
