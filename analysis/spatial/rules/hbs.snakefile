@@ -28,7 +28,7 @@ rule fit_hbs_map:
 
 rule plot_hbs_fit:
 	output:
-		pdf = "output/HbS/images/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}-continents={continent}.pdf"
+		pdf = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type=hexagon-size=1/continents={continent}/figure2_SI.pdf"
 	input:
 		predictions	= rules.fit_hbs_map.output.predictions,
 		geodata = directory('geodata')

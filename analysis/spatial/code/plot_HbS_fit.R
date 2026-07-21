@@ -10,6 +10,8 @@ library( rnaturalearth)
 library( tidyverse )
 library( ggtext ) # to add part of the legend title in bold
 library( scales) # to squish colour fill of HbS frequency
+library( patchwork ) # to compose main panels (a,b) with regional inset panels (c-f)
+library( ggrepel ) # to label countries in the c-f insets without overlap
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -83,14 +85,6 @@ region <- st_crop(region, crop_box)
 	hbs = sf::st_intersection( hbs, region )
 }
 
-# echo( "++ Generating colour scheme..." )
-# greyredyellowpal<- function( n_grey, n_red, n_yellow ) {
-#   gray_palette <- gray.colors( n_grey, start = 0.8, end = 0.2 )
-#   red_palette <- rev(colorRampPalette(c("red2", "tomato4"))(n_red))
-#   yellow_palette <- rev(colorRampPalette(c("yellow1", "orange3"))(n_yellow))
-#   palette <- c(gray_palette, red_palette,yellow_palette)
-#   return( palette )
-# }
 colour.breaks <- c(0,0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 1)
 echo( "++ Plotting...\n" )
 
@@ -105,15 +99,19 @@ r <- terra::rast(resolution = 0.33333,
 		  crs = st_crs(region)$proj4string)
 
 # Rasterize the 'mean' values
-r_q25    <- terra::rasterize(hbs_vect, r, field = "q25",    fun = mean)
+#r_q25    <- terra::rasterize(hbs_vect, r, field = "q25",    fun = mean)
 r_median <- terra::rasterize(hbs_vect, r, field = "median", fun = mean)
-r_q75    <- terra::rasterize(hbs_vect, r, field = "q75",    fun = mean)
+#r_q75    <- terra::rasterize(hbs_vect, r, field = "q75",    fun = mean)
 r_sd     <- terra::rasterize(hbs_vect, r, field = "sd",     fun = mean)
 
 # Combine into one SpatRaster with 4 layers
-r_all <- c(r_q25, r_median, r_q75, r_sd)
-names(r_all) <- c("q25", "median", "q75", "sd")
+r_all <- c(r_median, r_sd)
+names(r_all) <- c("median", "sd")
+# r_all <- c(r_q25, r_median, r_q75, r_sd)
+# names(r_all) <- c("q25", "median", "q75", "sd")
 r_all <- terra::project(r_all, st_crs(region)$wkt)
+# Keep an unprojected (lon/lat) copy for the regional inset panels (c-f), built below
+r_natural <- r_all
 moll_crs <- "+proj=moll +datum=WGS84 +no_defs"
 # Reproject raster
 r_all <- terra::project(r_all, moll_crs)
@@ -123,7 +121,8 @@ r_df <- as.data.frame(r_all, xy = TRUE, na.rm = TRUE)
 
 # Pivot longer to get tidy format
 r_long <- tidyr::pivot_longer(
-  r_df, cols = c("q25","median","q75","sd"),
+	  r_df, cols = c("median","sd"),
+ # r_df, cols = c("q25","median","q75","sd"),
   names_to = "stat", values_to = "value"
 )
 
@@ -135,27 +134,28 @@ r_long <- r_long |>
 
 
 facet_labels <- c(
-  "median" = "A",
-  "q25"    = "B",
-  "q75"    = "C",
-  "sd"     = "D"
+  "median" = "a",
+  #"q25"    = "b",
+  #"q75"    = "c",
+  "sd"     = "b"
 )
 maxsd <- max(r_long$value[r_long$stat == "sd"], na.rm = TRUE)
 
 p <- ggplot() +
   # Country borders
-  geom_sf(data = region, fill = 'grey45', colour = "gray90") +
+  geom_sf(data = region, fill = 'grey45', colour = "transparent") +
   # DISCRETE bins for q25/median/q75
   geom_tile(
-    data = dplyr::filter(r_long, stat %in% c("q25","median","q75")),
+    data = dplyr::filter(r_long, stat %in% c("median")),
     aes(x = x, y = y, fill = value)
   ) +
 	scale_fill_viridis_c(option = "magma", direction = 1, 
-	name = "<b>Estimated HbS frequency</b><br>median, first and third quantiles",
-	limits = c(0, 0.16),          # max value for color scale
-	oob = scales::squish,         # values above limit are "squished" to limit
+	name = "<b>Estimated HbS frequency</b><br>median",
+	#limits = c(0, 0.16),          # max value for color scale
+	#oob = scales::squish,         # values above limit are "squished" to limit
+	labels = scales::label_number(accuracy = 0.01),
 	guide = guide_colourbar(
-    barwidth = unit(6.5, "cm"),   # increase length of the color bar
+    barwidth = unit(4, "cm"),   # increase length of the color bar
     barheight = unit(0.5, "cm"),  # keep the thickness small
 	order = 1,ticks=TRUE
   )) +
@@ -171,19 +171,58 @@ p <- ggplot() +
    name = "<br>standard deviation",
    	limits = c(0, maxsd),          # max value for color scale
 	#oob = scales::squish,         # values above limit are "squished" to limit
+   labels = scales::label_number(accuracy = 0.01),  
    guide = guide_colourbar(
-    barwidth = unit(5, "cm"),   # increase length of the color bar
+    barwidth = unit(4, "cm"),   # increase length of the color bar
     barheight = unit(0.5, "cm")
   )) +
 
   # Facets
   facet_wrap(~ stat, ncol = 2,labeller = labeller(stat = facet_labels)) 
+p <- p + geom_sf(
+		data = region, fill = 'transparent', colour = "gray90",
+ 		linewidth=0.025) 
+
+# Regions highlighted in panels c-f (defined here so both the rectangles drawn
+# on panel a, and the inset panels themselves, use identical bounding boxes)
+regions_df <- tibble::tribble(
+  ~letter, ~name,                    ~xmin, ~xmax, ~ymin, ~ymax,
+  "c",     "East South America",     -46,   -33,   -18,    -1,
+  "d",     "Tanzania & surrounds",    28,    42,   -12,     5,
+  "e",     "West Africa",            -18,    12,     0,    18,
+  "f",     "South Asia",              68,    92,     5,    30
+)
+
+if (args$continent == "global") {
+  # Build a small rectangle (as an sf polygon) for each highlighted region,
+  # tagged with stat = "median" so it only draws on panel (a)
+  bbox_sf <- purrr::pmap_dfr(regions_df, function(letter, name, xmin, xmax, ymin, ymax) {
+    poly <- sf::st_as_sfc(
+      sf::st_bbox(c(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                  crs = sf::st_crs(region))
+    )
+    sf::st_sf(letter = letter, stat = "median", geometry = poly)
+  })
+  bbox_labels <- suppressWarnings(sf::st_centroid(bbox_sf))
+
+  p <- p +
+    geom_sf(data = bbox_sf, fill = NA, colour = "black", linewidth = 0.5, inherit.aes = FALSE) +
+    
+	ggrepel::geom_text_repel(
+    data = bbox_labels, aes(label = letter, geometry = geometry),
+    stat = "sf_coordinates",
+    colour = "black", fontface = "bold", size = 3,
+    bg.color = "white", bg.r = 0.015,
+    box.padding = 0, point.padding = 0, force = 0,
+    segment.color = NA, max.overlaps = Inf,
+    inherit.aes = FALSE
+  )
+  }
 
   # add projection conditionally
 if (args$continent == "global") {
   p <- p + coord_sf(crs = "+proj=moll", datum = NA)
 } 
-
 p <- p + theme_minimal(base_family = "Helvetica") +
   theme(
     axis.title = element_blank(),         # remove x and y axis labels
@@ -196,12 +235,88 @@ p <- p + theme_minimal(base_family = "Helvetica") +
     strip.text   = element_text(size = 12, face = "bold",hjust = 0),
 	panel.spacing.x = unit(0, "lines"),
 	panel.spacing.y = unit(0, "lines") ,
-	legend.spacing.x = unit(2, "cm")
+	legend.spacing.x = unit(2, "cm"),
+	plot.margin = margin(t = 5.5, r = 5.5, b = 0, l = 5.5)
   ) + guides(
 
   )
+
+# ---------------------------------------------------------------------------
+# Regional inset panels (c-f): median HbS frequency zoomed in on four regions
+# of particular interest. Only built for the global figure.
+# ---------------------------------------------------------------------------
+make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, region_sf) {
+
+	r_crop  <- terra::crop(raster[["median"]], terra::ext(xmin, xmax, ymin, ymax))
+	df_crop <- as.data.frame(r_crop, xy = TRUE, na.rm = TRUE)
+	names(df_crop)[3] <- "value"
+
+	region_crop <- suppressWarnings(
+		sf::st_crop(
+			region_sf,
+			sf::st_bbox(c(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+			            crs = sf::st_crs(region_sf))
+		)
+	)
+
+	# 3-letter ISO country code label for each country present in the crop
+	iso_col <- if ("iso_a3" %in% names(region_crop)) "iso_a3" else "adm0_a3"
+	region_crop$iso_label <- region_crop[[iso_col]]
+	region_crop$iso_label[region_crop$iso_label %in% c("-99", NA)] <-
+		region_crop$adm0_a3[region_crop$iso_label %in% c("-99", NA)]
+
+	ggplot() +
+		geom_sf(data = region_crop, fill = 'grey45', colour = "transparent") +
+		geom_tile(data = df_crop, aes(x = x, y = y, fill = value)) +
+		scale_fill_viridis_c(
+			option = "magma", direction = 1,
+			limits = c(0, 0.16),
+			oob = scales::squish,
+			labels = scales::label_number(accuracy = 0.01),
+			guide = "none"
+		) +
+		geom_sf(data = region_crop, fill = 'transparent', colour = "gray90", linewidth = 0.1) +
+		ggrepel::geom_text_repel(
+			data = region_crop,
+			aes(label = iso_label, geometry = geometry),
+			stat = "sf_coordinates",
+			colour = "black", fontface = "bold", size = 2.2,
+			segment.size = 0.2, segment.colour = "grey20",
+			bg.color = "white", bg.r = 0.1,
+			max.overlaps = Inf, seed = 1
+		) +
+		coord_sf(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = FALSE, datum = NA) +
+		ggtitle(letter) +
+		theme_minimal(base_family = "Helvetica") +
+		theme(
+			axis.title  = element_blank(),
+			axis.text   = element_blank(),
+			panel.grid  = element_blank(),
+			panel.border = element_rect(colour = "grey30", fill = NA, linewidth = 0.4),
+			plot.title  = element_text(size = 12, face = "bold", hjust = 0),
+			plot.margin = margin(t = 0, r = 2, b = 2, l = 2)
+		)
+}
+
+if (args$continent == "global") {
+
+	inset_panels <- purrr::pmap(regions_df, function(letter, name, xmin, xmax, ymin, ymax) {
+		make_inset_panel(letter, name, xmin, xmax, ymin, ymax, raster = r_natural, region_sf = region)
+	})
+
+	bottom_row <- inset_panels[[1]] | inset_panels[[2]] | inset_panels[[3]] | inset_panels[[4]]
+
+	final_plot <- (p / bottom_row) +
+		patchwork::plot_layout(heights = c(2, 1), guides = "collect") &
+		theme(legend.position = "bottom")
+
+} else {
+	final_plot <- p
+}
+
 # Save plot
-ggsave(p, file = args$output, width = 8, height = 6)
-ggsave(p, file = sub("\\.pdf$", ".svg", args$output), width = 10, height = 6)
+fig_height <- if (args$continent == "global") 5 else 6
+ggsave(final_plot, file = args$output, width = 8, height = fig_height)
+ggsave(final_plot, file = sub("\\.pdf$", ".svg", args$output), width = 10, height = fig_height)
 
 echo( "++ Thank you for using plot_HbS_fit.R.\n" )
