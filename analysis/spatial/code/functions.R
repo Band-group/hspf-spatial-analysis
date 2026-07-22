@@ -1,4 +1,5 @@
 library( ggplot2 ) # Needed for theme()
+library( prismatic )# for clr_darken
 
 # Useful variant of message() that allows sprintf-style arguments
 # %d = integer
@@ -2328,15 +2329,20 @@ aesthetic = list(
 	),
 	table = list(
 		pal_base		= c("#EFAC00", "#28A87D"), # colors for summary table HbS Pf
-		pal_dark		= clr_darken(c("grey15", "grey15"), 0.25), # colors for summary table HbS Pf
+		pal_dark		= prismatic::clr_darken(c("grey15", "grey15"), 0.25), # colors for summary table HbS Pf
 		grey_base		= "grey50", # colors for summary table HbS Pf
 		grey_dark		= "grey15" # colors for summary table HbS Pf
 	),
 	HbS = list(
 		# Define common breakpoints and labels for HbS plots
 		breaks  = c(0.0005, seq(0.025, 0.175, 0.025)),
-		labels	= c("< 5\u2030", "5\u2030-2.5%", "2.5%-5%", "5%-7.5%", "7.5%-10%", "10%-12.5%","12.5%-15%","15%-17.5%"),	# \u2030 = per mille
-	  ticks	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
+		labels	= c("< 0.5\u2030", "0.5\u2030-2.5%", "2.5%-5%", "5%-7.5%", "7.5%-10%", "10%-12.5%","12.5%-15%","15%-17.5%"),	# \u2030 = per mille
+	  ticks	= c("0.05%", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
+  ),
+  	HbSsd = list(
+		# Define common breakpoints and labels for HbS plots
+		breaks  = c(0.001, seq(0.005, 0.05, 0.005)),
+	  ticks	= c("0.1%", "0.5%", "1%", "1.5%", "2%", "2.5%", "3%", "3.5%","4%","4.5%","5%")	# \u2030 = per mille
   )
 )
 
@@ -2355,3 +2361,7 @@ draw_key_hex_custom <- function(data, params, size) {
 		)
 	)
 }
+
+#viridis color for our work
+viridisoption = list( scale = "rocket", direction = 1 )
+
