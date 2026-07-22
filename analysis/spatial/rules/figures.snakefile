@@ -40,10 +40,10 @@ rule create_figure1:
 		--SI {output.SI}
 """
 
-rule create_figure2:
+rule create_figure2_and_figureS5:
 	output:
 		main = "output/pf={pf_data_version}/figures/figure_2/figure_2_main-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
-		si = "output/pf={pf_data_version}/figures/figure_2/figure_2_si-size={size}-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
+		si = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
 	input:
 		fit = expand(
 			"output/pf={pf_data_version}/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds",
@@ -57,7 +57,7 @@ rule create_figure2:
 			hspf_covariates = "none"
 		)
 	params:
-		script = srcdir( 'code/figures/fig2.R' ),
+		script = srcdir( 'code/figures/fig2_and_fig5SI.R' ),
 		input_template = lambda w: "output/pf={pf_data_version}/hspf/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/{locus}/{locus}-model={model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-min_N={min_N}.rds".format(
 			pf_data_version = w.pf_data_version,
 			size = w.size,
