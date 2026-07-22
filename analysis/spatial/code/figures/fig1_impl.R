@@ -133,7 +133,7 @@ hbsrasplot <- function(
 	HbSbreaks = HbSbreaks,
 	HbSlabels = HbSlabels, flatcrs,
 	features = list(), # list of lists, each has data, colour, fill.
-	viridisoption = list( scale = "rocket", direction = 1),
+	viridisoption = viridisoption,
 	aesthetic = list(
 		oceancolor = "blue",
 		landcolor = "grey",
@@ -263,7 +263,7 @@ fig1bplot <- function(
 	pfvarsize = FALSE,
 	pt.thick = 1,
 	pfcoltype = 'country',
-	viridisoption = "rocket",
+	viridisoption = viridisoption,
 	countrybordercol = 'gray97',
 	countrybuffer = FALSE,
 	HbSbreaks = HbSbreaks,
@@ -782,7 +782,7 @@ plot_hspf = function(
 				expand = c( 0, 0 )
 			)
 			+ ylab( paste0( "<em>", pfsa_label, "+</em> frequency" ) )
-			+ xlab( "Combined frequency of HbAS and HbSS genotypes" )
+			+ xlab( "Combined freq. of HbAS and HbSS genotypes" )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
 				guide = "none"
