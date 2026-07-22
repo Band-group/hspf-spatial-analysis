@@ -94,7 +94,7 @@ hbs = predictions$prediction_locations
 if( args$continent == "global" ) {
 	region = world	
 	crop_box <- st_as_sfc(
-  	st_bbox(c(xmin = -166, xmax = 166, ymin = -55, ymax = 75)),
+  	st_bbox(c(xmin = -155, xmax = 155, ymin = -55, ymax = 77)),
   	crs = st_crs(world)
 )
 # crop geometries
@@ -167,37 +167,63 @@ p <- ggplot() +
   # add points HbS only in median facet (can be changed)
   geom_tile(
     data = dplyr::filter(r_long, stat %in% c("median")),
-    aes(x = x, y = y, fill = value) ) +
-	scale_fill_viridis_c(option = "magma", direction = 1, 
-	name = "<b>Estimated HbS frequency</b><br>median",
-	#limits = c(0, 0.16),          # max value for color scale
-	#oob = scales::squish,         # values above limit are "squished" to limit
-	labels = scales::label_number(accuracy = 0.01),
+    aes(x = x, y = y, fill = value),alpha = 0.5) +
+	
+scale_fill_viridis_c(
+    alpha = 0.5,
+   option = viridisoption$scale,
+	name = "HbS frequency\nmean estimate",
+	direction = viridisoption$direction,
+	na.value = "transparent",
+	breaks = aesthetic$HbS$breaks,
+	labels = aesthetic$HbS$ticks,
 	guide = guide_colourbar(
-    barwidth = unit(0.5, "cm"),   # increase length of the color bar
-    barheight = unit(1, "cm"),  # keep the thickness small
-	order = 1,ticks=TRUE
-  )) +
+        order = 1,
+        direction = "horizontal",
+        title.position = "top",
+        barwidth = unit(4, "cm"),
+        barheight = unit(0.4, "cm")
+    )
+) +		
+
+# 	scale_fill_viridis_c(option = "magma", direction = 1, 
+# 	name = "<b>Estimated HbS frequency</b><br>median",
+# 	labels = scales::label_number(accuracy = 0.01),
+# 	guide = guide_colourbar(
+#     barwidth = unit(0.5, "cm"),   # increase length of the color bar
+#     barheight = unit(1, "cm"),  # keep the thickness small
+# 	order = 1,ticks=TRUE
+#   )) +
+
+
 
   ggnewscale::new_scale_fill() +  # reset fill scale
 
   # CONTINUOUS for sd using another viridis palette
   geom_tile(
     data = dplyr::filter(r_long, stat == "sd"),
-    aes(x = x, y = y, fill = value)
+    aes(x = x, y = y, fill = value),alpha = 0.5
   ) +
-  scale_fill_viridis_c(option = "G", direction = -1,
-   name = "<br>standard deviation",
-   	limits = c(0, maxsd),          # max value for color scale
-	#oob = scales::squish,         # values above limit are "squished" to limit
-   labels = scales::label_number(accuracy = 0.01),  
-   guide = guide_colourbar(
-    barwidth = unit(0.5, "cm"),   # increase length of the color bar
-    barheight = unit(1, "cm"),ticks=TRUE
-  )) +
 
-  # Facets
-  facet_wrap(~ stat, ncol = 2,labeller = labeller(stat = facet_labels)) 
+scale_fill_viridis_c(
+    alpha = 0.5,
+    option = "G",
+    direction = -1,
+    name = "<br>standard deviation",
+    na.value = "transparent",
+    breaks = aesthetic$HbSsd$breaks,
+    labels = aesthetic$HbSsd$ticks,
+    guide = guide_colourbar(
+        order = 2,
+        direction = "horizontal",
+        title.position = "top",
+        barwidth = unit(4, "cm"),
+        barheight = unit(0.4, "cm")
+    )
+) +
+
+# Facets
+facet_wrap(~ stat, ncol = 2,labeller = labeller(stat = facet_labels)) 
 p <- p + geom_sf(
 		data = region, fill = 'transparent', colour = "gray90",
  		linewidth=0.025) 
@@ -249,8 +275,8 @@ p <- p + theme_minimal(base_family = "Helvetica") +
     legend.position = "right",            # vertical legend on the right
 	legend.direction = "vertical",
     legend.title.position = "top",
-    legend.title = element_markdown(size = 9), 
-    legend.text  = element_text(size = 7),
+    legend.title = element_markdown(size = 6), 
+    legend.text  = element_text(size = 4.5),
     strip.text   = element_text(size = 12, face = "bold",hjust = 0),
 	panel.spacing.x = unit(0, "lines"),
 	panel.spacing.y = unit(0, "lines") ,
@@ -287,7 +313,7 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 
 	ggplot() +
 		geom_sf(data = region_crop, fill = 'grey45', colour = "transparent") +
-		geom_tile(data = df_crop, aes(x = x, y = y, fill = value)) +
+		geom_tile(data = df_crop, aes(x = x, y = y, fill = value),alpha = 0.5) +
 
           geom_sf(
 			data = pt,
@@ -298,14 +324,15 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 			size = 1,
 			alpha = 0.85
 		) +
-
 		scale_fill_viridis_c(
-			option = "magma", direction = 1,
-			limits = c(0, 0.16),
-			oob = scales::squish,
-			labels = scales::label_number(accuracy = 0.01),
+			alpha = 0.5,
+		    option = viridisoption$scale,
+			direction = viridisoption$direction,
+			na.value = "transparent",
+			breaks = aesthetic$HbS$breaks,
+			labels = aesthetic$HbS$ticks,
 			guide = "none"
-		) +
+		) +		
 		geom_sf(data = region_crop, fill = 'transparent', colour = "gray90", linewidth = 0.1) +
 		ggrepel::geom_text_repel(
 			data = region_crop,
@@ -332,17 +359,17 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 p_pts <- ggplot() +
 
   geom_sf(data = region,
-          fill = "grey45",
-          colour = "white",
+          fill = "white",
+          colour = "black",
           linewidth = 0.1) +
 
 	geom_sf(
 		data = pt,
 		shape = 22,
 		fill = "#F28E2B",
-		colour = "white",
+		colour = "gray35",
 		stroke = 0.07,
-		size = 1.3,
+		size = 1.4,
 		alpha = 0.85
 	)+
 
@@ -370,7 +397,7 @@ if (args$continent == "global") {
 
 	final_plot <-	(wrap_elements(p_pts) / wrap_elements(p) / bottom_row) +
 		plot_layout(
-			heights = c(1.3, 1.1, 0.3), guides = "collect")
+			heights = c(1.35, 1.1, 0.3), guides = "collect")
 
 } else {
 	final_plot <- p
