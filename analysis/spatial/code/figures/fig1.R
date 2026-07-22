@@ -272,7 +272,7 @@ pfworldmap <- ggplot()  +
 			pfvarsize = FALSE,
 			pt.thick = 0.1,
 			pfcoltype = pfcoltypes[[j]],
-			viridisoption = list( scale = "rocket", direction = 1 ),
+			viridisoption = viridisoption,
 			countrybordercol = 'gray10',
 			countrybuffer = FALSE,
 			HbSbreaks = aesthetic$HbS$breaks,
@@ -674,10 +674,10 @@ heights = c(
 	}
 
 	hspf_si_theme <- theme(
-		axis.title		= ggtext::element_markdown( size = 11, angle = 0 ),
+		axis.title		= ggtext::element_markdown( size = 10, angle = 0 ),
 		axis.title.y	= ggtext::element_markdown( size = 12, angle = 90, hjust = 0.5, vjust = 0.5 ),
-		axis.text.x		= element_text( size = 12 ),
-		axis.text.y		= element_text( size = 12, hjust = 1, angle = 0 ),
+		axis.text.x		= element_text( size = 16 ),
+		axis.text.y		= element_text( size = 16, hjust = 1, angle = 0 ),
 		panel.spacing	= unit(0.1, "lines"),
 		plot.margin		= unit( c( 0.3, 0.3, 0.3, 0.3 ), "lines" )
 	)
@@ -764,8 +764,10 @@ heights = c(
 	if( length( si_country_names ) == 0 ) {
 		stop( "No country values were found in the z_si plot data." )
 	}
+    # Replace long country names with shorter versions for the legend
+   si_country_names <- dplyr::recode( si_country_names, !!!replacements )
 
-	si_legend_data <- tibble::tibble(
+   si_legend_data <- tibble::tibble(
 		country = factor(
 			si_country_names,
 			levels = rev( si_country_names )
@@ -869,22 +871,23 @@ z_si <- gridExtra::arrangeGrob(
   heights = c(0.07, 1)
 )
 
+wsi <- 17; hsi <- 7
 	tryCatch(
 		{
-			ggsave( z_si, filename = args$SI, width = 18, height = 9 )
+			ggsave( z_si, filename = args$SI, width = wsi, height = hsi )
 		},
 		error = function(e) {
 			message ('ggsave standard failed, using ggsave with cairo instead')
-			ggsave( z_si, filename = args$SI, width = 18, height = 9, device = cairo_pdf )
+			ggsave( z_si, filename = args$SI, width = wsi, height = hsi, device = cairo_pdf )
 		}
 	)
 	tryCatch(
 		{
-			ggsave( z_si, filename =  gsub( ".pdf", ".svg", args$SI ), width = 18, height = 9 )
+			ggsave( z_si, filename =  gsub( ".pdf", ".svg", args$SI ), width = wsi, height = hsi )
 		},
 		error = function(e) {
 			message ('ggsave svg standard failed, using ggsave pdf with cairo instead')
-			ggsave( z_si, filename = gsub( ".pdf", ".svg", args$SI ), width = 18, height = 9, device = cairo_pdf )
+			ggsave( z_si, filename = gsub( ".pdf", ".svg", args$SI ), width = wsi, height = hsi, device = cairo_pdf )
 		}
 	)
 	echo( "++ Fig1 SI: HSPF 2x2x2 panel completed.\n" )
