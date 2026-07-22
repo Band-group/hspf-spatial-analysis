@@ -2318,3 +2318,40 @@ logistic = function( data, formula = Y ~ year ) {
 		)
 	)
 }
+
+#add asthetics here so it can be used in multiple plots
+aesthetic = list(
+	map = list(
+		oceancolor		= "transparent",	 # Ocean fill color
+		landcolor		= "#bdbdbd",				 # Land color (medium grey)
+		lakecolor		= "#2d56af"
+	),
+	table = list(
+		pal_base		= c("#EFAC00", "#28A87D"), # colors for summary table HbS Pf
+		pal_dark		= clr_darken(c("grey15", "grey15"), 0.25), # colors for summary table HbS Pf
+		grey_base		= "grey50", # colors for summary table HbS Pf
+		grey_dark		= "grey15" # colors for summary table HbS Pf
+	),
+	HbS = list(
+		# Define common breakpoints and labels for HbS plots
+		breaks  = c(0.0005, seq(0.025, 0.175, 0.025)),
+		labels	= c("< 5\u2030", "5\u2030-2.5%", "2.5%-5%", "5%-7.5%", "7.5%-10%", "10%-12.5%","12.5%-15%","15%-17.5%"),	# \u2030 = per mille
+	  ticks	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
+  )
+)
+
+#to add hexagons in legend (without requiring ggplot2 very recent)
+draw_key_hex_custom <- function(data, params, size) {
+	theta <- pi/6 + (0:5) * (2*pi/6)          # 6 angles, exactly 60° apart
+	r <- grid::unit(1.25, "mm")
+
+	grid::polygonGrob(
+		x = grid::unit(0.5, "npc") + r * cos(theta),
+		y = grid::unit(0.5, "npc") + r * sin(theta),
+		gp = grid::gpar(
+			fill = scales::alpha(data$fill %||% "grey20", data$alpha),
+			col  = data$colour %||% "black",
+			lwd  = (data$linewidth %||% 0.5) * .pt
+		)
+	)
+}
