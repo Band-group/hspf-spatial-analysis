@@ -60,24 +60,6 @@ sf::sf_use_s2(TRUE)
 ################################################################################
 # Define color settings and projections
 map_projections	<- list( wgs84 = st_crs(4326) )	# Common projection for plots
-aesthetic = list(
-	map = list(
-		oceancolor		= "transparent",	 # Ocean fill color
-		landcolor		= "#bdbdbd",				 # Land color (medium grey)
-		lakecolor		= "#2d56af"
-	),
-	table = list(
-		pal_base		= c("#EFAC00", "#28A87D"), # colors for summary table HbS Pf
-		pal_dark		= clr_darken(c("grey15", "grey15"), 0.25), # colors for summary table HbS Pf
-		grey_base		= "grey50", # colors for summary table HbS Pf
-		grey_dark		= "grey15" # colors for summary table HbS Pf
-	),
-	HbS = list(
-		# Define common breakpoints and labels for HbS plots
-		breaks  = c(0.0005, seq(0.025, 0.175, 0.025)),
-		labels	= c("< 5\u2030", "2.5%", "5%", "7.5%", "10%", "12.5%","15%","17.5%")	# \u2030 = per mille
-	)
-)
 
 #set theme font type for all plots
 theme_set(theme_minimal(base_family = "sans"))
@@ -294,7 +276,7 @@ pfworldmap <- ggplot()  +
 			countrybordercol = 'gray10',
 			countrybuffer = FALSE,
 			HbSbreaks = aesthetic$HbS$breaks,
-			HbSlabels = aesthetic$HbS$labels,
+			HbSlabels = aesthetic$HbS$ticks,
 			aesthetic = list(
 				oceancolor		= "transparent",	 # Ocean fill color
 				landcolor		= "transparent",				 # Land color (medium grey)
@@ -577,9 +559,18 @@ figure_data <- figure_data %>%
 )
 	border = theme(plot.background = element_blank())
 
+library(cowplot)
+
+# combine the map (fig1bhexafrica[[1]]) with its legend (fig1bhexafrica[[2]])
+# as a left-centered inset
+fig1bhexafrica_combined <- ggdraw() +
+    draw_plot(fig1bhexafrica[[1]]) +
+    draw_plot(fig1bhexafrica[[2]], x = 0.01, y = 0.025, width = 0.2, height = 0.4)
+
+
 z = grid.arrange(
     ggplotGrob(pfworldmap + border),
-    ggplotGrob(fig1bhexafrica[[1]] ),
+    ggplotGrob(fig1bhexafrica_combined + border),
     ggplotGrob(hspf_plot + border),
     ggplotGrob(summary_plot + border),
     ggplotGrob(hspf_plot_2 + border),

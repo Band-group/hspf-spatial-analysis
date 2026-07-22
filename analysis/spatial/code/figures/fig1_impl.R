@@ -318,7 +318,7 @@ fig1bplot <- function(
 		ggplot()
 		+ geom_sf( data = oceanaround, fill = aesthetic$oceancolor, col = NA )	 # Ocean background
 		+ geom_sf( data = allland, fill = aesthetic$landcolor, col = NA )
-		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3 )
+		+ geom_sf( data = hexas, aes(fill = HbS), col = 'gray45', linewidth = pt.thick/3, key_glyph = draw_key_hex_custom)
 		+ geom_sf( data = lakes.around.country,fill = aesthetic$lakecolor, col = 'transparent')
 		+ geom_sf( data = box.around.country, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth)
 		+ geom_sf( data = myboundary, fill = 'transparent', col = countrybordercol, linewidth = boundarywidth )
@@ -330,7 +330,7 @@ fig1bplot <- function(
 			na.value = "transparent",
 			breaks = HbSbreaks,
 			labels = HbSlabels,
-			guide = guide_legend(override.aes = list(alpha = 0.5), order = 2, ncol = 2)
+			guide = guide_legend(override.aes = list(alpha = 0.5), order = 2, ncol = 1)
 		)
 	)
 	# Optionally overlay raw HbS data points
