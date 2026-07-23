@@ -121,7 +121,8 @@ dataplot <-  (data %>% filter(
 dataplot$majority_country <- dplyr::recode(
   dataplot$majority_country ,
   "Burkina_Faso" = "Burkina Faso",
-  "Cote_dIvoire" = "Ivory Coast"   # you can also fix spelling here
+  "Cote_dIvoire" = "Cote d'Ivoire",   # you can also fix spelling here
+  "Ivory Coast" = "Cote d'Ivoire" 
 )
 dataplot <- droplevels(dataplot)
 
@@ -167,7 +168,7 @@ country_longitudes <- tibble::tribble(
   "Guinea",                           -13.70,
   "Mali",                              -3.00,
   "Burkina Faso",                      -1.53,
-  "Ivory Coast",                      -5.55,
+  "Cote d'Ivoire",                     -5.55,
   "Ghana",                             -0.19,
   "Benin",                              2.63,
   "Nigeria",                            3.38,
@@ -332,6 +333,31 @@ trend_results <- dataplot %>%
  
  
  #plot country longitudinal
+ dataplot <- dataplot |>
+  dplyr::filter(!is.na(majority_country))
+
+data_avg <- data_avg |>
+  dplyr::filter(!is.na(majority_country))
+
+countries_keep <- unique(dataplot$majority_country)
+
+data_avg <- data_avg |>
+  dplyr::filter(majority_country %in% countries_keep)
+
+dataplot <- dataplot |>
+  dplyr::filter(majority_country %in% countries_keep)  
+
+dataplot <- dataplot |>
+  mutate(
+    RegionLabel = forcats::fct_reorder(
+      majority_country,
+      longitude,
+      .fun = mean,
+      .desc = TRUE
+    )
+  )
+
+
  p <- ggplot(dataplot, aes(x = year, y = `f+`)) +
   geom_line(aes(group = interaction(polygon_id, sources)), 
             colour = rgb(0, 0, 0, 0.5), linewidth = 0.5) +
