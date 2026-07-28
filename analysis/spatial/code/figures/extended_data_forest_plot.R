@@ -14,10 +14,15 @@ echo <- function(message, ...) {
 parse_arguments <- function() {
 	parser <- ArgumentParser(description = "Plot forest plot")
 	parser$add_argument(
-	"--output",
-	type = "character",
-	help = "Name of output pdf file",
-	required = TRUE
+		"--output_pdf",
+		type = "character",
+		help = "Name of output pdf file",
+		required = TRUE
+	)
+	parser$add_argument(
+		"--output_svg",
+		type = "character",
+		help = "Name of output svg file"
 	)
 	parser$add_argument(
 	"--input_template",
@@ -202,10 +207,22 @@ si_fig <- make_panel_si(
 	panel_tag   = NULL,
 	tagsize     = 14
 )
-ggsave(
-	args$output,
-	si_fig,
-	width = 6,
-	height = 6,
-	create.dir = TRUE
-)
+if( !is.null( args$output_pdf )) {
+	ggsave(
+		args$output_pdf,
+		si_fig,
+		width = 6,
+		height = 7,
+		create.dir = TRUE
+	)
+}
+
+if( !is.null( args$output_svg )) {
+	ggsave(
+		args$output_svg,
+		si_fig,
+		width = 6,
+		height = 7,
+		create.dir = TRUE
+	)
+}
