@@ -136,7 +136,7 @@ p <- p +
       face = "bold",
       family = "sans"
     ),
-    plot.tag.position = c(-0.03, 1.05),
+    plot.tag.position = c(-0.04, 1.06),
     plot.tag.location = "plot",
     plot.margin = margin(t = 32, r = 26, b = 3, l = 20)
   )
@@ -178,12 +178,20 @@ raw <- (
 # Build summaries for main and SI figures
 # ------------------------------------------------------------------
 
+
+
 region_labels_main = tibble::tibble(
   Region      = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" ),
   RegionLabel = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" )
 )
 
-res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_main$Region )
+region_labels_df <- tibble(
+  Region = region_labels_main$Region,
+  RegionLabel = as.factor(region_labels_main$Region)
+  # Add any other columns you want to join, e.g., label = ...
+)
+
+res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_df$Region )
 
 # ------------------------------------------------------------------
 # Main figure: 4 regions only
@@ -192,11 +200,13 @@ spt <- 1.5
 lsize <- 4.7
 tsize <- 18
 
+
+
 p1 <- make_panel(
   filter(res_sum_main, locus == "Pfsa1"),
   "Pfsa1", panel_id = 1, tagsize = tsize,
   locus_name_size = lsize, sizept = spt,
-  y_levels = region_labels_main$RegionLabel,
+  y_levels = region_labels_df$RegionLabel,
   show_x_labels = FALSE,
   panel_tag = "a"
 )
@@ -235,15 +245,15 @@ main_fig <- (p1 | p2) /
 ggsave(
   args$output,
   main_fig,
-  width = 8,
-  height = 4.5,
+  width = 12,
+  height = 5.5,
   create.dir = TRUE
 )
 
 ggsave(
   gsub( ".pdf", ".svg", args$output ),
   main_fig,
-  width = 8,
-  height = 4.5,
+  width = 12,
+  height = 5.5,
   create.dir = TRUE
 )

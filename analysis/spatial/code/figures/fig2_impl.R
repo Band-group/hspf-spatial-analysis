@@ -73,7 +73,7 @@ make_summary <- function(raw, region_order, region_labels) {
       .groups = "drop"
     ) %>%
     left_join(region_meta, by = c("locus", "Region")) %>%
-    left_join(region_labels, by = "Region") %>%
+    left_join(region_labels_df, by = "Region") %>%
     mutate(
       estimate_pct = 100 * estimate,
       lower_pct = 100 * lower,
