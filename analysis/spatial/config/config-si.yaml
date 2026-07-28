@@ -45,6 +45,7 @@ params:
       - gambia+senegal
       - mali
       - ghana
+      - nigeria
       - uganda
       - tanzania
       - DRC
@@ -54,4 +55,5 @@ params:
       - ghana+burkina+togo+benin+ivorycoast
       - caf
       - tanzania+kenya+uganda+rwanda
+      - mozambique
 

@@ -11,7 +11,25 @@ print( "++ The configuration is:" )
 from pprint import pp
 pp( config, indent = 2, compact = True )
 
-config['areas'] = get_area_definitions( config['params']['area'] )
+# All areas for our SI figures need to be defined - do that here:
+config['areas'] = get_area_definitions( 
+	[
+		'global',
+		'africa',
+		'waf',
+		'wwaf',
+		'eaf',
+		'DRC+eaf',
+		'gambia+senegal',
+		'mali',
+		'ghana',
+		'nigeria',
+		'uganda',
+		'tanzania',
+		'DRC',
+		'mozambique'
+	]
+)
 
 # This list details all the hs-pf comparison analyses we really want to run.
 # master_hspf_analyses = dict_product( config['params'] )
