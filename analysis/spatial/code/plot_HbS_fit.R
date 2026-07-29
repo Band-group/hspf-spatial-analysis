@@ -80,8 +80,8 @@ if (args$continent == "global") {
   pt <- sf::st_transform(pt, map_crs)
 }
 
-# Restrict to the median facet only
-pt$stat <- "median"
+# Restrict to the mean facet only
+pt$stat <- "mean"
 
 #load.entry.from.Rdata( sprintf( "%s/naturalearthdata.Rdata", args$geodata ), "world_sf" )
 hbs = predictions$prediction_locations
@@ -122,13 +122,13 @@ r <- terra::rast(resolution = 0.33333,
 
 # Rasterize the 'mean' values
 #r_q25    <- terra::rasterize(hbs_vect, r, field = "q25",    fun = mean)
-r_median <- terra::rasterize(hbs_vect, r, field = "median", fun = mean)
+r_mean <- terra::rasterize(hbs_vect, r, field = "mean", fun = mean)
 #r_q75    <- terra::rasterize(hbs_vect, r, field = "q75",    fun = mean)
 r_sd     <- terra::rasterize(hbs_vect, r, field = "sd",     fun = mean)
 
 # Combine into one SpatRaster with 4 layers
-r_all <- c(r_median, r_sd)
-names(r_all) <- c("median", "sd")
+r_all <- c(r_mean, r_sd)
+names(r_all) <- c("mean", "sd")
 # r_all <- c(r_q25, r_median, r_q75, r_sd)
 # names(r_all) <- c("q25", "median", "q75", "sd")
 r_all <- terra::project(r_all, st_crs(region)$wkt)
@@ -142,7 +142,7 @@ r_df <- as.data.frame(r_all, xy = TRUE, na.rm = TRUE)
 
 # Pivot longer to get tidy format
 r_long <- tidyr::pivot_longer(
-	  r_df, cols = c("median","sd"),
+	  r_df, cols = c("mean","sd"),
  # r_df, cols = c("q25","median","q75","sd"),
   names_to = "stat", values_to = "value"
 )
@@ -155,7 +155,7 @@ r_long <- r_long |>
 
 
 facet_labels <- c(
-  "median" = "b",
+  "mean" = "b",
   "sd"     = "c"
 )
 maxsd <- max(r_long$value[r_long$stat == "sd"], na.rm = TRUE)
@@ -164,10 +164,10 @@ p <- ggplot() +
   # Country borders
   geom_sf(data = region, fill = 'grey45', colour = "transparent") +
   # DISCRETE bins for q25/median/q75
-  # add points HbS only in median facet (can be changed)
+  # add points HbS only in mean facet (can be changed)
   geom_tile(
-    data = dplyr::filter(r_long, stat %in% c("median")),
-    aes(x = x, y = y, fill = value),alpha = 0.5) +
+    data = dplyr::filter(r_long, stat %in% c("mean")),
+    aes(x = x, y = y, fill = value), alpha = 0.5) +
 	
 scale_fill_viridis_c(
     alpha = 0.5,
@@ -181,6 +181,7 @@ scale_fill_viridis_c(
         order = 1,
         direction = "horizontal",
         title.position = "top",
+		alpha = NA,
         barwidth = unit(4, "cm"),
         barheight = unit(0.4, "cm")
     )
@@ -202,7 +203,7 @@ scale_fill_viridis_c(
   # CONTINUOUS for sd using another viridis palette
   geom_tile(
     data = dplyr::filter(r_long, stat == "sd"),
-    aes(x = x, y = y, fill = value),alpha = 0.5
+    aes(x = x, y = y, fill = value), alpha = 0.5
   ) +
 
 scale_fill_viridis_c(
@@ -215,6 +216,7 @@ scale_fill_viridis_c(
     labels = aesthetic$HbSsd$ticks,
     guide = guide_colourbar(
         order = 2,
+		alpha = NA,
         direction = "horizontal",
         title.position = "top",
         barwidth = unit(4, "cm"),
@@ -232,7 +234,7 @@ p <- p + geom_sf(
 # on panel a, and the inset panels themselves, use identical bounding boxes)
 regions_df <- tibble::tribble(
   ~letter, ~name,                        ~xmin, ~xmax, ~ymin, ~ymax,
-  "d",     "South America",               -80,   -45,   -7,     16,
+  "d",     "South America",               -82,   -45,   -19,     16,
   "e",     "Tanzania, DRC & surrounds",    14,    45,   -14,     5.5,
   "f",     "West Africa",                 -18,    12,     0,    18,
   "g",     "South Asia",                   60,    95,     8.3,    37.7
@@ -240,13 +242,13 @@ regions_df <- tibble::tribble(
 
 if (args$continent == "global") {
   # Build a small rectangle (as an sf polygon) for each highlighted region,
-  # tagged with stat = "median" so it only draws on panel (a)
+  # tagged with stat = "mean" so it only draws on panel (a)
   bbox_sf <- purrr::pmap_dfr(regions_df, function(letter, name, xmin, xmax, ymin, ymax) {
     poly <- sf::st_as_sfc(
       sf::st_bbox(c(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
                   crs = sf::st_crs(region))
     )
-    sf::st_sf(letter = letter, stat = "median", geometry = poly)
+    sf::st_sf(letter = letter, stat = "mean", geometry = poly)
   })
   bbox_labels <- suppressWarnings(sf::st_centroid(bbox_sf))
 
@@ -288,12 +290,12 @@ p <- p + theme_minimal(base_family = "Helvetica") +
   )
 
 # ---------------------------------------------------------------------------
-# Regional inset panels (c-f): median HbS frequency zoomed in on four regions
+# Regional inset panels (c-f): mean HbS frequency zoomed in on four regions
 # of particular interest. Only built for the global figure.
 # ---------------------------------------------------------------------------
 make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, region_sf) {
 
-	r_crop  <- terra::crop(raster[["median"]], terra::ext(xmin, xmax, ymin, ymax))
+	r_crop  <- terra::crop(raster[["mean"]], terra::ext(xmin, xmax, ymin, ymax))
 	df_crop <- as.data.frame(r_crop, xy = TRUE, na.rm = TRUE)
 	names(df_crop)[3] <- "value"
 
@@ -313,7 +315,7 @@ make_inset_panel <- function(letter, name, xmin, xmax, ymin, ymax, raster, regio
 
 	ggplot() +
 		geom_sf(data = region_crop, fill = 'grey45', colour = "transparent") +
-		geom_tile(data = df_crop, aes(x = x, y = y, fill = value),alpha = 0.5) +
+		geom_tile(data = df_crop, aes(x = x, y = y, fill = value),alpha=0.5) +
 
           geom_sf(
 			data = pt,
