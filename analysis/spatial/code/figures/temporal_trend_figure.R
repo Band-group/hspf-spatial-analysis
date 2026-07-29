@@ -1,0 +1,325 @@
+library( ggplot2 )
+library( dplyr )
+library( forcats )
+library( broom )
+library( viridis )
+library( argparse )
+library( ggtext )
+library( ggrepel)
+source( "code/functions.R" )
+source( "code/figures/fig1_impl.R" )
+
+
+# for testing Andre##################################################################################
+# args <- list()
+# args$loci <- c('Pfsa1')
+# args$output <- "output/pf=pf8-version/figures/temporal/Pfsa1-temporal-area=africa.pdf"
+# args$pf_aggregated <- 'output/pf=pf8-version/pf/aggregated/grid-type=hexagon-size=1-area=africa-by=year-source.tsv'
+# args$countries <- readr::read_tsv(args$pf_aggregated)
+# args$countries <- unique(args$countries$majority_country)
+
+# #####################################################################################################
+parse_arguments <- function() {
+	parser <- argparse::ArgumentParser( description = 'Plot frequencies over time' )
+	parser$add_argument("--pf_aggregated", type = "character", help = "Path to  pf aggregated data to use." )
+	parser$add_argument("--loci", type = "character", nargs = "+", help = "Loci to plot", required = T )
+	parser$add_argument("--output", type = "character", help = "Output pdf file", required = T )
+	parser$add_argument("--countries", type = "character", nargs = "+", help = "Countries to plot" )
+	return(parser$parse_args())
+}
+
+
+amalgamate <- function( grouped_data ) {
+	result = (
+		grouped_data
+		%>% summarise(
+			`Pfsa-` = sum( `Pfsa-`),
+			`mixed` = sum( mixed ),
+			`Pfsa+` = sum( `Pfsa+`)
+		)
+		%>% mutate(
+			N = `Pfsa-` + `Pfsa+`,
+			`f-` = `Pfsa-` / N,
+			`f+` = `Pfsa+` / N,
+			lower = qbeta( p = 0.025, shape1 = `Pfsa+` + 1, shape2 = `Pfsa-` + 1 ),
+			upper = qbeta( p = 0.975, shape1 = `Pfsa+` + 1, shape2 = `Pfsa-` + 1 )
+		)
+	)
+	result$lower[ result$N == 0 ] = NA
+	result$upper[ result$N == 0 ] = NA
+	return( result )
+}
+
+args = parse_arguments()
+
+data = amalgamate(
+	readr::read_tsv( args$pf_aggregated )
+#	%>% filter( locus %in% args$loci )
+	%>% group_by( polygon_id, locus, majority_country, sources, year )
+)
+
+if( !is.null(args$countries)) {
+	data = data %>% filter( majority_country %in% args$countries )
+}
+
+by_country_and_source = amalgamate(
+	data
+	%>% group_by( locus, majority_country, sources, year )
+)
+
+by_country = amalgamate(
+	data
+	%>% group_by( locus, majority_country, year )
+)
+
+by_polygon = amalgamate(
+	data %>% group_by( locus, majority_country, polygon_id, year )
+)
+
+# temporal = (
+# 	by_country
+# 	%>% filter( majority_country %in% longterm$majority_country[ longterm$length_years >= 5 ] )
+# 	%>% group_by( locus, majority_country )
+# 	%>% reframe( logistic( pick( `Pfsa+`, `N`, year ), Y ~ year ))
+# 	%>% filter( parameter == 'year' )
+# 	%>% arrange( locus, `pvalue` )
+# )
+# readr::write_tsv( temporal, file = stringr::str_replace( args$output, ".pdf", ".regression.tsv" ))
+# print( temporal, n = 1000 )
+
+# temporal_by_polygon = (
+# 	by_polygon
+# 	%>% filter( N >= 25 )
+# 	%>% filter( majority_country %in% longterm$majority_country[ longterm$length_years >= 5 ] )
+# 	%>% group_by( locus, majority_country )
+# 	%>% reframe( logistic( pick( `Pfsa+`, `N`, year, polygon_id ), formula = Y ~ year + polygon_id ))
+# 	%>% filter( parameter %in% c( 'year', 'polygon_id' ))
+# 	%>% arrange( locus, `pvalue` )
+# )
+# print( temporal_by_polygon, n = 1000 )
+# readr::write_tsv( temporal_by_polygon, file = stringr::str_replace( args$output, ".pdf", ".regression.by-polygon.tsv" ))
+
+# # Tarnish palette, from http://tsitsul.in/blog/coloropt/
+# palette = c(
+# 	rgb( 39 /256, 77 /256, 82 /256 ),
+# 	rgb( 199/256, 162/256, 166/256 ),
+# 	rgb( 129/256, 139/256, 112/256 ),
+# 	rgb( 96 /256, 78 /256, 60 /256 ),
+# 	rgb( 140/256, 159/256, 183/256 ),
+# 	rgb( 121/256, 104/256, 128/256 ),
+# 	rgb( 192/256, 192/256, 192/256 )
+# )
+
+dataplot <- (
+	data %>% filter(
+	#	majority_country %in% longterm$majority_country
+		N >= 10
+	) %>% mutate(
+		year = year,
+		polygon_id = factor( polygon_id, levels = unique( data$polygon_id )),
+		majority_country = gsub( "Democratic_Republic_of_the_Congo", "DRC", majority_country )
+	)
+)
+
+dataplot$majority_country <- dplyr::recode(
+	dataplot$majority_country ,
+	"Burkina_Faso" = "Burkina Faso",
+	"Cote_dIvoire" = "Cote d'Ivoire",   # you can also fix spelling here
+	"Ivory Coast" = "Cote d'Ivoire" 
+)
+dataplot <- droplevels(dataplot)
+
+data_avg <- (
+	dataplot %>%
+	group_by( majority_country, year, locus ) %>%
+	summarise( f_avg = mean(`f+`, na.rm = TRUE), .groups = "drop" )
+)
+
+# Find gaps
+dataplot_gaps <- dataplot %>%
+	arrange(majority_country, year) %>%
+	group_by(majority_country) %>%
+	mutate(
+		gap_next = lead(year) - year,                  # size of gap
+		mid_gap  = ifelse(gap_next > 1, (year + lead(year)) / 2, NA)  # midpoint
+	) %>%
+	ungroup() %>%
+	filter(!is.na(mid_gap)) %>%
+	distinct(majority_country, mid_gap)
+
+shape_key <- c(
+	"Uganda UCSF EppiCenter" = 24,   # triangle
+	"Verity et al 2021" = 22,        # square
+	"MalariaGEN Pf8" = 24,           # triangle
+	"Moser et al 2021" = 22,         # square
+	"Schaffner et al Senegal 2023" = 24, # triangle
+	"GAMCC" = 24                    # triangle
+)
+
+fill_key <- c(
+	"Uganda UCSF EppiCenter" = "#d1cd0cff",
+	"Verity et al 2021" = "#a9a9a9ff",
+	"MalariaGEN Pf8" = "#f2f2f2ff",
+	"Moser et al 2021" = "#f08080ff",
+	"Schaffner et al Senegal 2023" = "#2323f6ff",
+	"GAMCC" = "#0c0c83ff"
+)
+
+country_longitudes <- tibble::tribble(
+	~majority_country,                  ~longitude,
+	"Senegal",                          -14.45,
+	"Gambia",                           -16.57,
+	"Mauritania",                       -15.97,
+	"Guinea",                           -13.70,
+	"Mali",                              -3.00,
+	"Burkina Faso",                      -1.53,
+	"Cote d'Ivoire",                     -5.55,
+	"Ghana",                             -0.19,
+	"Benin",                              2.63,
+	"Nigeria",                            3.38,
+	"Cameroon",                          11.50,
+	"Gabon",                              9.45,
+	"DRC",                               15.31,
+	"Zambia",                            28.30,
+	"Uganda",                            32.58,
+	"Tanzania",                          39.27,
+	"Mozambique",                        35.53,
+	"Malawi",                            33.78,
+	"Kenya",                             36.82,
+	"Ethiopia",                          38.75,
+	"Madagascar",                        47.51#,
+#  NA,                                 179
+)
+
+dataplot <- dataplot %>%
+	left_join(country_longitudes, by = c("majority_country")) %>%
+	mutate(
+		majority_country = factor(
+			majority_country,
+			levels = country_longitudes %>% arrange(longitude) %>% pull(majority_country)
+		)
+	)
+
+dataplot <- dataplot %>%
+	mutate(
+		majority_country = forcats::fct_relevel(
+			majority_country,
+			country_longitudes %>% arrange(longitude) %>% pull(majority_country)
+		)
+	)
+
+#time series analysis######################################################
+###########################################################################
+# logistic = function( data, formula = Y ~ time ) {
+#     data = ( data %>% mutate(
+#       Y = (`Pfsa+` / N),
+#       time = year - min(year),
+#       time2 = time * time
+#     )
+#     )
+#     g = glm( formula, weight = N, data = data, family = "binomial" )
+#     coeff = summary(g)$coeff
+#     colnames(coeff) = c( "estimate", "sd", "z", "pvalue" )
+#     ll = logLik(g)
+#     return(
+#         bind_cols(
+#             tibble( parameter = rownames(coeff), ll = as.numeric(ll)),
+#             coeff
+#         )
+#     )
+# }
+
+# #regression with all countries combined
+# #print(tidy(lm(`f+` ~ year, data = dataplot )))
+# print(logistic(data = dataplot ))
+
+
+# (
+#    dataplot
+#     %>% filter( majority_country %in% c('Gambia','Kenya','Ghana','Mali','Tanzania'))
+#     %>% group_by( locus, majority_country )
+#     %>% reframe( logistic( pick( `Pfsa+`, `N`, year ), Y ~ time  + polygon_id ))
+#     %>% filter( parameter %in% c('time','time2','year' ))
+#     %>% arrange(majority_country, locus, `pvalue` )
+# )
+
+#check for linearity in the time series
+trend_results <- dataplot %>%
+	group_by(majority_country) %>%
+	group_modify(~ {
+		if (n_distinct(.x$year) <= 1 || nrow(.x) < 3) {
+			return(tibble(estimate = NA, p.value = NA, std.error = NA, hex_F.E = NA))
+		}
+		
+		use_fe <- FALSE
+		
+		if (n_distinct(.x$polygon_id) > 1 && nrow(.x) > 3) {
+			m <- lm(`f+` ~ year + factor(polygon_id), data = .x)
+			slope <- broom::tidy(m) %>% filter(term == "year")
+			
+			if (!is.na(slope$p.value)) {
+				use_fe <- TRUE
+			} else {
+				m <- lm(`f+` ~ year, data = .x)
+				slope <- broom::tidy(m) %>% filter(term == "year")
+			}
+		} else {
+			m <- lm(`f+` ~ year, data = .x)
+			slope <- broom::tidy(m) %>% filter(term == "year")
+		}
+		
+		tibble(
+			estimate = slope$estimate,
+			std.error = slope$std.error,
+			p.value = slope$p.value,
+			hex_F.E  = use_fe
+		)
+	}) %>%
+	ungroup() %>%
+	mutate(
+		labelmean = sprintf("mean = %.3f", estimate),
+		labelpvalue = sprintf("p = %.3g", p.value),
+		ci_lower = estimate - 1.96 * std.error,
+		ci_upper = estimate + 1.96 * std.error
+	) %>%
+	filter(!is.na(labelmean))
+
+print(trend_results,n=21)
+
+# Reorder countries by slope
+trend_results_clean <- trend_results %>%
+	filter(!is.na(estimate)) %>%
+	mutate(majority_country = fct_reorder(majority_country, estimate))
+
+# Compute offset for p-value label (right of plot)
+pvaluemove <- ifelse(args$loci == 'Pfsa3', 0.25,0.06)
+max_est <- max(trend_results_clean$estimate, na.rm = TRUE)
+trend_results_clean <- trend_results_clean %>%
+	mutate(labelpvalue_y = pvaluemove + abs(max_est))
+
+# Plot
+ptrend <- ggplot(trend_results_clean, aes(x = majority_country, y = estimate)) +
+	# Points
+	geom_point(size = 3) +
+	# 95% CI
+	geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2) +
+	# Horizontal reference line at zero
+	geom_hline(yintercept = 0, linetype = "dashed", colour = "grey35", linewidth = 0.8) +
+	# labelmean: on top of the point
+	geom_text(aes(label = labelmean), vjust = -1, size = 3) +
+	# labelpvalue: to the right of the plot
+	geom_text(aes(y = labelpvalue_y, label = labelpvalue), hjust = 0, size = 3) +
+	# Axis, theme
+	xlab("")+
+	ylab(sprintf("Estimated <em>%s</em>+ frequency slope per year", args$loci) ) +
+	coord_flip() +    # Expand y-limits to make space for p-value labels
+	scale_y_continuous(expand = expansion(mult = c(0.05, 0.25)))+
+	theme_minimal(base_family = "sans", base_size = 16) + theme (
+		axis.title.x  = ggtext::element_markdown(),
+		axis.title.y  = ggtext::element_markdown()
+	)
+
+
+print(ptrend)
+ptrendpath <- sub("\\.pdf$", "_trend.pdf", args$output)
+ggsave(ptrend, file = ptrendpath, width = 8, height = 5,create.dir = TRUE)
