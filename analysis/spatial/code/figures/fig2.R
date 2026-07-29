@@ -182,8 +182,8 @@ region_labels_main = tibble::tibble(
   Region      = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" ),
   RegionLabel = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" )
 )
-
-res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_main$Region )
+print( region_labels_main )
+res_sum_main <- make_summary(raw, region_labels_main[['Region']], region_labels_main )
 
 # ------------------------------------------------------------------
 # Main figure: 4 regions only
