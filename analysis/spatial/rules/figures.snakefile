@@ -89,7 +89,8 @@ rule create_forest_plot_figures:
 
 rule create_forest_plot_figure_extended_data:
 	output:
-		pdf = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf"
+		pdf = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+		svg = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.svg"
 	input:
 		fit = rules.create_forest_plot_figures.input.fit
 	params:
@@ -98,7 +99,8 @@ rule create_forest_plot_figure_extended_data:
 	shell: """
 	Rscript --vanilla {params.script} \
 	--input_template {params.input_template} \
-	--output {output.pdf}
+	--output_pdf {output.pdf} \
+	--output_svg {output.svg}
 """
 
 rule create_extended_data_fig2_supplement:
@@ -171,7 +173,48 @@ rule temporal_figure:
 	params:
 		script = srcdir( "code/figures/temporal_figure.R" ),
 		loci = lambda w: w.loci.split( "+" ),
-		countries = lambda w: "" if w.area == 'global' else "--countries '%s'"% "' '".join( config['areas'][w.area] ),
+		#countries = lambda w: (
+		#	config['areas'].get( w.area, w.area.replace( "+", " " ) )
+		#)
+		# Hard-code this for the figure.
+		countries = "--countries %s" % ' '.join([
+			"Gambia",
+			"Senegal",
+			"Mali",
+			"Ghana",
+			"Nigeria",
+			"Democratic_Republic_of_the_Congo",
+			"Uganda",
+			"Malawi",
+			"Mozambique",
+			"Kenya",
+			"Tanzania"
+		])
+	shell: """
+	Rscript --vanilla {params.script} \
+	--pf_aggregated {input.tsv} \
+	--loci {params.loci} \
+	{params.countries} \
+	--output {output.pdf}
+"""
+
+rule temporal_trend_figure:
+	output:
+		pdf = "output/pf={pf_data_version}/figures/temporal/{loci}-temporal-area={area}_trend.pdf"
+	input:
+		tsv = "output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-by=year-source.tsv"
+	params:
+		script = srcdir( "code/figures/temporal_trend_figure.R" ),
+		loci = lambda w: w.loci.split( "+" ),
+		countries = lambda w: (
+			{
+				'global': "",
+				'selected': "--countries Gambia Senegal Mali Ghana Nigeria Uganda Malawi Mozambique Kenya"
+			}.get(
+				w.area,
+				"--countries '%s'"% "' '".join( config['areas'][w.area] )
+			)
+		)
 	shell: """
 	Rscript --vanilla {params.script} \
 	--pf_aggregated {input.tsv} \
