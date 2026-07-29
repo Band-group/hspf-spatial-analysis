@@ -28,7 +28,7 @@ rule fit_hbs_map:
 
 rule plot_hbs_fit:
 	output:
-		pdf = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type=hexagon-size=1/continents={continent}/figure2_SI.pdf"
+		pdf = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type=hexagon-size=1/continents={continent}/hbs_global_map.pdf"
 	input:
 		predictions	= rules.fit_hbs_map.output.predictions,
 		geodata = directory('geodata')
@@ -82,7 +82,7 @@ rule aggregate_piel:
 rule compare_HbS_vs_piel_vs_data:
 	output:
 		tsv = "output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_piel.tsv.gz",
-		si = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/continents={area}/figure3_SI.pdf"
+		si = "output/pf=pf8-version/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/continents={area}/hbs_obs_vs_model_vs_piel.pdf"
 	input:
 		HbS = rules.aggregate_HbS.output.tsv,
 		HbS_survey = "input/cleanHbSdata.csv",
