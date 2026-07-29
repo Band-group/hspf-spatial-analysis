@@ -197,16 +197,17 @@ make_comparison_panel <- function( data, x_var, y_var, x_lab, y_lab, panel_lette
 		+ ylim(0, 0.25)
 		+ labs( x = x_lab, y = y_lab, tag = panel_letter )
 		+ geom_text(
-			aes( x = 0.185, y = 0.05, label = paste0( "Correlation\nr = ", pearson_r, "\np ", p_value )),
+			aes( x = 0.185, y = 0.05, label = paste0( "Correlation\nr = ", pearson_r)),# "\np ", p_value )),
 			data = subset( data, CONTINENT == bottom_right_continent ),
-			size = 5,
+			size = 6,
 			hjust = 0,
 			color = "black",
 			fontface = "italic"
 		)
 		+ coord_fixed(ratio = 1)
 		+ theme(
-			plot.tag = element_text(size = 22,face = "bold",family = "sans"),
+			strip.text = element_text(size = 24),
+			plot.tag = element_text(size = 26,face = "bold",family = "sans"),
             plot.tag.position = c(-0.01, 1.01),
             plot.tag.location = "plot",
             plot.margin = margin(t = 25, r = 26, b = 3, l = 30)
