@@ -385,14 +385,15 @@ if( !is.null( args$output_pdf )) {
 
 	# Area -> Region name lookup
 	area_mapping <- tibble::tibble(
-		area = c( "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal", "mali", "ghana",
+		area = c( "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal",  "Gambia+Senegal", "mali", "ghana",
 						 "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf",
-						 "drc+east", "DRC", "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania"),
+						 "drc+east", "DRC","Democratic Republic of the Congo",  "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania",
+						 "United Republic of Tanzania"),
 		Region = c("Global","Africa", "West Africa", "Western region", "Eastern region",
-						"Gambia & Senegal", "Mali", "Ghana", "Ghana, Burkina Faso & Togo",
-						"Ghana, Burkina Faso, Togo, Benin & Ivory Coast", "Central Africa",
-						"DRC+east", "Democratic Republic of Congo", "East Africa",
-						"Tanzania, Kenya, Uganda & Rwanda", "Uganda", "Tanzania")
+						 "Gambia and Senegal","Gambia and Senegal","Mali", "Ghana", "Ghana, Burkina Faso and Togo",
+						"Ghana, Burkina Faso, Togo, Benin and Cote d'Ivoire", "Central Africa",
+						"DRC and eastern populations", "DRC","DRC", "East Africa",
+						"Tanzania, Kenya, Uganda and Rwanda", "Uganda", "Tanzania","Tanzania")
 	)
 	area_code <- paste( args$areas, collapse = "+" )
 	region_title <- area_mapping$Region[ area_mapping$area == area_code ]
@@ -425,10 +426,10 @@ if( !is.null( args$output_pdf )) {
 		y_pos <- usr[3] + (y_frac + (i - 1) * spacing_frac) * (usr[4] - usr[3])
 		points( x_pos, y_pos, pch = 21, cex = sqrt(N) / cex_scale, col = "black", bg = NA )
 		text( x_pos + 0.02 * (usr[2]-usr[1]), y_pos, labels = scales::comma(N),
-		      adj = 0, cex = 0.7 )
+		      adj = 0, cex = 0.6 / par("cex") )
 	}
-	text( x_pos, usr[3] + (y_frac + length(breaks)*spacing_frac + 0.02) * (usr[4]-usr[3]),
-	      labels = "Sample size (N)", adj = 0, cex = 0.75, font = 2 )
+	text( x_pos, usr[3] + (y_frac + length(breaks)*spacing_frac + 0.16) * (usr[4]-usr[3]),
+	      labels = "Sample size", adj = 0.5, cex = 0.75 / par("cex"), font = 2 )
 }
 	curves = tibble(
 		x = xs, median = NA, mean = NA, lower_2.5 = NA, upper_97.5 = NA
@@ -449,9 +450,9 @@ if( !is.null( args$output_pdf )) {
 
 	# Draws the full plot; called once per open device (pdf/svg)
 	draw_diagnostic_plot <- function() {
-		par( mar = c( 4.1, 5.1, 2.5, 1.1 ))
+		par( mar = c( 4.1, 5.1, 2.5, 1.1 ), cex=1.6)
 		plot(
-			data_x, result$data$y / result$data$N, cex = sqrt(result$data$N)/6,
+			data_x, result$data$y / result$data$N, cex = sqrt(result$data$N)/6/par("cex"),
 			col = colours[ result$data$SOVEREIGNT],
 			pch = 19,
 			bty = 'n',
@@ -462,14 +463,14 @@ if( !is.null( args$output_pdf )) {
 			xlab = "",
 			ylab = "",
 		)
-		title( main = region_title, adj = 0, font.main = 1, cex.main = 1.6, line = 0.5 )
+		title( main = region_title, adj = 0, font.main = 1.3, line = 0.25 )
 		grid()
 		at = list( x = inner_ticks, y = seq(0, to = 1, by = 0.25) )
 		axis( 1, at = at$x, label = sprintf( "%.0f%%", at$x * 100 ))
 		axis( 1, at = xlim_use, labels = FALSE )
 		axis( 2, at = at$y, label = sprintf( "%.0f%%", at$y * 100 ), las = 1 )
-		mtext( "Combined frequency of HbAS and HbSS genotypes", 1, 3 )
-		mtext( expression(italic("Pfsa1") * "+ frequency"), side = 2, line = 3, las = 0 )
+		mtext( "Combined frequency of\nHbAS and HbSS genotypes", 1, 3, cex=1.6 )
+		mtext( expression(italic("Pfsa1") * "+ frequency"), side = 2, line = 3, las = 0,cex=1.6 )
 
 		polygon(
 			c( curves$x, rev(curves$x)),
@@ -478,7 +479,9 @@ if( !is.null( args$output_pdf )) {
 			border = NA
 		)
 		points( curves$x, curves$mean, type = 'l', lwd = 3, col = "black" )
-	    draw_size_legend( breaks = c(10, 100, 1000))
+	    	if( region_title == "Uganda" ) {
+		draw_size_legend( breaks = c(10, 100, 1000))
+	}
 	}
 
 	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
