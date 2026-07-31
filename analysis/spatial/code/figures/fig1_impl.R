@@ -495,6 +495,20 @@ plot_hspf = function(
 	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
 	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
 	hspf$data$country = factor( hspf$data$majority_country, levels = unique(hspf$data$majority_country))
+    
+	# Replace long country names with shorter versions
+replacements <- c(
+	"Burkina_Faso" = "Burkina Faso",
+	"Democratic_Republic_of_the_Congo" = "DRC",
+	"Cote_dIvoire" = "Cote d'Ivoire",
+	"Papua_New_Guinea" = "Papua New Guinea"
+)
+hspf$data = hspf$data %>% mutate(
+	country = if_else(as.character(country) %in% names(replacements),
+	                   replacements[as.character(country)],
+	                   as.character(country))
+)
+hspf$data$country = factor( hspf$data$country, levels = unique(hspf$data$country) )
 
 	curves = make_hspf_curves(
 		hspf$sampled.parameters %>% slice_sample( n = 1000 ),
@@ -757,7 +771,7 @@ plot_hspf = function(
         ggtext::geom_richtext(
             data = tibble(
                 x = tail(legend_data$x, 1),
-                y = min(legend_data$text_y) - 0.005,
+                y = min(legend_data$text_y) - 0.0075,
                 label = "Pfsa<br>sample size"
             ),
             aes(x = x, y = y, label = label),
