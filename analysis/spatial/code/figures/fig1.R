@@ -653,10 +653,10 @@ heights = c(
 
     dplyr::case_when(
         area_code == "waf" ~
-            "Western populations, Cameroon and Gabon",
+            "Western Africa, Cameroon and Gabon",
 
         area_code == "DRC+eaf" ~
-            "DRC and eastern populations",
+            "East Africa and DRC",
 
         TRUE ~ {
             lab <- area_mapping$Region[area_mapping$area == area_code]
@@ -913,7 +913,7 @@ left_y_title,
   ncol = 3,
   widths = c(0.03,1, 0.16)
 )
-bottom_title <- grid::textGrob("Combined freqency of HbAS and HbSS genotypes",
+bottom_title <- grid::textGrob("Combined frequency of HbAS and HbSS genotypes",
 gp = grid::gpar(fontsize = 20, fontface = "plain") )
 
 bottom_title_with_spacer <- gridExtra::arrangeGrob(
