@@ -387,34 +387,26 @@ if( !is.null( args$output_pdf )) {
 # Compute an adaptive y-axis config, covering both the data and the curve's CI band,
 # padded by at least pad_frac (5%) of the combined range on each side.
 get_y_axis_config <- function(data_y, curve_lower, curve_upper,
-                               pad_frac = 0.05, tick_step = 0.20, min_ticks = 3,
+                               pad_frac = 0.05, min_ticks = 3,
                                hard_limits = c(0, 1)) {
 	combined <- c(data_y, curve_lower, curve_upper)
 	combined <- combined[ is.finite(combined) ]
 	y_range <- range(combined, na.rm = TRUE)
 	span <- diff(y_range)
+	if (span <= 0) span <- 0.01   # guard against a degenerate single-point range
 
-	# Pad by at least pad_frac of the span on each side (minimum 5%)
 	pad <- pad_frac * span
-	lower <- y_range[1] - pad
-	upper <- y_range[2] + pad
+	lower <- max(hard_limits[1], y_range[1] - pad)
+	upper <- min(hard_limits[2], y_range[2] + pad)
 
-	# Clamp to sensible hard limits (frequencies can't go below 0 or above 1)
-	lower <- max(hard_limits[1], lower)
-	upper <- min(hard_limits[2], upper)
-
-	# Snap outward to nice tick_step multiples for clean labels
-	lower_tick <- floor(lower / tick_step) * tick_step
-	upper_tick <- ceiling(upper / tick_step) * tick_step
-	lower_tick <- max(hard_limits[1], lower_tick)
-	upper_tick <- min(hard_limits[2], upper_tick)
-
-	ticks <- seq(lower_tick, upper_tick, by = tick_step)
-
-	# Ensure at least min_ticks
-	while (length(ticks) < min_ticks && upper_tick < hard_limits[2]) {
-		upper_tick <- min(hard_limits[2], upper_tick + tick_step)
-		ticks <- seq(lower_tick, upper_tick, by = tick_step)
+	# pretty() picks nicely-spaced tick marks; bump n up until we clear
+	# min_ticks after clipping to hard_limits
+	n_try <- min_ticks
+	repeat {
+		ticks <- pretty( c(lower, upper), n = n_try )
+		ticks <- ticks[ ticks >= hard_limits[1] & ticks <= hard_limits[2] ]
+		if (length(ticks) >= min_ticks || n_try > 20) break
+		n_try <- n_try + 1
 	}
 
 	list(ylim = c(lower, upper), ticks = ticks)
