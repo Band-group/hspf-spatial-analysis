@@ -215,7 +215,7 @@ pfworldmap <- ggplot()  +
   geom_sf(data=malariaendem,aes(fill = avgsample), color = "white", size = 0.2) +
   scale_fill_binned(type = 'gradient',breaks=seq(0, 3500, by = 500),
                     na.value = "darkgrey",
-                    name = "Pf sample size\naverage (Pfsa1–Pfsa4)",
+                    name = "Pf sample size\naverage (Pfsa1-Pfsa4)",
                    guide = guide_colorsteps(
                     title.position = "top",
                      barwidth = unit(6, "cm"),
@@ -653,10 +653,10 @@ heights = c(
 
     dplyr::case_when(
         area_code == "waf" ~
-            "Western populations,\nCameroon and Gabon",
+            "Western Africa, Cameroon and Gabon",
 
         area_code == "DRC+eaf" ~
-            "DRC and\neastern populations",
+            "East Africa and DRC",
 
         TRUE ~ {
             lab <- area_mapping$Region[area_mapping$area == area_code]
@@ -674,12 +674,18 @@ heights = c(
 	}
 
 	hspf_si_theme <- theme(
-		axis.title		= ggtext::element_markdown( size = 10, angle = 0 ),
-		axis.title.y	= ggtext::element_markdown( size = 12, angle = 90, hjust = 0.5, vjust = 0.5 ),
-		axis.text.x		= element_text( size = 16 ),
-		axis.text.y		= element_text( size = 16, hjust = 1, angle = 0 ),
-		panel.spacing	= unit(0.1, "lines"),
-		plot.margin		= unit( c( 0.3, 0.3, 0.3, 0.3 ), "lines" )
+	#	axis.title		= ggtext::element_markdown( size = 10, angle = 0 ),
+	#	axis.title.y	= ggtext::element_markdown( size = 12, angle = 90, hjust = 0.5, vjust = 0.5 ),
+		axis.text.x		= element_text( size = 17, vjust = 1 ),
+		axis.text.y		= element_text( size = 17, hjust = 1, angle = 0 ),
+	#	panel.spacing.x	= unit(0.75, "lines"),
+	#	panel.spacing.y = unit(3,"lines"),
+		plot.margin		= unit( c( 0.3, 0.3, 0.3, 0.3 ), "lines" ),
+		#pfsa1+ on each panel title
+		plot.title = ggtext::element_markdown(
+                face = "italic", size = 18, hjust = 0,
+				margin = margin(t = 0, b = 0)   # negative b pulls it closer to panel
+	)
 	)
 
 	# plot_hspf() draws its sample-size legend directly into the panel (it's
@@ -689,48 +695,67 @@ heights = c(
 	# fourth (bottom-right), giving each block a single common legend. Each
 	# panel is still self-labelled -- plot_hspf() sets the y-axis to
 	# "<em>PfsaN+</em> frequency" automatically based on the fit file path.
-	make_hspf_si_panel <- function( fit_path, show_size_legend,show_x_label = TRUE ) {
-	max_size = 9;
-		p <- (
-			plot_hspf(
-				fit_path,
-				uncertainty = "simple",
-				max_size = max_size,
-				show_tzadf = FALSE,
-				show_size_legend = show_size_legend
-			)
-			+ scale_size_area( max_size = max_size, guide = "none" )
-			+ theme_minimal( base_family = "sans" )
-			+ hspf_si_theme
-		)
-		if (!show_x_label) {
-          p <- p + theme(axis.title.x = element_blank())}
-
-		p
-	}
-
 	pfsa_ids <- c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
 
-	# Left block: West Africa. Title sits on the top-left panel (Pfsa1);
-	# legend sits on the bottom-right panel (Pfsa4).
-	hspf_left <- lapply( pfsa_ids, function( pfsa ) {
-		make_hspf_si_panel(
-			make_hspf_fit_path( pfsa, hspf_area_left ),
-			show_size_legend = ( pfsa == "Pfsa4" ),
-			show_x_label = (pfsa %in% c("Pfsa3","Pfsa4"))
+	make_hspf_si_panel <- function( fit_path, show_size_legend,show_x_title = FALSE,
+	show_x_axis = TRUE,
+	panel_title = NULL, show_y_title = TRUE,show_y_axis = TRUE) {
+	max_size = 9;
+	
+		p <- (
+		plot_hspf(
+			fit_path,
+			uncertainty = "simple",
+			max_size = max_size,
+			show_tzadf = FALSE,
+			show_size_legend = show_size_legend,
+			ylim = c(0, 1),
+			panel_title = panel_title,
+			show_y_title = show_y_title,
+			show_x_title = show_x_title,
+			show_x_axis = show_x_axis
 		)
-	})
-	names( hspf_left ) <- pfsa_ids
+		+ scale_size_area( max_size = max_size, guide = "none" )
+		+ theme_minimal( base_family = "sans" )
+		+ hspf_si_theme
+	)
+	if (!show_x_title) {
+		p <- p + theme(axis.title.x = element_blank())
+	}
+	if (!show_y_axis) {
+		p <- p + theme(axis.text.y = element_blank())
+	}
+	if (!show_x_axis) {
+		p <- p + theme(axis.text.x = element_blank())
+	}
+	p
+}
 
-	# Right block: DRC + Eastern Africa, mirroring the left block's layout.
-	hspf_right <- lapply( pfsa_ids, function( pfsa ) {
-		make_hspf_si_panel(
-			make_hspf_fit_path( pfsa, hspf_area_right ),
-			show_size_legend = ( pfsa == "Pfsa4" ),
-			show_x_label = (pfsa %in% c("Pfsa3","Pfsa4"))
-			)
-	})
-	names( hspf_right ) <- pfsa_ids
+hspf_left <- lapply( pfsa_ids, function( pfsa ) {
+	make_hspf_si_panel(
+		make_hspf_fit_path( pfsa, hspf_area_left ),
+		show_size_legend = ( pfsa == "Pfsa4" ),
+		show_x_title = FALSE,
+		panel_title = paste0( pfsa, "+" ),
+		show_y_title = FALSE,
+		show_y_axis = (pfsa %in% c("Pfsa1","Pfsa3")),
+		show_x_axis = (pfsa %in% c("Pfsa3","Pfsa4"))
+	)
+})
+names( hspf_left ) <- pfsa_ids
+
+hspf_right <- lapply( pfsa_ids, function( pfsa ) {
+	make_hspf_si_panel(
+		make_hspf_fit_path( pfsa, hspf_area_right ),
+		show_size_legend = ( pfsa == "Pfsa4" ),
+		show_x_title = FALSE,
+		panel_title = paste0( pfsa, "+" ),
+		show_y_title = FALSE,
+		show_y_axis = FALSE,
+		show_x_axis = (pfsa %in% c("Pfsa3","Pfsa4"))
+	)
+})
+names( hspf_right ) <- pfsa_ids
 
 	plot_countries <- function( p ) {
 		plot_data <- c(
@@ -785,7 +810,7 @@ heights = c(
 		+ geom_text(
 			aes( x = 0.14, label = country ),
 			hjust = 0,
-			size = 3,
+			size = 6,
 			colour = "grey15"
 		)
 		+ scale_fill_manual(
@@ -797,11 +822,11 @@ heights = c(
 			expand = expansion( mult = 0 )
 		)
 		+ scale_y_discrete( expand = expansion( mult = c( 0.03, 0.06 ) ) )
-		+ labs( title = "African country" )
+		+ labs( title = "Country" )
 		+ theme_void( base_family = "sans" )
 		+ theme(
 			plot.title = element_text(
-				size = 11,
+				size = 14,
 				face = "bold",
 				hjust = 0,
 				margin = margin( b = 7 )
@@ -809,7 +834,7 @@ heights = c(
 			plot.margin = margin( t = 2, r = 4, b = 2, l = 6 )
 		)
 	)
-
+    panel_widths <- c(1,1,1,1)
 	panel_grid = gridExtra::arrangeGrob(
 		ggplotGrob( hspf_left[["Pfsa1"]]  + border ),
 		ggplotGrob( hspf_left[["Pfsa2"]]  + border ),
@@ -821,54 +846,97 @@ heights = c(
 		ggplotGrob( hspf_right[["Pfsa4"]] + border ),
 		layout_matrix = rbind(
 			c( 1, 2, 3, 4 ),
+			c(NA, NA, NA, NA),   # this add vertical space between lower and upper rows of the plot
 			c( 5, 6, 7, 8 )
-		)
+		), widths = panel_widths, heights = c(1, 0.1, 1)   # third value = gap size, tweak to taste
 	)
 
+make_panel_title <- function(letter, label) {
+	gridExtra::arrangeGrob(
+		grid::textGrob(letter, x = -0.5, hjust = 0,vjust= -0.25,
+		                gp = grid::gpar(fontsize = 24, fontface = "bold")),
+		grid::textGrob(label, x = 0, hjust = 0,
+		                gp = grid::gpar(fontsize = 20, fontface = "italic")),
+		ncol = 2,
+		widths = c(0.05, 1)
+	)
+}
+
 title_row <- gridExtra::arrangeGrob(
-  grid::textGrob(
-    hspf_area_label(hspf_area_left),
-    x = 0.01,
-    hjust = 0,
-    gp = grid::gpar(
-      fontsize = 12,
-      fontface = "bold"
-    )
-  ),
-  grid::textGrob(
-    hspf_area_label(hspf_area_right),
-    x = 0.01,
-    hjust = 0,
-    gp = grid::gpar(
-      fontsize = 12,
-      fontface = "bold"
-    )
-  ),
-  ncol = 2
+	make_panel_title("a", hspf_area_label(hspf_area_left)),
+	make_panel_title("b", hspf_area_label(hspf_area_right)),
+	layout_matrix = matrix(c(1,1,2,2), nrow=1),
+	widths = panel_widths
 )
+# title_row <- gridExtra::arrangeGrob(
+#   grid::textGrob(
+#     hspf_area_label(hspf_area_left),
+#     x = 0.01,
+#     hjust = 0,
+#     gp = grid::gpar(
+#       fontsize = 12,
+#       fontface = "bold"
+#     )
+#   ),
+#   grid::textGrob(
+#     hspf_area_label(hspf_area_right),
+#     x = 0.01,
+#     hjust = 0,
+#     gp = grid::gpar(
+#       fontsize = 12,
+#       fontface = "bold"
+#     )
+#   ),
+#   ncol = 2
+# )
 
 # Add an empty cell above the legend so the country legend uses exactly the
 # same vertical space as the combined upper and lower plot panels.
 title_row_with_spacer <- gridExtra::arrangeGrob(
   title_row,
   grid::nullGrob(),
-  ncol = 2,
-  widths = c(1, 0.16)
+  ncol = 3,
+  widths = c(0.03,1, 0.16)
 )
 
+left_y_title <- grid::textGrob("Pfsa+ frequency",
+rot=90, gp = grid::gpar(fontsize = 20, fontface = "plain") )
+
+# left_title_with_spacer <- gridExtra::arrangeGrob(
+# 	left_title, grid::nullGrob(),ncol=2,widths = c(1, 0.16)
+# ) 
+
 panel_grid_with_legend <- gridExtra::arrangeGrob(
+left_y_title,
   panel_grid,
   ggplotGrob(si_country_legend),
-  ncol = 2,
-  widths = c(1, 0.16)
+  ncol = 3,
+  widths = c(0.03,1, 0.16)
 )
+bottom_title <- grid::textGrob("Combined frequency of HbAS and HbSS genotypes",
+gp = grid::gpar(fontsize = 20, fontface = "plain") )
+
+bottom_title_with_spacer <- gridExtra::arrangeGrob(
+	grid::nullGrob(),
+	bottom_title, grid::nullGrob(),ncol=3,widths = c(0.03,1, 0.16)
+) 
+
+
 
 #add titles
 z_si <- gridExtra::arrangeGrob(
-  title_row_with_spacer,
-  panel_grid_with_legend,
-  ncol = 1,
-  heights = c(0.07, 1)
+  left_y_title,
+  title_row,
+  panel_grid,
+  ggplotGrob(si_country_legend),
+  bottom_title,
+  #title_row_with_spacer,
+  #panel_grid_with_legend,
+  #bottom_title_with_spacer,
+  layout_matrix = rbind(c(NA,2,NA),c(1,3,4), c(NA,5,NA)),
+  widths = c(0.03,1,0.16), heights= c(0.12,1,0.06)
+#  ncol = 1,
+ # heights = c(0.07, 1,0.06)
 )
 
 wsi <- 17; hsi <- 7

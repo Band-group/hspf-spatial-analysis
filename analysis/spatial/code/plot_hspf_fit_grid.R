@@ -117,6 +117,12 @@ if( length( grep( "area=africa|area=waf|area=eaf", args$grid )) == 1 ) {
 	linewidth = 4
 }
 print(pf)
+xlim = c( 0, 0.3 );
+ylim = c( 0, 1 );
+at = list(
+		x = c(0.05,0.15,0.25 ),
+		y = seq(0,1,0.25)
+	)
 p = (
 	ggplot( data = region )
 	+ geom_sf( data = grid, colour = NA, mapping = aes( fill = HbS_bin ) )
@@ -130,5 +136,16 @@ p = (
 	+ scale_colour_viridis_c(
 		name = "Pfsa1 frequency"
 	)
+	+ scale_x_continuous(
+			breaks = at$x,
+			limits = xlim + c( -0.01, 0.01 ),
+			labels = sprintf( "%.0f%%", at$x * 100 ),
+			expand = c( 0, 0 )
+		)
+	+ scale_y_continuous(
+			breaks = at$y,
+			limits = ylim + c( -0.01, 0.01 ),
+			labels = sprintf( "%.0f%%", at$y * 100 ),
+			expand = c( 0, 0 )#,
 )
 ggsave( p, file = args$output )

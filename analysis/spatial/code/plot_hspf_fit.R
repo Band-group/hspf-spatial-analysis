@@ -78,6 +78,8 @@ p = (
 	)
 )
 
-ggsave( p, file = args$output, width = 12, height = 4 )
+ggsave( p, file = args$output, width = 8.5, height = 4,  create.dir = TRUE)
+
+ggsave( p, file= gsub( ".pdf", ".svg", args$output ),width = 8.5,height = 4,create.dir = TRUE)
 
 quit()

@@ -106,7 +106,7 @@ rule all:
 			**config['params']
 		),
 		figSI = expand(
-			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1_SI.pdf",
+			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/forestplot_Africa_regional.pdf",
 			**config['params']
 		),
 # This is not necessary anymore as Fig1 is making also Fig S1 (forests lots etc.)

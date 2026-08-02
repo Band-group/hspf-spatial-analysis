@@ -460,11 +460,15 @@ plot_hspf = function(
 	show_size_legend = TRUE,
 	show_tzadf = TRUE,
 	xlim = c( 0, 0.3 ),
-	ylim = c( 0, 0.8 ),
+	ylim = c( 0, 1 ),
 	at = list(
-		x = seq( from = xlim[1], to = xlim[2], by = 0.1 ),
-		y = seq( from = ylim[1], to = ylim[2], by = 0.2 )
-	)
+		x = c(0.05,0.15,0.25 ),
+		y = seq(0,1,0.25)
+	),
+	panel_title = NULL,                     # NEW: e.g. "Pfsa1+", shown as an italic strip title
+	show_y_title = TRUE ,                    # NEW: FALSE hides the y-axis title on interior columns
+    show_x_title = FALSE,
+	show_x_axis = FALSE
 ) {
 	hspf <- readRDS(hspfrdspath)
 	hspf$data$grid = hspf$data$centroid = NULL
@@ -491,6 +495,20 @@ plot_hspf = function(
 	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
 	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
 	hspf$data$country = factor( hspf$data$majority_country, levels = unique(hspf$data$majority_country))
+    
+	# Replace long country names with shorter versions
+replacements <- c(
+	"Burkina_Faso" = "Burkina Faso",
+	"Democratic_Republic_of_the_Congo" = "DRC",
+	"Cote_dIvoire" = "Cote d'Ivoire",
+	"Papua_New_Guinea" = "Papua New Guinea"
+)
+hspf$data = hspf$data %>% mutate(
+	country = if_else(as.character(country) %in% names(replacements),
+	                   replacements[as.character(country)],
+	                   as.character(country))
+)
+hspf$data$country = factor( hspf$data$country, levels = unique(hspf$data$country) )
 
 	curves = make_hspf_curves(
 		hspf$sampled.parameters %>% slice_sample( n = 1000 ),
@@ -753,7 +771,7 @@ plot_hspf = function(
         ggtext::geom_richtext(
             data = tibble(
                 x = tail(legend_data$x, 1),
-                y = min(legend_data$text_y) - 0.005,
+                y = min(legend_data$text_y) - 0.0075,
                 label = "Pfsa<br>sample size"
             ),
             aes(x = x, y = y, label = label),
@@ -776,13 +794,14 @@ plot_hspf = function(
 				expand = c( 0, 0 )
 			)
 			+ scale_y_continuous(
-				breaks = at$y,
-				limits = ylim + c( -0.01, 0.01 ),
-				labels = sprintf( "%.0f%%", at$y * 100 ),
-				expand = c( 0, 0 )
-			)
-			+ ylab( paste0( "<em>", pfsa_label, "+</em> frequency" ) )
-			+ xlab( "Combined freq. of HbAS and HbSS genotypes" )
+    breaks = at$y,
+    limits = ylim + c( -0.01, 0.01 ),
+    labels = sprintf( "%.0f%%", at$y * 100 ),
+    expand = c( 0, 0 )#,
+   # sec.axis = dup_axis( name = NULL )   # mirrored right-hand axis, as in target
+)
++ ylab( if( show_y_title ) "*Pfsa*+ frequency" else NULL )
++ xlab( if( show_x_title ) "Combined freq. of HbAS and HbSS genotypes" else NULL )
 			+ scale_fill_manual(
 				values = country.palette[ levels( hspf$data$country )],
 				guide = "none"
@@ -801,6 +820,10 @@ plot_hspf = function(
 			)
 			)
 	}
+	if( !is.null( panel_title )) {
+    hspf_plot <- hspf_plot +
+        ggtitle( panel_title ) 
+}
 	return( hspf_plot )
 }
 

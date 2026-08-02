@@ -365,46 +365,104 @@ echo( "++ Writing results to %s...\n", args$output )
 saveRDS( result, args$output )
 
 if( !is.null( args$output_pdf )) {
-	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
-	pdf( args$output_pdf, width = 6, height = 4 )
-	par( mar = c( 4.1, 4.1, 1.1, 1.1 ))
+
+# Compute an adaptive x-axis config, covering both the data and the curve's CI band,
+# padded by at least pad_frac (5%) of the combined range on each side.
+	get_x_axis_config <- function(data_x, min_span = 0.10, tick_step = 0.05, min_ticks = 3) {
+		data_range <- range(data_x, na.rm = TRUE)
+		span <- diff(data_range)
+		if (span < min_span) {
+			pad <- (min_span - span) / 2
+			data_range <- data_range + c(-pad, pad)
+		}
+		lower <- max(0, floor(data_range[1] / tick_step) * tick_step)
+		upper <- ceiling(data_range[2] / tick_step) * tick_step
+		ticks <- seq(lower, upper, by = tick_step)
+		while (length(ticks) < min_ticks) {
+			upper <- upper + tick_step
+			ticks <- seq(lower, upper, by = tick_step)
+		}
+		list(xlim = c(lower, upper), ticks = ticks)
+	}
+# Compute an adaptive y-axis config, covering both the data and the curve's CI band,
+# padded by at least pad_frac (5%) of the combined range on each side.
+get_y_axis_config <- function(data_y, curve_lower, curve_upper,
+                               pad_frac = 0.05, min_ticks = 3,
+                               hard_limits = c(0, 1)) {
+	combined <- c(data_y, curve_lower, curve_upper)
+	combined <- combined[ is.finite(combined) ]
+	y_range <- range(combined, na.rm = TRUE)
+	span <- diff(y_range)
+	if (span <= 0) span <- 0.01   # guard against a degenerate single-point range
+
+	pad <- pad_frac * span
+	lower <- max(hard_limits[1], y_range[1] - pad)
+	upper <- min(hard_limits[2], y_range[2] + pad)
+
+	# pretty() picks nicely-spaced tick marks; bump n up until we clear
+	# min_ticks after clipping to hard_limits
+	n_try <- min_ticks
+	repeat {
+		ticks <- pretty( c(lower, upper), n = n_try )
+		ticks <- ticks[ ticks >= hard_limits[1] & ticks <= hard_limits[2] ]
+		if (length(ticks) >= min_ticks || n_try > 20) break
+		n_try <- n_try + 1
+	}
+
+	list(ylim = c(lower, upper), ticks = ticks)
+}
+	# Area -> Region name lookup
+	area_mapping <- tibble::tibble(
+		area = c( "global", "africa", "waf", "wwaf", "ewaf", "gambia+senegal",  "Gambia+Senegal", "mali", "ghana",
+						 "ghana+burkina+togo", "ghana+burkina+togo+benin+ivorycoast", "caf",
+						 "drc+east", "DRC","Democratic Republic of the Congo",  "eaf", "tanzania+kenya+uganda+rwanda", "uganda", "tanzania",
+						 "United Republic of Tanzania"),
+		Region = c("Global","Africa", "West Africa", "Western region", "Eastern region",
+						 "Gambia and Senegal","Gambia and Senegal","Mali", "Ghana", "Ghana, Burkina Faso and Togo",
+						"Ghana, Burkina Faso, Togo, Benin and Cote d'Ivoire", "Central Africa",
+						"DRC and eastern populations", "DRC","DRC", "East Africa",
+						"Tanzania, Kenya, Uganda and Rwanda", "Uganda", "Tanzania","Tanzania")
+	)
+	area_code <- paste( args$areas, collapse = "+" )
+	region_title <- area_mapping$Region[ area_mapping$area == area_code ]
+	if( length( region_title ) == 0 ) region_title <- area_code
+
 	source( "code/functions.R" )
 	colours = country.colours()
-	xs = seq( from = 0, to = 0.35, by = 0.001 )
+
 	xhbs = result$data$posterior_sample_1
-	plot(
-		xhbs^2 + 2*xhbs*(1-xhbs), result$data$y / result$data$N, cex = sqrt(result$data$N)/6,
-		col = colours[ result$data$SOVEREIGNT],
-		pch = 19,
-		bty = 'n',
-		xlim = c( 0, 0.3 ),
-		ylim = c( 0, 0.8 ),
-		xaxt = 'n',
-		yaxt = 'n',
-		xlab = "",
-		ylab = "Pfsa1+",
-	)
-	grid()
-	at = list(
-		x = seq( from = 0, to = 0.3, by = 0.05 ),
-		y = seq( from = 0, to = 0.9, by = 0.1 )
-	)
-	axis( 1, at = at$x, label = sprintf( "%.0f%%", at$x * 100 ))
-	axis( 2, at = at$y, label = sprintf( "%.0f%%", at$y * 100 ), las = 1 )
-	mtext( "HbAS or SS frequency", 1, 3 )
-	mtext( "Pfsa1+\nfrequency", 2, 3, las = 1 )
+	data_x = xhbs^2 + 2*xhbs*(1-xhbs)
+	x_range = range( data_x, na.rm = TRUE )
+	xs = seq( from = x_range[1], to = x_range[2], by = 0.001 )
+
+	x_axis = get_x_axis_config( data_x )
+	xlim_use = x_axis$xlim
+	inner_ticks = x_axis$ticks
 
 	gl = function( x, nu = 1 ) {
 		1/((1 + exp(-x))^(1/nu))
 	}
+     
 
+    draw_size_legend <- function(breaks = c(10, 100, 1000), cex_scale = 6,
+                              x_frac = 0.80, y_frac = 0.12, spacing_frac = 0.05) {
+	usr <- par("usr")   # c(x1, x2, y1, y2) of the current plot region, in data coordinates
+	x_pos <- usr[1] + x_frac * (usr[2] - usr[1])
+
+	for( i in seq_along(breaks) ) {
+		N <- breaks[i]
+		y_pos <- usr[3] + (y_frac + (i - 1) * spacing_frac) * (usr[4] - usr[3])
+		points( x_pos, y_pos, pch = 21, cex = sqrt(N) / cex_scale, col = "black", bg = NA )
+		text( x_pos + 0.02 * (usr[2]-usr[1]), y_pos, labels = scales::comma(N),
+		      adj = 0, cex = 0.6 / par("cex") )
+	}
+	text( x_pos, usr[3] + (y_frac + length(breaks)*spacing_frac + 0.16) * (usr[4]-usr[3]),
+	      labels = "Sample size", adj = 0.5, cex = 0.75 / par("cex"), font = 2 )
+}
 	curves = tibble(
-		x = xs,
-		median = NA,
-		mean = NA,
-		lower_2.5 = NA,
-		upper_97.5 = NA
+		x = xs, median = NA, mean = NA, lower_2.5 = NA, upper_97.5 = NA
 	)
+
 	for( i in 1:length(xs)) {
 		x = xs[i]
 		yvalues = gl(
@@ -417,20 +475,87 @@ if( !is.null( args$output_pdf )) {
 		curves[['upper_97.5']][i] = q[3]
 		curves[['mean']][i] = mean( yvalues )
 	}
-	polygon(
-		c( curves$x, rev(curves$x)),
-		c( curves$lower_2.5, rev( curves$upper_97.5 )),
-		col = rgb( 0, 0, 0, 0.1 ),
-		border = NA
+    # axis display range: data + curve CI, padded by >=5%, ticks every 20%
+	y_axis = get_y_axis_config(
+		data_y      = result$data$y / result$data$N,
+		curve_lower = curves$lower_2.5,
+		curve_upper = curves$upper_97.5
 	)
-	points(
-		curves$x,
-		curves$mean,
-		type = 'l',
-		lwd = 3,
-		col = "black"
-	)
+	ylim_use = y_axis$ylim
+
+	# Draws the full plot; called once per open device (pdf/svg)
+	draw_diagnostic_plot <- function() {
+		par( mar = c( 4.1, 5.1, 2.5, 1.1 ), cex=1.6)
+		plot(
+			data_x, result$data$y / result$data$N, cex = sqrt(result$data$N)/6/par("cex"),
+			col = colours[ result$data$SOVEREIGNT],
+			pch = 19,
+			bty = 'n',
+			xlim = xlim_use,
+			ylim = ylim_use,
+			xaxt = 'n',
+			yaxt = 'n',
+			xlab = "",
+			ylab = "",
+		)
+		title( main = region_title, adj = 0, font.main = 1.3, line = 0.25 )
+		grid()
+		at = list( x = inner_ticks, y = y_axis$ticks )
+		axis( 1, at = at$x, label = sprintf( "%.0f%%", at$x * 100 ))
+		axis( 1, at = xlim_use, labels = FALSE )
+		axis( 2, at = at$y, label = sprintf( "%.0f%%", at$y * 100 ), las = 1 )
+		mtext( "Combined frequency of\nHbAS and HbSS genotypes", 1, 3, cex=1.6 )
+		mtext( expression(italic("Pfsa1") * "+ frequency"), side = 2, line = 3, las = 0,cex=1.6 )
+
+		polygon(
+			c( curves$x, rev(curves$x)),
+			c( curves$lower_2.5, rev( curves$upper_97.5 )),
+			col = rgb( 0, 0, 0, 0.1 ),
+			border = NA
+		)
+		points( curves$x, curves$mean, type = 'l', lwd = 3, col = "black" )
+	    	if( region_title == "Uganda" ) {
+		draw_size_legend( breaks = c(10, 100, 1000))
+	}
+	}
+
+	echo( "++ Creating diagnostic plot in %s...\n", args$output_pdf )
+	pdf( args$output_pdf, width = 6, height = 4 )
+	draw_diagnostic_plot()
 	dev.off()
+
+	output_svg <- gsub( "\\.pdf$", ".svg", args$output_pdf )
+	echo( "++ Creating diagnostic plot in %s...\n", output_svg )
+	svg( output_svg, width = 6, height = 4 )
+	draw_diagnostic_plot()
+	dev.off()
+
+		# --- new SI copy block goes here ---
+ 	Region_SI = c( "Gambia and Senegal","Mali", "Ghana", "DRC",
+					 "Uganda", "Tanzania", "Mozambique","Nigeria" )
+
+	si_condition <- (
+	args$locus == "Pfsa1" &&
+	region_title %in% Region_SI &&
+	result$r0       == 25.0 &&
+	result$sigma0   == 0.6 &&
+	result$celltype == "hexagon" &&
+	result$cellsize == 1 &&
+	(args$min_N == 0 | args$min_N == 1)
+)
+
+if( si_condition ) {
+	si_dir <- "output/pf=pf8-version/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size=1/"
+	if( !dir.exists( si_dir )) {
+		dir.create( si_dir, recursive = TRUE )
+		echo( "++ Created SI output folder %s\n", si_dir )
+	}
+	si_pdf <- file.path( si_dir, basename( args$output_pdf ))
+	si_svg <- file.path( si_dir, basename( output_svg ))
+	file.copy( args$output_pdf, si_pdf, overwrite = TRUE )
+	file.copy( output_svg,      si_svg, overwrite = TRUE )
+	echo( "++ Copied SI outputs to %s and %s\n", si_pdf, si_svg )
+}
 }
 
 echo( "++ Success.\n" )
