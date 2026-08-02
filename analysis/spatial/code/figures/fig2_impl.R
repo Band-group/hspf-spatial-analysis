@@ -56,32 +56,27 @@ make_summary <- function(raw, region_order, region_labels) {
     )
 
   region_draws <- raw %>%
-    group_by(locus, Region, hbs.sample) %>%
-    summarise(
-      slope = mean(slope, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
     filter(Region %in% region_order) %>%
     mutate(Region = factor(Region, levels = region_order))
 
   res_sum <- region_draws %>%
     group_by(locus, Region) %>%
     summarise(
-      estimate = median(slope, na.rm = TRUE),
-      lower = quantile(slope, 0.025, na.rm = TRUE),
-      upper = quantile(slope, 0.975, na.rm = TRUE),
-      .groups = "drop"
+      estimate       = median(slope, na.rm = TRUE),
+      lower          = quantile(slope, 0.025, na.rm = TRUE),
+      upper          = quantile(slope, 0.975, na.rm = TRUE),
+      .groups        = "drop"
     ) %>%
     left_join(region_meta, by = c("locus", "Region")) %>%
     left_join(region_labels_df, by = "Region") %>%
     mutate(
-      estimate_pct = 100 * estimate,
-      lower_pct = 100 * lower,
-      upper_pct = 100 * upper,
-      N_lab = scales::comma(N),
-      df_lab = sprintf("%.2f (%.2f-%.2f)", estimate, lower, upper),
-      freq = Pfsa_plus / N,
-      freq_lab = scales::percent(freq, accuracy = 0.1)
+      estimate_pct   = 100 * estimate,
+      lower_pct      = 100 * lower,
+      upper_pct      = 100 * upper,
+      N_lab          = scales::comma(N),
+      df_lab         = sprintf("%.2f (%.2f-%.2f)", estimate, lower, upper),
+      freq           = Pfsa_plus / N,
+      freq_lab       = scales::percent(freq, accuracy = 0.1)
     )
 
   res_sum

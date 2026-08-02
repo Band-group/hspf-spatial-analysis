@@ -167,9 +167,9 @@ area_mapping = (
 # Load posterior draws and compute slope
 # ------------------------------------------------------------------
 raw <- (
-  load.forestplot.data(area_mapping$area, template = args$input_template)
+  load.forestplot.data( area_mapping$area, template = args$input_template )
   %>% mutate(
-    slope = calc_slope(intercept, beta, log_nu)
+    slope = calc_slope( intercept, beta, log_nu )
   )
   %>% left_join(area_mapping, by = "area")
 )
@@ -177,8 +177,6 @@ raw <- (
 # ------------------------------------------------------------------
 # Build summaries for main and SI figures
 # ------------------------------------------------------------------
-
-
 
 region_labels_main = tibble::tibble(
   Region      = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" ),
@@ -199,8 +197,6 @@ res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_df$Re
 spt <- 1.5
 lsize <- 4.7
 tsize <- 18
-
-
 
 p1 <- make_panel(
   filter(res_sum_main, locus == "Pfsa1"),
