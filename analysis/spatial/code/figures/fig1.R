@@ -810,7 +810,7 @@ names( hspf_right ) <- pfsa_ids
 		+ geom_text(
 			aes( x = 0.14, label = country ),
 			hjust = 0,
-			size = 3,
+			size = 6,
 			colour = "grey15"
 		)
 		+ scale_fill_manual(
@@ -826,7 +826,7 @@ names( hspf_right ) <- pfsa_ids
 		+ theme_void( base_family = "sans" )
 		+ theme(
 			plot.title = element_text(
-				size = 11,
+				size = 14,
 				face = "bold",
 				hjust = 0,
 				margin = margin( b = 7 )
