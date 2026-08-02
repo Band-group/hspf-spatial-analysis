@@ -1,5 +1,5 @@
 # Note: all values must be strings, otherwise snakemake gets confused
-name: "hspf-analysis-si"
+name: "si"
 data:
    pf:
       v5: "input/hbs-pf-v5.sqlite"
@@ -18,6 +18,8 @@ params:
    hspf_covariates:
       - "none"
       - "pfpr2000"
+      - "latitude+longitude"
+      - "pfpr2000+latitude+longitude"
    divide:
       - "none"
    size:
@@ -40,7 +42,6 @@ params:
       - global
       - africa
       - waf
-      - eaf
       - DRC+eaf
       - gambia+senegal
       - mali
