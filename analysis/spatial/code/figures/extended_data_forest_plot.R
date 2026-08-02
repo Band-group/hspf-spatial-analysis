@@ -76,7 +76,7 @@ make_panel_si <- function(
 		#height = heightCI,
 		linewidth = 0.6,
 		position = pd,
-		colour = 'gray65'
+		colour = 'gray80'
 		) +
 		geom_point(
 			aes(
@@ -107,7 +107,8 @@ make_panel_si <- function(
 			guide = "none"
 		)
 		+ scale_x_continuous(
-			labels = function(x) paste0(x, "%")
+			labels = function(x) paste0(x, "%"),
+			breaks = c( -10, 0, 10, 20, 30, 40 )
 		)
 		+ labs(
 			x = bquote( Delta["f+"] ),
@@ -166,7 +167,7 @@ print(args)
 
 area_mapping = (
 	area_mapping() %>% filter(
-		area %in% c( "waf", "gambia+senegal", "mali", "ghana", "nigeria", "DRC+eaf", "eaf", "DRC", "uganda", "tanzania", "mozambique" )
+		area %in% c( "gambia+senegal", "mali", "ghana", "nigeria", "DRC", "uganda", "tanzania", "mozambique" )
 	)
 )
 
@@ -212,7 +213,7 @@ if( !is.null( args$output_pdf )) {
 		args$output_pdf,
 		si_fig,
 		width = 6,
-		height = 7,
+		height = 6,
 		create.dir = TRUE
 	)
 }
@@ -222,7 +223,7 @@ if( !is.null( args$output_svg )) {
 		args$output_svg,
 		si_fig,
 		width = 6,
-		height = 7,
+		height = 6,
 		create.dir = TRUE
 	)
 }

@@ -34,7 +34,7 @@ make_panel <- function(df, locus_name,panel_id,
                        tagsize = 14,
                        locus_name_size = 4.5,
                        xlim = c(-5, 95),
-                       x_breaks = c(-10, 0, 10,20, 30, 40),
+                       x_breaks = c(0, 10,20, 30, 40),
                        x_n = 55,
                        x_df = 71,
                        x_f = 88,
@@ -72,32 +72,39 @@ make_panel <- function(df, locus_name,panel_id,
         colour = colorCI
     )
     + geom_point( aes(x = estimate_pct), size = sizept, colour = "black", shape=19 )
+#    + geom_text(
+ #     aes(x = x_n, label = N_lab),
+  #    hjust = 0.5, size = 2.5, colour = "grey50"
+  #  )
     + geom_text(
-      aes(x = x_n, label = N_lab),
-      hjust = 0.5, size = 2.5, colour = "grey50"
-    )
-    + geom_text(aes(x = x_df, label = df_lab), hjust = 0.5, size = 2.5, colour = "grey50")
-    + geom_text(aes(x = x_f, label = freq_lab), hjust = 0.5, size = 2.5, colour = "grey50")
-    + annotate( "text", x = x_n, y = Inf, label = "N", vjust = annotatevjust, size = 3.5,hjust = 0.5, fontface = "italic" )
-    + annotate(
-        "text", x = x_df, y = Inf, label = paste0(delta_header, " ~ '(95% CrI)'" ),
-        parse = TRUE,
-        vjust = annotatevjust, size = 3.5, hjust = 0.5,
-        fontface = "italic"
-    )
-    + annotate(
-      "text", x = x_f, y = Inf, label = freq_header, parse = TRUE,
-      vjust = annotatevjust, size = 3.5, hjust = 0.5,
-      fontface = "italic"
-    )
-    + annotate(
-      "text", x = -5, y = Inf, label = locus_name,
-      vjust = annotatevjust, fontface = "italic", size = locus_name_size, hjust = 0.5,
-    )
+        aes( x = x_df, label = gsub( "-0", "0", sprintf("%.0f%% (%.0f - %.0f)", estimate * 100, lower * 100, upper * 100)) ),
+        hjust = 0, size = 2.5, colour = "grey50"
+      )
+    + geom_text(
+        aes( x = x_df, label = N_lab ),
+        hjust = 0, vjust = 2, size = 2.5, colour = "grey50"
+      )
+#    + geom_text(aes(x = x_f, label = freq_lab), hjust = 0.5, size = 2.5, colour = "grey50")
+#    + annotate( "text", x = x_n, y = Inf, label = "N", vjust = annotatevjust, size = 3.5,hjust = 0.5, fontface = "italic" )
+#    + annotate(
+#        "text", x = x_df, y = Inf, label = paste0(delta_header, " ~ '(95% CrI)'" ),
+#        parse = TRUE,
+#        vjust = annotatevjust, size = 3.5, hjust = 0.5,
+#        fontface = "italic"
+#    )
+#    + annotate(
+#      "text", x = x_f, y = Inf, label = freq_header, parse = TRUE,
+#      vjust = annotatevjust, size = 3.5, hjust = 0.5,
+#      fontface = "italic"
+#    )
+#    + annotate(
+#      "text", x = -5, y = Inf, label = locus_name,
+#      vjust = annotatevjust, fontface = "italic", size = locus_name_size, hjust = 0.5,
+#    )
     + scale_x_continuous(
       limits = xlim,
       breaks = x_breaks,
-      labels = if (show_x_labels) function(x) paste0(x, "%") else NULL
+      labels = c( "0%", "", "20%", "", "40%")
     )
     + scale_y_discrete(
       limits = rev(y_levels),
@@ -105,8 +112,14 @@ make_panel <- function(df, locus_name,panel_id,
     )
     + coord_cartesian(clip = "off")
     + theme_minimal(base_family = "sans")
+    + geom_vline(
+        xintercept = 0,
+        colour = 'grey25',
+        linewidth = 0.5
+    )
     + theme(
-      panel.grid.major.x = element_line(colour = "grey85", linetype = "dotted", linewidth = 0.35),
+    #  panel.grid.major.x = element_line(colour = "grey85", linetype = "dotted", linewidth = 0.35),
+      panel.grid.major.x = element_line( colour = "grey85", linetype = "solid", linewidth = 0.5 ),
       panel.grid.minor.x = element_blank(),
       panel.grid.major.y = element_blank(),
       panel.grid.minor.y = element_blank(),
@@ -179,8 +192,8 @@ raw <- (
 # ------------------------------------------------------------------
 
 region_labels_main = tibble::tibble(
-  Region      = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" ),
-  RegionLabel = c("Global", "Africa", "West Africa,\nCameroon and Gabon", "East Africa\nand DRC" )
+  Region      = c("Global", "Africa", "West Africa, Cameroon and Gabon", "East Africa and DRC" ),
+  RegionLabel = c("Global", "Africa", "West Africa, Cameroon and Gabon", "East Africa and DRC" )
 )
 
 region_labels_df <- tibble(
@@ -189,12 +202,12 @@ region_labels_df <- tibble(
   # Add any other columns you want to join, e.g., label = ...
 )
 
-res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_df$Region )
+res_sum_main <- make_summary(raw, region_labels_main$Region, region_labels_df )
 
 # ------------------------------------------------------------------
 # Main figure: 4 regions only
 # ------------------------------------------------------------------
-spt <- 1.5
+spt <- 1.75
 lsize <- 4.7
 tsize <- 18
 
@@ -204,7 +217,8 @@ p1 <- make_panel(
   locus_name_size = lsize, sizept = spt,
   y_levels = region_labels_df$RegionLabel,
   show_x_labels = FALSE,
-  panel_tag = "a"
+  panel_tag = "a",
+  x_df = 55
 )
 p2 <- make_panel(
   filter(res_sum_main, locus == "Pfsa2"),
@@ -212,7 +226,8 @@ p2 <- make_panel(
   locus_name_size = lsize, sizept = spt,
   y_levels = region_labels_main$RegionLabel,
   show_x_labels = FALSE,
-  panel_tag = "b"
+  panel_tag = "b",
+  x_df = 45
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
@@ -221,14 +236,16 @@ p3 <- make_panel(
   "Pfsa3", panel_id = 3, tagsize = tsize,
   locus_name_size = lsize, sizept = spt,
   y_levels = region_labels_main$RegionLabel,
-  panel_tag = "c"
+  panel_tag = "c",
+  x_df = 55
 )
 p4 <- make_panel(
   filter(res_sum_main, locus == "Pfsa4"),
   "Pfsa4",  panel_id = 4,  tagsize = tsize,
   locus_name_size = lsize,sizept = spt,
   y_levels = region_labels_main$RegionLabel,
-  panel_tag = "d"
+  panel_tag = "d",
+  x_df = 45
 ) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
@@ -241,15 +258,15 @@ main_fig <- (p1 | p2) /
 ggsave(
   args$output,
   main_fig,
-  width = 12,
-  height = 5.5,
+  width = 10,
+  height = 4,
   create.dir = TRUE
 )
 
 ggsave(
   gsub( ".pdf", ".svg", args$output ),
   main_fig,
-  width = 12,
-  height = 5.5,
+  width = 10,
+  height = 4,
   create.dir = TRUE
 )

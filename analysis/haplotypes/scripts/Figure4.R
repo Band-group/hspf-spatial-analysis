@@ -97,16 +97,15 @@ for( name in names( args$regions )) {
 	source( "scripts/plot.genes.R" )
 	source( "scripts/haplotype_figure_impl.R" )
 	source( "scripts/figure4_impl.R" )
+
+	cairo_pdf( file = "outputs/figures/Figure 4.pdf", width = 10, height = 10, family = 'Helvetica' )
 	figure_4(
 		specs = list(
 			data$regions$Pfsa1$plot_spec,
-			data$regions$Pfsa3alt$plot_spec
+			data$regions$Pfsa3$plot_spec
 		),
 		colour.column = "Country",
 		split = c( 0.425, 0.575 ),
-		width = 10,
-		height = 10,
-		sprintf( "/tmp/figure_4.pdf"),
 		colours = list(
 			Country = country.colours()[ levels( data$samples$Country ) ],
 			region = c(
@@ -116,4 +115,37 @@ for( name in names( args$regions )) {
 			)
 		)
 	)	
+	dev.off()
+}
+
+{
+	source( "../spatial/code/functions.R" )
+	source( "scripts/layout.intervals.R" )
+	source( "scripts/plot.genes.R" )
+	source( "scripts/haplotype_figure_impl.R" )
+	source( "scripts/figure4_impl.R" )
+
+	svglite::svglite(
+		file = "outputs/figures/Figure 4.svg",
+		width = 10,
+		height = 10,
+		fix_text_size = FALSE # allow text boxes to be editable without a fixed width
+	)
+	figure_4(
+		specs = list(
+			data$regions$Pfsa1$plot_spec,
+			data$regions$Pfsa3$plot_spec
+		),
+		colour.column = "Country",
+		split = c( 0.425, 0.575 ),
+		colours = list(
+			Country = country.colours()[ levels( data$samples$Country ) ],
+			region = c(
+				west = country.colours()[["Gambia"]],
+				central = country.colours()[["Democratic_Republic_of_the_Congo"]],
+				east = country.colours()[["Kenya"]]
+			)
+		)
+	)	
+	dev.off()
 }

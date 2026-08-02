@@ -1,3 +1,4 @@
+suppressMessages(library(argparse))
 suppressMessages(library(dplyr))
 suppressMessages(library(readr))
 suppressMessages(library(openxlsx))
@@ -7,12 +8,82 @@ suppressMessages(library(openxlsx))
 # args$input <- "output/pf=pf8-version/all_hspf_analyses_summary.tsv"
 # args$output <- "output/pf=pf8-version/all_hspf_analyses_summary.xlsx"
 
+parse_arguments <- function() {
+	parser = ArgumentParser(
+		description = 'Convert the summaries .tsv file to a nice SI table output'
+	)
+	parser$add_argument(
+		"--input",
+		type = "character",
+		help = "path to .tsv file containing hspf fit summaries to input",
+    required = TRUE
+	)
+	parser$add_argument(
+		"--output",
+		type = "character",
+		help = "path to .xlsx file to output",
+		required = TRUE
+	)
+	
+	return( parser$parse_args() )
+}
+
+args = parse_arguments()
+
 # Read TSV
-result <- read_tsv(args$input)
+result <- (
+  readr::read_tsv( args$input )
+	%>% mutate(
+		Reported = case_when(
+			(
+				celltype    == "hexagon"
+				& cellsize    == 1
+				& HbSr0       == 25
+				& HbSsigma0   == 0.6
+				& area        %in% c( "africa", "Africa" )
+				& allele      %in% c( "Pfsa1", "Pfsa3" )
+				& covariate   == "none"
+			) ~ "Figure 1, Figure 2",
+			(
+				celltype    == "hexagon"
+				& cellsize    == 1
+				& HbSr0       == 25
+				& HbSsigma0   == 0.6
+				& area        %in% c( "global", "africa", "waf", "DRC+eaf", "Global", "Africa", "West Africa" )
+				& allele      %in% c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
+				& covariate   == "none"
+			) ~ "Figure 2",
+			(
+				celltype    == "hexagon"
+				& cellsize    == 1
+				& HbSr0       == 25
+				& HbSsigma0   == 0.6
+				& (area        %in% c( 'gambia+senegal', 'mali', 'ghana', 'nigeria', 'DRC', 'uganda', 'mozambique', 'tanzania' )
+				| area        %in% c( 'Gambia,Senegal', 'Mali', 'Ghana', 'Nigeria', 'DRC', 'Uganda', 'Mozambique', 'Tanzania' ))
+				& allele      %in% c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
+				& covariate   == "none"
+			) ~ "Extended Data Figure 6",
+			TRUE ~ "Table ST3 only"
+		),
+		area = recode(
+			area,
+			"waf"            = "West Africa, Cameroon and Gabon",
+			"drc+east"       = "East Africa and DRC",
+			"DRC+eaf"        = "East Africa and DRC",
+			"eaf"            = "East Africa",
+			"gambia+senegal" = "Gambia and Senegal",
+			"global"         = "Global"
+			),
+			area = tools::toTitleCase(area)  # Capitalizes first letter of each word
+		)
+)
+
+
 
 # Prepare 'out' with correct column names and empty column
-out <- result %>%
-  transmute(
+out <- (
+  result
+  %>% transmute(
     `Reported in` = Reported,
     `Cell type` = celltype,
     `Cell size (degrees)` = cellsize,
@@ -28,11 +99,11 @@ out <- result %>%
     `Δf+\n(median)` = round(delta_median, 3),
     `Δf+\n(2.5% quantile)` = round(delta_q2.5, 3),
     `Δf+\n(97.5% quantile)` = round(delta_q97.5, 3)
-  ) %>%
-  mutate(blank = NA) %>%  # empty column after Δf+ columns
-  bind_cols(
+  )
+  %>% mutate(blank = NA)  # empty column after Δf+ columns
+  %>% bind_cols(
     result %>% transmute(
-      `5%` = round(pf_at_0.05, 3),
+      `5%`  = round(pf_at_0.05, 3),
       `10%` = round(pf_at_0.1, 3),
       `15%` = round(pf_at_0.15, 3),
       `20%` = round(pf_at_0.2, 3),
@@ -40,7 +111,7 @@ out <- result %>%
       `30%` = round(pf_at_0.3, 3)
     )
   )
-
+)
 # Create workbook
 wb <- createWorkbook()
 addWorksheet(wb, "ST3 results summary")

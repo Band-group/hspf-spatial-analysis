@@ -3,17 +3,17 @@ area_mapping <- function() {
 		~area,                                          ~Region,                                        ~order, ~include, ~parent,
 		"global",                                       "Global",                                            1,        1, "Global",
 		"africa",                                       "Africa",                                            1,        1, "Global",
-		"waf",                                          "West Africa,\nCameroon and Gabon",                  2,        1, "Africa",
+		"waf",                                          "West Africa, Cameroon and Gabon",                   2,        1, "Africa",
 		"wwaf",                                         "Western populations\n(Western area)",               3,        1, "West Africa",
 		"ewaf",                                         "Western populations\n(Eastern area)",               3,        1, "West Africa",
-		"gambia+senegal",                               "Gambia & Senegal",                                  4,        0, "West Africa",
+		"gambia+senegal",                               "Gambia\n& Senegal",                                 4,        0, "West Africa",
 		"mali",                                         "Mali",                                              4,        0, "West Africa",
 		"ghana",                                        "Ghana",                                             4,        0, "West Africa",
 		"ghana+burkina+togo",                           "Ghana, Burkina Faso\nand Togo",                     4,        0, "West Africa",
 		"ghana+burkina+togo+benin+ivorycoast",          "Ghana, Burkina Faso,\nTogo, Benin and Ivory Coast", 4,        0, "West Africa",
     "nigeria",                                      "Nigeria",                                           4,        0, "West Africa",
 		"caf",                                          "Central Africa",                                    2,        0, "Africa",
-		"DRC+eaf",                                      "East Africa\nand DRC",                              2,        1, "Africa",
+		"DRC+eaf",                                      "East Africa and DRC",                               2,        1, "Africa",
 		"DRC",                                          "DRC",                                               4,        1, "Central Africa",
 		"eaf",                                          "East Africa",                                       4,        1, "Africa",
 		"tanzania+kenya+uganda+rwanda",                 "Tanzania, Kenya,\nUganda and Rwanda",               4,        0, "East Africa",
@@ -43,7 +43,7 @@ make_region_labels <- function(region_order,region_label) {
   )
 }
 
-make_summary <- function(raw, region_order, region_labels) {
+make_summary <- function(raw, region_order, region_labels_df) {
   area_meta <- raw %>%
     distinct(locus, area, Region, N, `Pfsa+`)
 

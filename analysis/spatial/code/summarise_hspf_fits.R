@@ -111,10 +111,10 @@ delta_summary = (
 	)
 	%>% ungroup()
 	%>% summarise(
-		delta_mean = mean(delta),
+		delta_mean   = mean(delta),
 		delta_median = median(delta),
-		delta_q2.5 = quantile( delta, p = 0.025 ),
-		delta_q97.5 = quantile( delta, p = 0.975 )
+		delta_q2.5   = quantile( delta, p = 0.025 ),
+		delta_q97.5  = quantile( delta, p = 0.975 )
 	)
 )
 
@@ -174,49 +174,6 @@ result$Reported <- NA_character_
 # move to first column
 result <- result[, c("Reported", setdiff(names(result), "Reported")), drop = FALSE]
 
-result$Reported <- ifelse(
-  result$celltype == "hexagon" &
-    result$cellsize == 1 &
-    result$HbSr0 == 25 &
-    result$HbSsigma0 == 0.6 &
-    result$area %in% c("africa") &
-    result$allele %in% c("Pfsa1","Pfsa3") &
-    result$covariate == "pfpr2000",
-  "Figure 1, Figure 2",
-  ifelse(
-    result$celltype == "hexagon" &
-      result$cellsize == 1 &
-      result$HbSr0 == 25 &
-      result$HbSsigma0 == 0.6 &
-      result$area %in% c("mauritania","senegal+gambia","ghana","nigeria","drc","DRC","uganda","tanzania","mozambique") &
-      result$allele %in% c("Pfsa1") &
-      result$covariate == "pfpr2000",
-    "Figure S3",
-    ifelse(
-      result$celltype == "hexagon" &
-        result$cellsize == 1 &
-        result$HbSr0 == 25 &
-        result$HbSsigma0 == 0.6 &
-        result$area %in% c("global", "DRC+east","africa","drc+east") &
-        result$allele %in% c("Pfsa1","Pfsa2","Pfsa13","Pfsa4") &
-        result$covariate == "pfpr2000",
-      "Figure 2",
-      "Table S3 only"
-    )
-  )
-)
-result <- result %>%
-  mutate(
-    area = recode(
-      area,
-      "waf" = "West Africa",
-      "drc+east" = "Central and Eastern Africa",
-      "eaf" = "East Africa",
-	  "gambia+senegal" = "Gambia and Senegal",
-	  "global" = "Global"
-    ),
-    area = tools::toTitleCase(area)  # Capitalizes first letter of each word
-  )
 echo( "++ Ok, saving results as a .tsv table to %s...\n", args$output )
 readr::write_tsv( result, args$output, append = file.exists( args$output ))
 

@@ -138,9 +138,6 @@ figure_4 <- function(
 	specs,
 	colour.column = "Country",
 	split = c( 0.5, 1.5 ),
-	width = 12,
-	height = 10,
-	filename,
 	colours
 ) {
 	. = NA
@@ -172,7 +169,6 @@ figure_4 <- function(
 	)
 	print( layout.m )
 	layout.m[ is.na(layout.m) ] = 0
-	cairo_pdf( file = filename, width = width, height = height, family = 'Helvetica' )
 	par( mar = c( 0, 0, 0, 0 ))
 	layout(
 		layout.m,
@@ -189,18 +185,42 @@ figure_4 <- function(
 		phyloplots[[i]] = plot.tree( spec, x.lim = c( max.depth - 75000, max.depth ) )
 		if( i == 1 ) {
 			legend(
-				-2500, nrow( spec$samples ) + 20,
+				max.depth - 75000,
+				380,
+#				-2500, nrow( spec$samples ) + 20,
 				legend = gsub( "_", " ", gsub( "Democratic_Republic_of_the_Congo", "DRC", names( colours[[colour.column]]) )),
 				pch = 22,
 				pt.bg = colours[[colour.column]],
 				bty = 'n',
 				xpd = NA,
-				pt.cex = 1,
+				pt.cex = 2,
 				col = NA,
 				cex = 0.8,
-				ncol = 2
+				ncol = 1
+			)
+		} else if( i == 2 ) {
+			print( spec$tree_mutations )
+			legend(
+				"topleft",
+				nrow( spec$samples ) + 20,
+				legend = c( "Pfsa+\nlead mutation", "", "Pfsa+-linked\nnonsynonymous mutation", "", "Other Pfsa+-linked\nmutation" ),
+				pch = c( 25, 1, 21, 1, 21 ),
+				pt.bg = c( rep( spec$tree_mutations$colour[1], 4 ), "white" ),
+				bty = 'n',
+				xpd = NA,
+				pt.cex = 1.5,
+				col = c( 'black', 'white', 'black', 'white', 'black' ),
+				cex = 0.8,
+				ncol = 1
 			)
 		}
+		mtext(
+			side = 3,
+			line = 3,
+			at = max.depth - 75000,
+			text = c( "a", "b" )[i],
+			font = 2
+		)
 	}
 	echo( "++ Tree plot, done\n")
 
@@ -446,6 +466,4 @@ figure_4 <- function(
 		)
 
 	}
-
-	dev.off()
 }
