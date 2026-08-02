@@ -96,8 +96,10 @@ rule all:
 #			locus = [ 'Pfsa1' ]
 #		),
 		hspf_summary = expand(
-			"output/pf={pf_data_version}/all_hspf_analyses_summary.tsv",
-			pf_data_version = config['params']['pf_data_version']
+			"output/pf={pf_data_version}/all_hspf_analyses_summary-analysis={analysis}.{extension}",
+			pf_data_version = config['params']['pf_data_version'],
+			analysis = [ config['name'] ],
+			extension = [ 'tsv', 'xlsx' ]
 		),
 		fig1 = expand(
 			"output/pf={pf_data_version}/figures/figure_1/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/figure1.pdf",

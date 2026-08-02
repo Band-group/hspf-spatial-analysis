@@ -189,18 +189,21 @@ rule summarise_hspf:
 
 rule combine_hspf_summaries:
 	output:
-		tsv = "output/pf={pf_data_version}/all_hspf_analyses_summary.tsv"
+		tsv = "output/pf={pf_data_version}/all_hspf_analyses_summary-analysis={analysis}.tsv".format(
+			pf_data_version = '{pf_data_version}',
+			analysis = config['name']
+		)
 	input:
 		tsv = lambda w: expand(
 			rules.summarise_hspf.output.tsv,
 			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'hspf_covariates' ] )),
 			pf_data_version = w.pf_data_version,
-			hspf_covariates = [ 'none', 'pfpr2000' ]
+			hspf_covariates = config['params']['hspf_covariates']
 		) + expand(
 			rules.summarise_hspf.output.tsv,
 			**( remove_keys( config['params'], keys_to_remove = [ 'pf_data_version', 'area' ] )),
 			pf_data_version = w.pf_data_version,
-			area=config['params'].get('areas', []) #area = [ 'global', 'africa', 'waf', 'DRC+eaf' ]
+			area = config['params'].get('areas', []) #area = [ 'global', 'africa', 'waf', 'DRC+eaf' ]
 		)
 	run:
 		done_header = False
@@ -214,9 +217,9 @@ rule combine_hspf_summaries:
 
 rule hspf_summaries_to_excel:
 	output:
-		xlsx = "output/pf=pf8-version/all_hspf_analyses_summary.xlsx"
+		xlsx = rules.combine_hspf_summaries.output.tsv.replace( '.tsv', '.xlsx' )
 	input:
-		tsv = "output/pf=pf8-version/all_hspf_analyses_summary.tsv"
+		tsv = rules.combine_hspf_summaries.output.tsv
 	params:
 		script = srcdir( "code/summary_hspf2excel.R" )
 	shell: """
