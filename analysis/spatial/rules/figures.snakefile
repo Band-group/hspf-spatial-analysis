@@ -89,8 +89,8 @@ rule create_forest_plot_figures:
 
 rule create_forest_plot_figure_extended_data:
 	output:
-		pdf = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
-		svg = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/figure5_SI-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.svg"
+		pdf = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/extended_data_forest_plot_figure-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
+		svg = "output/pf={pf_data_version}/SI/fixed-r0=25.0-sigma0=0.6-fc=none/grid-type=hexagon-size={size}/extended_data_forest_plot_figure-model={model}-{min_km_to_survey_pt}km-min_N={min_N}.svg"
 	input:
 		fit = rules.create_forest_plot_figures.input.fit
 	params:
