@@ -47,7 +47,6 @@ params:
       - global
       - africa
       - waf
-      - eaf
       - DRC+eaf
       - gambia+senegal
       - mali
