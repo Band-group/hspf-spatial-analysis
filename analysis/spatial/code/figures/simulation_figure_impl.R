@@ -350,28 +350,7 @@ fig4 = function(
 				specs$pp$breaks,
 				specs$pp$palette
 			)
-			if(0) {
-				circle = list(
-					x = -2.1, y = 28, r = 4
-				)
-				polygon(
-					x = circle$x + 1.5 * circle$r * sin( seq( from = 0, to = 2 * pi, by = pi / 36 )),
-					y = circle$y + circle$r * cos( seq( from = 0, to = 2 * pi, by = pi / 36 )),
-					lwd = 0.5,
-					border = NA,#'grey60',
-					col = rgb( 1, 1, 1, 0.5 )
-				)
-				text(
-					circle$x,
-					circle$y,
-					"equilbrium",
-					xpd = NA,
-					adj = 0.5,
-					cex = 0.6,
-					col = 'grey30',
-					font = 1
-				)
-			}
+
 			legend(
 				specs$pp$legend$x, specs$pp$legend$y,
 				ncol = specs$pp$legend$ncol,
@@ -417,6 +396,13 @@ fig4 = function(
 				cex = sqrt( comparison$`N`) / 10,
 				col = palette[ comparison$majority_country ]
 			)
+			points(
+				rep( .85, 3 ),
+				rep( .18, 3 ),
+				pch = 21,
+				cex = sqrt( c( 100, 1000, 3000 ))/ 10
+			)
+
 			mtext(
 				expression(
 					atop(
@@ -458,7 +444,7 @@ fig4 = function(
 
 				)
 			}
-			ld.frames = c( 1, seq( from = 25, to = 400, by = 25 ))
+			ld.frames = c( 1, seq( from = 25, to = 450, by = 25 ))
 			ld.sims = c( "additive", "dominant", "multiplicative", "no_selection" )
 			ld.data = (
 				tibble(
@@ -477,15 +463,29 @@ fig4 = function(
 			)
 
 			blank.plot( xlim = c( 1, 500 ), ylim = c( -0.1, 1.0 ), yaxs = 'i' )
-			axis( 1, at = seq( from = 0, to = 500, by = 100 ), label = NA )
-			text( seq( from = 0, to = 500, by = 100 ), -0.25, seq( from = 0, to = 500, by = 100 ), srt = 60, adj = c( 1, 0.5 ), xpd = NA )
+			axis( 1, at = seq( from = 0, to = 400, by = 100 ), label = NA )
+			text(
+				seq( from = 0, to = 400, by = 100 ),
+				-0.25,
+				sprintf( "%d", seq( from = 0, to = 400, by = 100 )),
+				srt = 50,
+				adj = c( 1, 0.5 ),
+				xpd = NA 
+			)
+			text(
+				500, -0.1,
+				"Observed\nLD",
+				adj = c( 1, 0.5 ),
+				srt = 90,
+				xpd = NA 
+			)
 			axis( 2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 ) * 100 ), las = 1 )
 			mtext( "Generation", 1, 3, cex = 0.7, padj = 1 )
-			mtext( "Average LD (r)\nbetween loci", 2, 3, cex = 0.7 )
+			mtext( "Average LD (r)\nbetween loci\nin simulation", 2, 3, cex = 0.7 )
 
 			at = seq( from = 0, to = 1, by = 0.2 )
-			segments( x0 = 0, x1 = 500, y0 = at, y1 = at, lwd = 0.1, col = rgb( 0, 0, 0, 0.2 ) )
-			at = seq( from = 0, to = 500, by = 100 )
+			segments( x0 = 0, x1 = 400, y0 = at, y1 = at, lwd = 0.1, col = rgb( 0, 0, 0, 0.2 ) )
+			at = seq( from = 0, to = 400, by = 100 )
 			segments( y0 = -0.02, y1 = 1.02, x0 = at, x1 = at, lwd = 0.1, col = rgb( 0, 0, 0, 0.2 ) )
 
 			shapes = c( additive = 19, multiplicative = 17, dominant = 16, no_selection = 3 )
@@ -512,8 +512,8 @@ fig4 = function(
 	#				cex = 0.5
 	#			)
 				text(
-					tail( ld.data$generation[w], 1) + 25,
-					tail( ld.data$mean_r[w], 1 ),
+					tail( ld.data$generation[w[8]], 1) + 25,
+					tail( ld.data$mean_r[w[8]], 1 ) + 0.035,
 					display[sim],
 					cex = 0.8,
 					adj = 0,
@@ -521,6 +521,27 @@ fig4 = function(
 					font = fonts[sim]
 				)
 			}
+
+			# plot empirical distribution
+			ld.datapoints = pf.data %>% filter( locus == 'Pfsa1xPfsa3' & N >= 10 )
+			points(
+				rep( 500, nrow( ld.datapoints )) + rnorm( nrow( ld.datapoints ), sd = 10 ),
+				ld.datapoints$`r++`,
+				pch = 19,
+				col = aesthetic$colour$country[ ld.datapoints$majority_country ],
+				cex = 0.25,
+				xpd = NA
+			)
+
+			segments(
+				x0 = 480, x1 = 520,
+				y0 = mean( ld.datapoints$`r++`, na.rm = T ),
+				y1 = mean( ld.datapoints$`r++`, na.rm = T ),
+				col = 'black',
+				xpd = NA,
+				lwd = 2
+			)
+
 			if( boxes ) box()
 		}
 	)
@@ -533,226 +554,3 @@ fig4 = function(
 	)
 }
 
-
-
-if(0) {
-	for( spec in specs ) {
-		choice = frames
-		if( spec$metric == 'r' ) {
-			choice = tail(frames, 1 )
-		}
-		for( frame in choice ) {
-			fig4.plotmap(
-				sims$multiplicative[[frame]]$aggregated$grid,
-				sims$multiplicative[[frame]]$aggregated[[spec$metric]],
-				spec$breaks,
-				spec$palette
-			)
-			if( boxes ) {
-				box()
-			}
-			circle = list(
-				x = -2.1, y = 28, r = 4
-			)
-			polygon(
-				x = circle$x + 1.5 * circle$r * sin( seq( from = 0, to = 2 * pi, by = pi / 36 )),
-				y = circle$y + circle$r * cos( seq( from = 0, to = 2 * pi, by = pi / 36 )),
-				lwd = 0.5,
-				border = NA,#'grey60',
-				col = rgb( 1, 1, 1, 0.5 )
-			)
-			if( frame == tail(choice,1)) {
-				text(
-					circle$x,
-					circle$y,
-					"equilbrium",
-					xpd = NA,
-					adj = 0.5,
-					cex = 0.6,
-					col = 'grey30',
-					font = 1
-				)
-			} else {
-				text(
-					circle$x,
-					circle$y,
-					sprintf( "%d", sims$multiplicative[[frame]]$parameters$iteration ),
-					xpd = NA,
-					adj = 0.5,
-					cex = 0.6,
-					col = 'grey30',
-					font = 1
-				)
-			}
-			if( spec$metric == 'pp' & frame == frames[length(frames)] ) {
-				draw_fitness_table(
-					sims$multiplicative[[1]]$parameters$fitness,
-					xlim = c( -16, 7 ),
-					ylim = c( -28, -6 )
-				)
-				text( 
-					-3, -36,
-					"(multiplicative)",
-					adj = c( 0.5, 1 )
-				)
-			}
-		}
-		legend(
-			spec$legend$x, spec$legend$y,
-			ncol = spec$legend$ncol,
-			legend = names(spec$breaks)[-1],
-			col = spec$palette,
-			pch = 19,
-			bty = 'n',
-			cex = 0.8,
-			xpd = NA,
-			title = spec$title
-		)
-		if( boxes ) {
-			axis(1)
-			axis(2)
-			box()
-		}
-	}
-
-	par( mar = c( 4, 5, 2, 0 ))
-	# Real data comparison plot
-	if(1) {
-		comparison = (
-			tibble::tibble(
-				polygon_id = sims$multiplicative$`g=800`$aggregated$polygon_id,
-				`simulated++` = sims$multiplicative$`g=800`$aggregated$pp
-			) %>% inner_join(
-				pf.data %>% select( polygon_id, majority_country, `Pfsa13_--`, `Pfsa13_-+`, `Pfsa13_+-`, `Pfsa13_++`, `Pfsa13_++` ),
-				by = "polygon_id"
-			) %>% mutate(
-				`Pfsa13_N` = ( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++`),
-				`Pfsa13_f++` = `Pfsa13_++` / ( `Pfsa13_--` + `Pfsa13_-+` + `Pfsa13_+-` + `Pfsa13_++`)
-			)
-			%>% filter( `Pfsa13_N` >= 20 )
-		)
-		print( comparison$`Pfsa13_f++` )
-		palette = country.colours()
-		blank.plot()
-		at = seq( from = 0, to = 1, by = 0.2 )
-		axis(1, at = at, label = sprintf( "%.0f%%", at * 100 ))
-		axis(2, at = at, label = sprintf( "%.0f%%", at * 100 ), las = 1 )
-		abline( a = 0, b = 1, lwd = 2, col = rgb( 0, 0, 0, 0.2 ))
-		points(
-			comparison$`Pfsa13_f++`,
-			comparison$`simulated++`,
-			pch = 19,
-			cex = sqrt( comparison$`Pfsa13_N`) / 10,
-			col = palette[ comparison$majority_country ]
-		)
-		mtext( "Observed ++ frequency", 1, 2.5, cex = 0.7 )
-		mtext( "Simulated ++ frequency", 2, 3, cex = 0.7 )
-	} else {
-		comparison = (
-			tibble::tibble(
-				polygon_id = sims$multiplicative$`g=800`$aggregated$polygon_id,
-				`simulated++` = sims$multiplicative$`g=800`$aggregated$pp,
-				`simulated+` = (sims$multiplicative$`g=800`$aggregated$pm + sims$additive$`g=800`$aggregated$pp)
-			) %>% inner_join(
-				pf.data %>% select( polygon_id, majority_country, `--`, `-+`, `+-`, `++` ),
-				by = "polygon_id"
-			) %>% mutate(
-				`N` = ( `--` + `-+` + `+-` + `++`)
-			) %>% inner_join(
-				HbS_aggregated,
-				by = "polygon_id"
-			)
-			%>% filter( `N` >= 5 )
-#			%>% filter( `Pfsa13_N` >= 20 )
-		)
-		palette = country.colours()
-
-		blank.plot( xlim = c( 0, 0.3 ), ylim = c( 0, 1 ))
-		points(
-			x = comparison$HbAS_or_SS,
-			y = comparison$`simulated+`,
-			pch = 19,
-			cex = sqrt( comparison$`N`) / 10,
-			col = palette[ comparison$majority_country ]
-		)
-		axis( 1, at = seq( from = 0, to = 0.3, by = 0.1 ), label = sprintf( "%.0f%%", seq( from = 0, to = 0.3, by = 0.1 ) * 100 ))
-		axis( 2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 ) * 100 ), las = 1)
-		mtext( "HbS frequency", 1, 2.5, cex = 0.7 )
-		mtext( "+ frequency", 2, 3, cex = 0.7 )
-	}
-
-	# LD convergence plot
-	{
-		par( mar = c( 4, 5, 2, 2 ))
-		get_ld = function( d ) {
-			return(
-				tibble::tibble(
-					polygon_id = d$polygon_id,
-					r = d$r
-				)
-				%>% filter( polygon_id %in% pf.data$polygon_id )
-				%>% summarise( mean_r = mean(r, na.rm = T) )
-
-
-			)
-		}
-		ld.frames = c( 1, seq( from = 25, to = 400, by = 25 ))
-		ld.sims = c( "additive", "dominant", "multiplicative", "no_selection" )
-		ld.data = (
-			tibble(
-				sim = rep( ld.sims, each = length( ld.frames )),
-				generation = rep( ld.frames, length(sims))
-			)
-			%>% mutate(
-				frame = sprintf("g=%d", generation )
-			)
-			# Hack as we are only doing a subset of generations for no-selection model
-			%>% filter( sim != 'no_selection' | generation <= 800 )
-			%>% group_by( sim, generation )
-			%>% reframe(
-				get_ld( sims[[sim]][[frame]]$aggregated )
-			)
-		)
-
-		blank.plot( xlim = c( 1, 500 ), ylim = c( -0.1, 1.0 ))
-		axis( 1, at = seq( from = 0, to = 500, by = 100 ), label = NA )
-		text( seq( from = 0, to = 500, by = 100 ), -0.25, seq( from = 0, to = 500, by = 100 ), srt = 60, adj = c( 1, 0.5 ), xpd = NA )
-		axis( 2, at = seq( from = 0, to = 1, by = 0.2 ), label = sprintf( "%.0f%%", seq( from = 0, to = 1, by = 0.2 ) * 100 ), las = 1 )
-		mtext( "Generation", 1, 2.5, cex = 0.7 )
-		mtext( "Mean LD\n(between-locus r)", 2, 3, cex = 0.7 )
-
-		shapes = c( additive = 19, multiplicative = 17, dominant = 16, no_selection = 3 )
-		linetypes = c( additive = 1, multiplicative = 1, dominant = 1, no_selection = 3 )
-		fonts = c( additive = 1, multiplicative = 1, dominant = 1, no_selection = 3 )
-		display = c(
-			"additive" = "additive",
-			"dominant" = "dominant",
-			"multiplicative" = "multiplicative",
-			"no_selection" = "(no selection)"
-		)
-		for( sim in unique( ld.data$sim )) {
-			w = which( ld.data$sim == sim )
-			points(
-				ld.data$generation[w],
-				ld.data$mean_r[w],
-				type = 'l',
-				lty = linetypes[sim]
-			)
-#			points(
-#				ld.data$generation[w],
-#				ld.data$mean_r[w],
-#				pch = shapes[sim],
-#				cex = 0.5
-#			)
-			text(
-				tail( ld.data$generation[w], 1) + 25,
-				tail( ld.data$mean_r[w], 1 ),
-				display[sim],
-				cex = 0.8,
-				adj = 0,
-				xpd = NA,
-				font = fonts[sim]
-			)
-		}
-	}
-}

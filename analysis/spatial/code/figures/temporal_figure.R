@@ -378,7 +378,7 @@ if( length( unique( dataplot$locus )) == 1 ) {
 			legend.box.margin     = margin( 10, -10, 10, -10 ),
 			axis.text.x           = element_text(angle = 0, hjust = 0.5, size = 8, margin = margin( 0, 1, 0, 0 ), colour = 'black' ),
 			axis.text.y           = element_text(angle = 0, hjust = 1, size = 10, colour = 'black' ),
-			strip.text.x          = element_text(angle = 0, hjust = 0,  size = 10),  # left-align facet labels (x direction)
+			strip.text.x          = element_text(angle = 0, hjust = 0,  size = 12, face = "bold" ),  # left-align facet labels (x direction)
 			strip.text.y          = element_text(angle = 0, hjust = 0, face = "italic", size = 10),   # left-align facet labels (y direction)
 			axis.title.x          = ggtext::element_markdown( size = 12 ),
 			axis.title.y          = ggtext::element_markdown( size = 12 ),
