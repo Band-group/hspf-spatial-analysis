@@ -1,0 +1,62 @@
+#' country.colours
+#' @return
+#' @export
+country.colours <- function () 
+{
+    return(
+        c(
+            Morocco          = "#2B2B2B",
+            Mauritania       = "#081D58",
+            `Guinea-Bissau`  = "#0000CD",
+            Gambia           = "#084594",
+            Senegal          = "#2171B5",
+            Guinea           = "#41B6C4",
+            Mali             = "#7FCDBB",
+            Burkina_Faso     = "#C7E9F1",
+            `Burkina Faso`   = "#C7E9F1",
+            `Sierra Leone`   = "#4292C6",
+            Liberia          = "#6BAED6",
+            IvoryCoast       = "#2ECDAB",
+            `Ivory Coast`    = "#2ECDAB",
+            Cote_dIvoire     = "#2ECDAB",
+            `Cote d'Ivoire`  = "#2ECDAB",
+            Togo             = "#98FB98",
+            Ghana            = "#00A9CF",
+            Benin            = "#03cc53",
+            Nigeria          = "#708238",
+            Niger            = "#4B5320",
+            Chad             = "#1B3421",
+            Cameroon         = "#007a5e",
+            Gabon            = "#009E60",
+            DRC              = "#f94449",
+            Democratic_Republic_of_the_Congo   = "#f94449",
+            `Democratic Republic of the Congo` = "#f94449",
+            Congo                              = "#FF2800",
+            `Republic of the Congo`            = "#dc241f",
+            Sudan            = "#c59d0f",
+            Malawi           = "#FEDC56",
+            `United Republic of Tanzania`      = "#F08080",
+            Tanzania         = "#F08080",
+            Mozambique       = "#780606",
+            Kenya            = "#FF7F00",
+            Rwanda           = "#BA8E23",
+            Uganda           = "#d1cd0c",
+            Ethiopia         = "#939070",
+            Zambia           = "#A4081C",
+            Madagascar       = "#C21807",
+            Bangladesh       = "chocolate4",
+            Myanmar          = "#48260D",
+            Laos             = "#997950",
+            Thailand         = "saddlebrown",
+            Cambodia         = "#A65628",
+            Vietnam          = "tan4",
+            Indonesia        = "burlywood4",
+            PNG              = "rosybrown4",
+            `South Africa`   = "#74C365",
+            eSwatini         = "green",
+            other            = "#AAAAAA",
+            Colombia         = "#A5A5A5",
+            Peru             = "#353535"
+        )
+    )
+}

@@ -1,0 +1,22 @@
+Package: hspfspatial
+Type: Package
+Title: Code for human-Pf geographic association analysis, from https://doi.org/10.1101/2025.08.31.672853
+Version: 1.0
+Date: 2026-08-06
+Author: Gavin Band, Andre Python
+Maintainer: Gavin Band <gavin.band@well.ox.ac.uk>
+Description: Code for human-Pf geographic association analysis, from https://doi.org/10.1101/2025.08.31.672853
+License: Boost Software License
+Imports:
+	ggplot2,
+	prismatic,
+	INLA,
+	sf,
+	geodata,
+	furrr,
+	ggplot2, 
+    openxlsx,
+	terra,
+	forcats,
+	ggdist
+RoxygenNote: 7.3.2
