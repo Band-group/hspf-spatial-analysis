@@ -140,7 +140,7 @@ africa = rnaturalearth::ne_countries( returnclass = "sf", scale = 110 ) %>% filt
 #africa = sf::st_union( africa )
 
 grid = readRDS( args$polygons ) %>% filter( CONTINENT == 'Africa' )
-#HbS = terra::rast( args$HbS )
+HbS = terra::rast( args$HbS )
 
 simulation.filenames = list(
 	multiplicative = sprintf(
@@ -195,7 +195,8 @@ for( name in names( simulation.filenames )) {
 
 {
 	source( "code/figures/simulation_figure_impl.R" )
-	cairo_pdf( file = "tmp/fig4.pdf", width = 12, height = 6 )
+	dir.create( "output/pf=pf8-version/figures/simulation")
+	cairo_pdf( file = "output/pf=pf8-version/figures/simulation/simulation_figure.pdf", width = 12, height = 6 )
 	fig4(
 		sims,
 		pf.data,
@@ -208,10 +209,10 @@ for( name in names( simulation.filenames )) {
 }
 
 {
-	source( "code/figures/fig4_impl.R" )
+	source( "code/figures/simulation_figure_impl.R" )
 	# svglite encodes text as text, unlike svg()
 	svglite::svglite(
-		file = "tmp/fig4.svg",
+		file = "output/pf=pf8-version/figures/simulation/simulation_figure.svg",
 		width = 12,
 		height = 6,
 		fix_text_size = FALSE # allow text boxes to be editable without a fixed width
