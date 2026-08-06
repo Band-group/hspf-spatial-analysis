@@ -9,7 +9,7 @@ source( "code/functions.R" )
 source( "code/figures/fig1_impl.R" )
 
 parse_arguments <- function() {
-	parser <- ArgumentParser( description = 'Create elements for Figure 1' )
+	parser <- ArgumentParser( description = 'Create LD Extended Data figure' )
 	parser$add_argument("--output", type = "character", help = "Output pdf filename", required = TRUE )
 	parser$add_argument("--grid", type = "character", help = "Path to grid to use.", required = TRUE )
 	parser$add_argument("--HbS_aggregated", type = "character", help = "Path to per-polygon aggregated HbS data", required = TRUE )
@@ -47,6 +47,7 @@ ld2 = (
 palette = country.colours()
 palette = palette[ names(palette) %in% ld2$country ]
 ld2$country = factor( ld2$country, levels = names( palette ))
+levels( ld2$country )[ which( levels( ld2$country ) == 'Democratic_Republic_of_the_Congo' )] = "DRC"
 levels( ld2$country )[ which( levels( ld2$country ) == 'Democratic Republic of the Congo' )] = "DRC"
 levels( ld2$country )[ which( levels( ld2$country ) == 'United Republic of Tanzania' )] = "Tanzania"
 names(palette) = levels( ld2$country )
@@ -241,6 +242,7 @@ plots$f2way = (
 		shape = guide_legend( position = "bottom" )
 	)
 )
+
 #ggsave( plots$f2way, file = "tmp/ld_2way_frequencies.pdf", width = 10, height = 5 )
 
 ###
