@@ -59,7 +59,7 @@ result <- (
 				& HbSr0       == 25
 				& HbSsigma0   == 0.6
 				& (area        %in% c( 'gambia+senegal', 'mali', 'ghana', 'nigeria', 'DRC', 'uganda', 'mozambique', 'tanzania' )
-				| area        %in% c( 'Gambia,Senegal', 'Mali', 'Ghana', 'Nigeria', 'DRC', 'Uganda', 'Mozambique', 'Tanzania' ))
+				| area        %in% c( 'Gambia,Senegal', 'Gambia and Senegal', 'Mali', 'Ghana', 'Nigeria', 'DRC', 'Uganda', 'Mozambique', 'Tanzania' ))
 				& allele      %in% c( "Pfsa1", "Pfsa2", "Pfsa3", "Pfsa4" )
 				& covariate   == "none"
 			) ~ "Extended Data Figure 6",
