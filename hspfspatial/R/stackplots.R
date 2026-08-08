@@ -1,6 +1,20 @@
-#' stackplots
-#' @return
-#' @export
+#' Create a set of spatial plots for the layers of a raster stack or brick.
+#'
+#' @description
+#' Create a set of spatial plots for the layers of a raster stack or brick.
+#'
+#' @param mystack Raster stack, brick, or named collection of raster layers.
+#'
+#' @param features Named list of spatial features used for mapping.
+#'
+#' @param rivers geography of rivers (vector objects)
+#'
+#' @param lakes geography of lakes (vector objects)
+#'
+#' @param color.scheme color scheme used in the plot
+#'
+#' @return The result produced by the function.
+#'
 stackplots <- function (mystack, features, titles, color.scheme) 
 {
     mycrs <- "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"

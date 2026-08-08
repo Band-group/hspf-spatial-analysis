@@ -1,6 +1,33 @@
-#' generate_diagnostic_plot
-#' @return
-#' @export
+#' Generate spatial prediction and model diagnostic plots, including masked and unmasked prediction summaries.
+#'
+#' @description
+#' Generate spatial prediction and model diagnostic plots, including masked and unmasked prediction summaries.
+#'
+#' @param xyt Spatial observation data.
+#'
+#' @param modelfit Input (result of model fitting) used by the function; 
+#'
+#' @param predictions Prediction object containing summary values and prediction-location metadata.
+#'
+#' @param HbSPiel Input (HbS map from Piel et al.); 
+#'
+#' @param features Named list of spatial features used for mapping.
+#'
+#' @param color.scheme Colour-scale specification used for plotting.
+#'
+#' @param titles Named list of plot titles.
+#'
+#' @param prednames Names of prediction summaries to include.
+#'
+#' @param popmask Population raster or mask applied to predictions.
+#'
+#' @param saveraster Logical; whether to write raster layers to disk.
+#'
+#' @param #indicate if you want (TRUE) to save or not HbS raster maps
+#'    saverastername Input used by the function; 
+#'
+#' @return The result produced by the function.
+#'
 generate_diagnostic_plot <- function (xyt, modelfit, predictions, HbSPiel, features = list(spatialdomain = africa_sf, 
     rivers = rivaf_sf, lakes = lakaf_sf), color.scheme, titles = list(t1 = "HbS | Predicted mean prevalence", 
     t2 = "HbS | Predicted standard deviation", t3 = "HbS | Predicted Q25", 

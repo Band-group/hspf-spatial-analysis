@@ -12,6 +12,7 @@ Imports:
 	prismatic,
 	INLA,
 	sf,
+	dplyr,
 	geodata,
 	furrr,
 	ggplot2, 

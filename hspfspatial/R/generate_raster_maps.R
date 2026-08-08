@@ -1,6 +1,17 @@
-#' generate_raster_maps
-#' @return
-#' @export
+#' Convert posterior prediction summaries into raster layers and optionally save them to disk.
+#'
+#' @description
+#' Convert posterior prediction summaries into raster layers and optionally save them to disk.
+#'
+#' @param predictions Prediction object containing summary values and prediction-location metadata.
+#'
+#' @param saveraster Logical; whether to write raster layers to disk.
+#'
+#' @param saverastername Filename prefix for saved raster layers.
+#'
+#' @param savepath Directory in which output files are written.
+#'
+#' @return A named list of raster layers for the prediction summaries.
 generate_raster_maps <- function (predictions, saveraster = FALSE, saverastername = saverastername, 
     savepath = "output/HbSraster/") 
 {

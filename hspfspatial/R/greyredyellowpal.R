@@ -1,6 +1,16 @@
-#' greyredyellowpal
-#' @return
-#' @export
+#' Construct a combined grey, red, and yellow colour palette.
+#'
+#' @description
+#' Construct a combined grey, red, and yellow colour palette.
+#'
+#' @param num_red_shades Number of red shades.
+#'
+#' @param num_gray_shades Number of grey shades.
+#'
+#' @param num_yellow_shades Number of yellow shades.
+#'
+#' @return A character vector of colours.
+#'
 greyredyellowpal <- function (num_red_shades, num_gray_shades, num_yellow_shades) 
 {
     gray_palette <- gray.colors(num_gray_shades, start = 0.8, 
