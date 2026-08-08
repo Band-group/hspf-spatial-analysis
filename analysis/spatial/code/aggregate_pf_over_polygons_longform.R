@@ -65,7 +65,6 @@ print( args )
 
 #install packages
 source( 'code/functions.R' )
-#install.prerequisites()
 
 polygons = readRDS( args$polygons )
 

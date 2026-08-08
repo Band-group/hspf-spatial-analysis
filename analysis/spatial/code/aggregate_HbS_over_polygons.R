@@ -76,7 +76,6 @@ print( args )
 #install packages
 source( 'code/functions.R' )
 library( sf )
-#install.prerequisites()
 
 catalogue = readr::read_tsv( sprintf( "%s/catalogue.tsv", args$HbSfit ), show_col_types = FALSE )
 #predictions = readRDS( (catalogue %>% filter( name == 'predictions' ))[['filename']] )

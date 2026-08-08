@@ -88,7 +88,6 @@ source( 'code/functions.R' )
 libraries = c( "INLA", "sf", "geodata", "sn", "inlabru","parallel")
 lapply( libraries, library, character.only = TRUE, quietly = TRUE )
 sf::sf_use_s2(FALSE) 
-#install.prerequisites()
 source( 'code/priors.R' ) # Moved here so there is one definition
 
 #INLA:::inla.dynload.workaround()
