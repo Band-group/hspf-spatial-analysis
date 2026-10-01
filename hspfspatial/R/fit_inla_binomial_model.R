@@ -1,6 +1,22 @@
-#' fit_inla_binomial_model
-#' @return
+#' Build the mesh, SPDE, INLA stack, and formula and fit a binomial spatial model.
+#'
+#' @description
+#' Build the mesh, SPDE, INLA stack, and formula and fit a binomial spatial model.
+#'
+#' @param xyt Spatial observation data.
+#'
+#' @param extpoly Polygon defining the external mesh boundary.
+#'
+#' @param prior List containing prior settings used to construct the SPDE/model.
+#'
+#' @param covariate Optional data frame of model covariates.
+#'
+#' @param verbose Logical; whether to print progress messages.
+#'
+#' @return A list containing the prior specification, mesh, projection matrix, and fitted INLA model.@
+#'
 #' @export
+#'
 fit_inla_binomial_model <- function (xyt, extpoly, prior, covariate = NULL, verbose = FALSE) 
 {
     mymesh <- makemesh(xyt, extpoly, boundary = TRUE)

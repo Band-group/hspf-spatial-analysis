@@ -2,10 +2,24 @@
 % Please edit documentation in R/stackplots.R
 \name{stackplots}
 \alias{stackplots}
-\title{stackplots}
+\title{Create a set of spatial plots for the layers of a raster stack or brick.}
 \usage{
 stackplots(mystack, features, titles, color.scheme)
 }
+\arguments{
+\item{mystack}{Raster stack, brick, or named collection of raster layers.}
+
+\item{features}{Named list of spatial features used for mapping.}
+
+\item{color.scheme}{color scheme used in the plot}
+
+\item{rivers}{geography of rivers (vector objects)}
+
+\item{lakes}{geography of lakes (vector objects)}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-stackplots
+Create a set of spatial plots for the layers of a raster stack or brick.
 }

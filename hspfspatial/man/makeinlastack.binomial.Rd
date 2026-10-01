@@ -2,10 +2,24 @@
 % Please edit documentation in R/makeinlastack.binomial.R
 \name{makeinlastack.binomial}
 \alias{makeinlastack.binomial}
-\title{makeinlastack.binomial}
+\title{Build an INLA data stack for a binomial spatial model with an intercept and optional covariates.}
 \usage{
 makeinlastack.binomial(Y, n, A, spde, covariate = NULL)
 }
+\arguments{
+\item{Y}{Vector of binomial event counts.}
+
+\item{n}{Vector of binomial trial counts.}
+
+\item{A}{INLA projection matrix.}
+
+\item{spde}{An INLA SPDE model object.}
+
+\item{covariate}{Optional data frame of model covariates.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-makeinlastack.binomial
+Build an INLA data stack for a binomial spatial model with an intercept and optional covariates.
 }

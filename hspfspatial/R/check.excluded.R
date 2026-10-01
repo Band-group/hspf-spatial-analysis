@@ -7,7 +7,9 @@
 #'
 #' @param continents_sf An `sf` object containing continent polygons.
 #'
-#' @return A list containing included and excluded observations together with the original spatial inputs.
+#' @return A list containing included and excluded observations together with the original spatial inputs.@
+#'
+#' @export
 #'
 check.excluded <- function (data_sf, continents_sf) 
 {

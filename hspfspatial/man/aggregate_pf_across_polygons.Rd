@@ -2,7 +2,7 @@
 % Please edit documentation in R/aggregate_pf_across_polygons.R
 \name{aggregate_pf_across_polygons}
 \alias{aggregate_pf_across_polygons}
-\title{aggregate_pf_across_polygons}
+\title{Map point observations to polygons and aggregate them across user-specified grouping variables.}
 \usage{
 aggregate_pf_across_polygons(
   data,
@@ -11,6 +11,18 @@ aggregate_pf_across_polygons(
   group_by_variables = c("polygon_id", "longitude", "latitude", "locus")
 )
 }
+\arguments{
+\item{data}{Input data object.}
+
+\item{polygons}{An `sf` object containing aggregation polygons.}
+
+\item{crs}{Object supplying the coordinate reference system for input points.}
+
+\item{group_by_variables}{Character vector of columns used to group observations during aggregation.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-aggregate_pf_across_polygons
+Map point observations to polygons and aggregate them across user-specified grouping variables.
 }

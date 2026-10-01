@@ -2,10 +2,16 @@
 % Please edit documentation in R/load_HbS_mean.R
 \name{load_HbS_mean}
 \alias{load_HbS_mean}
-\title{load_HbS_mean}
+\title{Load an HbS mean prediction raster and prepare it for downstream use.}
 \usage{
 load_HbS_mean(filename)
 }
+\arguments{
+\item{filename}{Path to an input file.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-load_HbS_mean
+Load an HbS mean prediction raster and prepare it for downstream use.
 }

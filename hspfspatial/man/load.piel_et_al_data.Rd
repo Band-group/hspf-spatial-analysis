@@ -2,7 +2,7 @@
 % Please edit documentation in R/load.piel_et_al_data.R
 \name{load.piel_et_al_data}
 \alias{load.piel_et_al_data}
-\title{load.piel_et_al_data}
+\title{Load and standardise HbS observations from the Piel et al. dataset with optional spatial and malaria-hypothesis filters.}
 \usage{
 load.piel_et_al_data(
   filename,
@@ -10,6 +10,16 @@ load.piel_et_al_data(
   exclude_wide_area = FALSE
 )
 }
+\arguments{
+\item{filename}{Path to an input file.}
+
+\item{exclude_non_mh}{Logical; whether to exclude observations not supporting the malaria hypothesis.}
+
+\item{#if}{yes: malaria hypothesis Input used by the function; see the function description for its role.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-load.piel_et_al_data
+Load and standardise HbS observations from the Piel et al. dataset with optional spatial and malaria-hypothesis filters.
 }

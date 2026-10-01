@@ -1,6 +1,16 @@
-#' logistic
-#' @return
+#' Fit a logistic model to the supplied data using the requested formula.
+#'
+#' @description
+#' Fit a logistic model to the supplied data using the requested formula.
+#'
+#' @param data Input data object.
+#'
+#' @param formula Model formula.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 logistic <- function (data, formula = Y ~ year) 
 {
     data = (data %>% mutate(Y = (`Pfsa+`/N)))

@@ -2,10 +2,24 @@
 % Please edit documentation in R/diagnose.plot.R
 \name{diagnose.plot}
 \alias{diagnose.plot}
-\title{diagnose.plot}
+\title{Combine prediction maps and diagnostic plots into a six-panel figure.}
 \usage{
 diagnose.plot(stackobject, prednames, p1, p2, p3)
 }
+\arguments{
+\item{stackobject}{Named collection of plots.}
+
+\item{prednames}{Names of prediction summaries to include.}
+
+\item{p1}{First additional diagnostic plot.}
+
+\item{p2}{Second additional diagnostic plot.}
+
+\item{p3}{Third additional diagnostic plot.}
+}
+\value{
+The result produced by the function. @
+}
 \description{
-diagnose.plot
+Combine prediction maps and diagnostic plots into a six-panel figure.
 }

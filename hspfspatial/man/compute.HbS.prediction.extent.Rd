@@ -2,7 +2,7 @@
 % Please edit documentation in R/compute.HbS.prediction.extent.R
 \name{compute.HbS.prediction.extent}
 \alias{compute.HbS.prediction.extent}
-\title{compute.HbS.prediction.extent}
+\title{Construct the spatial extent used for HbS predictions from a reference raster and selected country boundaries.}
 \usage{
 compute.HbS.prediction.extent(
   world_sf,
@@ -11,6 +11,16 @@ compute.HbS.prediction.extent(
   notpiel = 0.005
 )
 }
+\arguments{
+\item{world_sf}{World country polygons as an `sf` object.}
+
+\item{map_filename}{Path to the reference HbS raster used to define the prediction extent.}
+
+\item{notpiel}{Threshold used to define areas retained from HbS by Piel et al. (benchmark).}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-compute.HbS.prediction.extent
+Construct the spatial extent used for HbS predictions from a reference raster and selected country boundaries.
 }

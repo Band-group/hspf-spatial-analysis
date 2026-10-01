@@ -2,10 +2,18 @@
 % Please edit documentation in R/check.excluded.R
 \name{check.excluded}
 \alias{check.excluded}
-\title{check.excluded}
+\title{Identify spatial observations that lie outside continental landmasses}
 \usage{
 check.excluded(data_sf, continents_sf)
 }
+\arguments{
+\item{data_sf}{An `sf` object containing the observations.}
+
+\item{continents_sf}{An `sf` object containing continent polygons.}
+}
+\value{
+A list containing included and excluded observations together with the original spatial inputs.@
+}
 \description{
-check.excluded
+Identify spatial observations that lie outside continental landmasses
 }

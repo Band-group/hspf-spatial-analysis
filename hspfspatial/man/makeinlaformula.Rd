@@ -2,10 +2,16 @@
 % Please edit documentation in R/makeinlaformula.R
 \name{makeinlaformula}
 \alias{makeinlaformula}
-\title{makeinlaformula}
+\title{Construct the model formula for an INLA spatial model with optional covariates.}
 \usage{
 makeinlaformula(covariate = NULL)
 }
+\arguments{
+\item{covariate}{Optional data frame of model covariates.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-makeinlaformula
+Construct the model formula for an INLA spatial model with optional covariates.
 }

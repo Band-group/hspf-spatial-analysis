@@ -2,10 +2,18 @@
 % Please edit documentation in R/logistic.R
 \name{logistic}
 \alias{logistic}
-\title{logistic}
+\title{Fit a logistic model to the supplied data using the requested formula.}
 \usage{
 logistic(data, formula = Y ~ year)
 }
+\arguments{
+\item{data}{Input data object.}
+
+\item{formula}{Model formula.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-logistic
+Fit a logistic model to the supplied data using the requested formula.
 }

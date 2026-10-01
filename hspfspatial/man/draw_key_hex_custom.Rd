@@ -2,10 +2,20 @@
 % Please edit documentation in R/draw_key_hex_custom.R
 \name{draw_key_hex_custom}
 \alias{draw_key_hex_custom}
-\title{draw_key_hex_custom}
+\title{Draw a custom hexagonal ggplot2 legend key.}
 \usage{
 draw_key_hex_custom(data, params, size)
 }
+\arguments{
+\item{data}{Input data object.}
+
+\item{params}{Additional parameters supplied by ggplot2 when drawing the legend key.}
+
+\item{size}{Legend key size.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-draw_key_hex_custom
+Draw a custom hexagonal ggplot2 legend key.
 }

@@ -2,10 +2,18 @@
 % Please edit documentation in R/echo.R
 \name{echo}
 \alias{echo}
-\title{echo}
+\title{Print formatted text to the console.}
 \usage{
 echo(text, ...)
 }
+\arguments{
+\item{text}{Text with sprintf-style formatting specifications}
+
+\item{...}{Additional arguments passed to format}
+}
+\value{
+Invisibly returns the result of `cat()`.@
+}
 \description{
-echo
+Print formatted text to the console, using sprintf to format arguments.
 }

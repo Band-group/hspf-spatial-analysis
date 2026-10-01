@@ -2,7 +2,7 @@
 % Please edit documentation in R/predict_values.R
 \name{predict_values}
 \alias{predict_values}
-\title{predict_values}
+\title{Evaluate posterior spatial predictions at supplied locations, optionally including covariate effects.}
 \usage{
 predict_values(
   nn,
@@ -12,6 +12,18 @@ predict_values(
   link.function = stats::plogis
 )
 }
+\arguments{
+\item{nn}{Number of posterior samples to evaluate.}
+
+\item{posterior.samples}{List of posterior samples returned by INLA.}
+
+\item{A.pred}{Projection matrix from mesh nodes to prediction locations.}
+
+\item{covariates}{Optional data frame or matrix of covariate values.}
+}
+\value{
+A numeric matrix with prediction locations in rows and posterior samples in columns.@
+}
 \description{
-predict_values
+Evaluate posterior spatial predictions at supplied locations, optionally including covariate effects.
 }

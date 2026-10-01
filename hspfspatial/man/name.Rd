@@ -10,6 +10,9 @@ An object of class \code{character} of length 1.
 \usage{
 name
 }
+\value{
+@
+}
 \description{
 name
 }

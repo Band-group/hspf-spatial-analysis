@@ -1,6 +1,21 @@
-#' predict_values
-#' @return
+#optimize inla sampling in parallel###############################################
+#' Evaluate posterior spatial predictions at supplied locations, optionally including covariate effects.
+#'
+#' @description
+#' Evaluate posterior spatial predictions at supplied locations, optionally including covariate effects.
+#'
+#' @param nn Number of posterior samples to evaluate.
+#'
+#' @param posterior.samples List of posterior samples returned by INLA.
+#'
+#' @param A.pred Projection matrix from mesh nodes to prediction locations.
+#'
+#' @param covariates Optional data frame or matrix of covariate values.
+#'
+#' @return A numeric matrix with prediction locations in rows and posterior samples in columns.@
+#'
 #' @export
+#'
 predict_values <- function (nn, posterior.samples, A.pred, covariates = NULL, link.function = stats::plogis) 
 {
     pred <- matrix(NA, nrow = dim(A.pred)[1], ncol = nn)

@@ -1,6 +1,19 @@
-#' pf_adm2_agg
-#' @return
+#' Aggregate Plasmodium falciparum observations within selected administrative polygons and combine them with unaggregated observations elsewhere.
+#'
+#' @description
+#' Aggregate Plasmodium falciparum observations within selected administrative polygons and combine them with unaggregated observations elsewhere.
+#'
+#' @param pf_data Plasmodium falciparum observation data.
+#'
+#' @param countries Character vector of countries whose observations should be aggregated.
+#'
+#' @param polygons An `sf` object containing aggregation polygons.
+#'
+#' @param polygon_id_column Name of the polygon identifier column.
+#'
+#' @return The result produced by the function.
 #' @export
+#'
 pf_adm2_agg <- function (pf_data, countries, polygons, polygon_id_column) 
 {
     library(dplyr)

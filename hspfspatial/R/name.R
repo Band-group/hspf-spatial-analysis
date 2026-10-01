@@ -1,4 +1,6 @@
 #' name
-#' @return
+#' @return@
+#'
+#' @export
 #' @export
 name <- "name"

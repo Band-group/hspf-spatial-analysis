@@ -1,6 +1,14 @@
-#' makeinlaformula
-#' @return
+#' Construct the model formula for an INLA spatial model with optional covariates.
+#'
+#' @description
+#' Construct the model formula for an INLA spatial model with optional covariates.
+#'
+#' @param covariate Optional data frame of model covariates.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 makeinlaformula <- function (covariate = NULL) 
 {
     if (!is.null(covariate)) {

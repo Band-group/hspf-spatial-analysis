@@ -1,5 +1,4 @@
 #' aesthetic
-#' @return
 #' @export
 aesthetic <- list(
     map = list(

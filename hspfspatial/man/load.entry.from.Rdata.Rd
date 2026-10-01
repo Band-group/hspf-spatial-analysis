@@ -2,10 +2,18 @@
 % Please edit documentation in R/load.entry.from.Rdata.R
 \name{load.entry.from.Rdata}
 \alias{load.entry.from.Rdata}
-\title{load.entry.from.Rdata}
+\title{Load a named object from an RData file into an isolated environment.}
 \usage{
 load.entry.from.Rdata(filename, what)
 }
+\arguments{
+\item{filename}{Path to an input file.}
+
+\item{what}{Name of the object to retrieve.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-load.entry.from.Rdata
+Load a named object from an RData file into an isolated environment.
 }

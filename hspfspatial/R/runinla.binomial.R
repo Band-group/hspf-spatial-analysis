@@ -1,6 +1,24 @@
-#' runinla.binomial
-#' @return
+#' Fit a binomial spatial model with INLA and compute model diagnostics.
+#'
+#' @description
+#' Fit a binomial spatial model with INLA and compute model diagnostics.
+#'
+#' @param myformula Model formula (INLA thing, but same grammar as 'lm(...)')
+#'
+#' @param stk INLA stack object.
+#'
+#' @param spde An INLA SPDE model object.
+#'
+#' @param n Vector of binomial trial counts.
+#'
+#' @param covariate.prec Prior precision for fixed covariate effects.
+#'
+#' @param intercept.prec Prior precision for the intercept.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 runinla.binomial <- function (myformula, stk, spde, n, covariate.prec = 0.001, intercept.prec = 0) 
 {
     has_covariates = length(stk$effects$ncol) > 2

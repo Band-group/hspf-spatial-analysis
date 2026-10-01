@@ -2,10 +2,17 @@
 % Please edit documentation in R/compute.as.counts.R
 \name{compute.as.counts}
 \alias{compute.as.counts}
-\title{compute.as.counts}
+\title{Compute A- and S-allele counts from genotype or blood-typing observations.}
 \usage{
 compute.as.counts(data)
 }
+\arguments{
+\item{data}{Input data object.}
+}
+\value{
+A data frame containing A, S, and total allele counts and the observation source.@
+}
 \description{
-compute.as.counts
+Compute A- and S-allele counts from genotype or blood-typing observations.
+This takes into account the various forms in which the survey data is presented.
 }

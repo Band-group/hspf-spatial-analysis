@@ -2,10 +2,20 @@
 % Please edit documentation in R/greyredyellowpal.R
 \name{greyredyellowpal}
 \alias{greyredyellowpal}
-\title{greyredyellowpal}
+\title{Construct a combined grey, red, and yellow colour palette.}
 \usage{
 greyredyellowpal(num_red_shades, num_gray_shades, num_yellow_shades)
 }
+\arguments{
+\item{num_red_shades}{Number of red shades.}
+
+\item{num_gray_shades}{Number of grey shades.}
+
+\item{num_yellow_shades}{Number of yellow shades.}
+}
+\value{
+A character vector of colours.@
+}
 \description{
-greyredyellowpal
+Construct a combined grey, red, and yellow colour palette.
 }

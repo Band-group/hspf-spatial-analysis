@@ -1,6 +1,20 @@
-#' aggregate_pf_across_polygons
-#' @return
+#' Map point observations to polygons and aggregate them across user-specified grouping variables.
+#'
+#' @description
+#' Map point observations to polygons and aggregate them across user-specified grouping variables.
+#'
+#' @param data Input data object.
+#'
+#' @param polygons An `sf` object containing aggregation polygons.
+#'
+#' @param crs Object supplying the coordinate reference system for input points.
+#'
+#' @param group_by_variables Character vector of columns used to group observations during aggregation.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 aggregate_pf_across_polygons <- function (data, polygons, crs, group_by_variables = c("polygon_id", 
     "longitude", "latitude", "locus")) 
 {

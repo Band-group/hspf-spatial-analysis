@@ -2,10 +2,20 @@
 % Please edit documentation in R/makemesh.R
 \name{makemesh}
 \alias{makemesh}
-\title{makemesh}
+\title{Construct an INLA two-dimensional spatial mesh for observation locations, optionally using an external boundary.}
 \usage{
 makemesh(xyt, extpoly, boundary = TRUE)
 }
+\arguments{
+\item{xyt}{Spatial observation data.}
+
+\item{extpoly}{Polygon defining the external mesh boundary.}
+
+\item{boundary}{Logical; whether to use `extpoly` as a mesh boundary.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-makemesh
+Construct an INLA two-dimensional spatial mesh for observation locations, optionally using an external boundary.
 }

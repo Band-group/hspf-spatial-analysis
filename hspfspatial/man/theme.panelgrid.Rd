@@ -10,6 +10,9 @@ An object of class \code{theme} (inherits from \code{gg}) of length 1.
 \usage{
 theme.panelgrid
 }
+\value{
+@
+}
 \description{
 theme.panelgrid
 }

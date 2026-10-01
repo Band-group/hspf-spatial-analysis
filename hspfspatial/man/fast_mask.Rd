@@ -2,10 +2,22 @@
 % Please edit documentation in R/fast_mask.R
 \name{fast_mask}
 \alias{fast_mask}
-\title{fast_mask}
+\title{Mask a Raster object using a Raster or sf polygon mask with a faster rasterisation workflow for sf polygons.}
 \usage{
 fast_mask(ras = NULL, mask = NULL, inverse = FALSE, updatevalue = NA)
 }
+\arguments{
+\item{ras}{Raster object to mask.}
+
+\item{mask}{Raster or sf polygon mask.}
+
+\item{inverse}{Logical; if `TRUE`, mask cells inside rather than outside the mask.}
+
+\item{updatevalue}{Value assigned to masked cells.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-fast_mask
+Mask a Raster object using a Raster or sf polygon mask with a faster rasterisation workflow for sf polygons.
 }

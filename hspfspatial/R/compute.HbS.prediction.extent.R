@@ -1,6 +1,18 @@
-#' compute.HbS.prediction.extent
-#' @return
+#' Construct the spatial extent used for HbS predictions from a reference raster and selected country boundaries.
+#'
+#' @description
+#' Construct the spatial extent used for HbS predictions from a reference raster and selected country boundaries.
+#'
+#' @param world_sf World country polygons as an `sf` object.
+#'
+#' @param map_filename Path to the reference HbS raster used to define the prediction extent.
+#'
+#' @param notpiel Threshold used to define areas retained from HbS by Piel et al. (benchmark).
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 compute.HbS.prediction.extent <- function (world_sf, map_filename = "geodata/2013_Sickle_Haemoglobin_HbS_Allele_Freq_Global_5k_Decompressed.tif", 
     notpiel = 0.005) 
 {

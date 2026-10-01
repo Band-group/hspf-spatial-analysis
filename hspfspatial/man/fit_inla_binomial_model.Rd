@@ -2,10 +2,24 @@
 % Please edit documentation in R/fit_inla_binomial_model.R
 \name{fit_inla_binomial_model}
 \alias{fit_inla_binomial_model}
-\title{fit_inla_binomial_model}
+\title{Build the mesh, SPDE, INLA stack, and formula and fit a binomial spatial model.}
 \usage{
 fit_inla_binomial_model(xyt, extpoly, prior, covariate = NULL, verbose = FALSE)
 }
+\arguments{
+\item{xyt}{Spatial observation data.}
+
+\item{extpoly}{Polygon defining the external mesh boundary.}
+
+\item{prior}{List containing prior settings used to construct the SPDE/model.}
+
+\item{covariate}{Optional data frame of model covariates.}
+
+\item{verbose}{Logical; whether to print progress messages.}
+}
+\value{
+A list containing the prior specification, mesh, projection matrix, and fitted INLA model.@
+}
 \description{
-fit_inla_binomial_model
+Build the mesh, SPDE, INLA stack, and formula and fit a binomial spatial model.
 }

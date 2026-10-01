@@ -1,6 +1,16 @@
-#' load.extended_data
-#' @return
+#' Load and standardise the extended HbS dataset, optionally excluding observations with low spatial precision.
+#'
+#' @description
+#' Load and standardise the extended HbS dataset, optionally excluding observations with low spatial precision.
+#'
+#' @param filename Path to an input file.
+#'
+#' @param exclude_wide_areas Logical; whether to exclude observations with imprecise spatial locations.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 load.extended_data <- function (filename, exclude_wide_areas = TRUE) 
 {
     result = read.csv(filename)

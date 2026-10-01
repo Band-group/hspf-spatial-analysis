@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_raster_maps.R
 \name{generate_raster_maps}
 \alias{generate_raster_maps}
-\title{generate_raster_maps}
+\title{Convert posterior prediction summaries into raster layers and optionally save them to disk.}
 \usage{
 generate_raster_maps(
   predictions,
@@ -11,6 +11,18 @@ generate_raster_maps(
   savepath = "output/HbSraster/"
 )
 }
+\arguments{
+\item{predictions}{Prediction object containing summary values and prediction-location metadata.}
+
+\item{saveraster}{Logical; whether to write raster layers to disk.}
+
+\item{saverastername}{Filename prefix for saved raster layers.}
+
+\item{savepath}{Directory in which output files are written.}
+}
+\value{
+A named list of raster layers for the prediction summaries.@
+}
 \description{
-generate_raster_maps
+Convert posterior prediction summaries into raster layers and optionally save them to disk.
 }

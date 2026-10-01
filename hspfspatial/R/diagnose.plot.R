@@ -13,7 +13,9 @@
 #'
 #' @param p3 Third additional diagnostic plot.
 #'
-#' @return The result produced by the function. 
+#' @return The result produced by the function. @
+#'
+#' @export
 diagnose.plot <- function (stackobject, prednames, p1, p2, p3) 
 {
     cowplot::plot_grid(stackobject[[prednames[1]]], stackobject[[prednames[2]]], 

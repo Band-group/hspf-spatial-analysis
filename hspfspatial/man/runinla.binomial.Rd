@@ -2,7 +2,7 @@
 % Please edit documentation in R/runinla.binomial.R
 \name{runinla.binomial}
 \alias{runinla.binomial}
-\title{runinla.binomial}
+\title{Fit a binomial spatial model with INLA and compute model diagnostics.}
 \usage{
 runinla.binomial(
   myformula,
@@ -13,6 +13,22 @@ runinla.binomial(
   intercept.prec = 0
 )
 }
+\arguments{
+\item{myformula}{Model formula (INLA thing, but same grammar as 'lm(...)')}
+
+\item{stk}{INLA stack object.}
+
+\item{spde}{An INLA SPDE model object.}
+
+\item{n}{Vector of binomial trial counts.}
+
+\item{covariate.prec}{Prior precision for fixed covariate effects.}
+
+\item{intercept.prec}{Prior precision for the intercept.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-runinla.binomial
+Fit a binomial spatial model with INLA and compute model diagnostics.
 }

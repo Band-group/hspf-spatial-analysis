@@ -2,10 +2,18 @@
 % Please edit documentation in R/load.extended_data.R
 \name{load.extended_data}
 \alias{load.extended_data}
-\title{load.extended_data}
+\title{Load and standardise the extended HbS dataset, optionally excluding observations with low spatial precision.}
 \usage{
 load.extended_data(filename, exclude_wide_areas = TRUE)
 }
+\arguments{
+\item{filename}{Path to an input file.}
+
+\item{exclude_wide_areas}{Logical; whether to exclude observations with imprecise spatial locations.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-load.extended_data
+Load and standardise the extended HbS dataset, optionally excluding observations with low spatial precision.
 }

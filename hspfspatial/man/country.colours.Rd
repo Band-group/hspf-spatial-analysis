@@ -2,10 +2,13 @@
 % Please edit documentation in R/country.colours.R
 \name{country.colours}
 \alias{country.colours}
-\title{country.colours}
+\title{Return the named colour palette used for countries in manuscript figures.}
 \usage{
 country.colours()
 }
+\value{
+A named character vector of colours.@
+}
 \description{
-country.colours
+Return the named colour palette used for countries in manuscript figures.
 }

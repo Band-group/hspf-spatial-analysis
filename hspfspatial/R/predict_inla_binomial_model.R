@@ -1,6 +1,20 @@
-#' predict_inla_binomial_model
-#' @return
+#' Generate posterior predictions from an INLA binomial spatial model and summarise their distributions.
+#'
+#' @description
+#' Generate posterior predictions from an INLA binomial spatial model and summarise their distributions.
+#'
+#' @param posterior.samples List of posterior samples returned by INLA.
+#'
+#' @param mesh INLA mesh object.
+#'
+#' @param prediction_locations Matrix or data frame of coordinates at which to predict.
+#'
+#' @param covariates Optional data frame or matrix of covariate values.
+#'
+#' @return A list containing posterior predictions and their mean, standard deviation, quartiles, and interquartile range.@
+#'
 #' @export
+#'
 predict_inla_binomial_model <- function (posterior.samples, mesh, prediction_locations, covariates = NULL) 
 {
     nn = length(posterior.samples)

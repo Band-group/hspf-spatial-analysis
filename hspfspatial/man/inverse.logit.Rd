@@ -2,10 +2,16 @@
 % Please edit documentation in R/inverse.logit.R
 \name{inverse.logit}
 \alias{inverse.logit}
-\title{inverse.logit}
+\title{Apply the inverse-logit transformation.}
 \usage{
 inverse.logit(x)
 }
+\arguments{
+\item{x}{Input value or vector.}
+}
+\value{
+A numeric vector on the probability scale.@
+}
 \description{
-inverse.logit
+Apply the inverse-logit transformation.
 }

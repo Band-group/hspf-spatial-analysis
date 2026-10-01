@@ -7,7 +7,9 @@
 #'
 #' @param ... Additional arguments passed to format
 #'
-#' @return Invisibly returns the result of `cat()`.
+#' @return Invisibly returns the result of `cat()`.@
+#'
+#' @export
 #'
 echo <- function (text, ...) 
 {

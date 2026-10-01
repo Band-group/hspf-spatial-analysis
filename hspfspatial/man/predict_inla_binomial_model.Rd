@@ -2,7 +2,7 @@
 % Please edit documentation in R/predict_inla_binomial_model.R
 \name{predict_inla_binomial_model}
 \alias{predict_inla_binomial_model}
-\title{predict_inla_binomial_model}
+\title{Generate posterior predictions from an INLA binomial spatial model and summarise their distributions.}
 \usage{
 predict_inla_binomial_model(
   posterior.samples,
@@ -11,6 +11,18 @@ predict_inla_binomial_model(
   covariates = NULL
 )
 }
+\arguments{
+\item{posterior.samples}{List of posterior samples returned by INLA.}
+
+\item{mesh}{INLA mesh object.}
+
+\item{prediction_locations}{Matrix or data frame of coordinates at which to predict.}
+
+\item{covariates}{Optional data frame or matrix of covariate values.}
+}
+\value{
+A list containing posterior predictions and their mean, standard deviation, quartiles, and interquartile range.@
+}
 \description{
-predict_inla_binomial_model
+Generate posterior predictions from an INLA binomial spatial model and summarise their distributions.
 }

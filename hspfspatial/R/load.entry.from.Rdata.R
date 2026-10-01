@@ -8,7 +8,9 @@
 #'
 #' @param what Name of the object to retrieve.
 #'
-#' @return The result produced by the function.
+#' @return The result produced by the function.@
+#'
+#' @export
 load.entry.from.Rdata <- function (filename, what) 
 {
     env = new.env()

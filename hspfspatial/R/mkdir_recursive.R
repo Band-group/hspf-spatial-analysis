@@ -5,7 +5,9 @@
 #'
 #' @param path Directory path to create.
 #'
-#' @return A logical value returned invisibly by `dir.create()`.
+#' @return A logical value returned invisibly by `dir.create()`.@
+#'
+#' @export
 #'
 mkdir_recursive <- function (path) 
 {

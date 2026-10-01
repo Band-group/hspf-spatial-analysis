@@ -13,7 +13,9 @@
 #'
 #' @param color.scheme color scheme used in the plot
 #'
-#' @return The result produced by the function.
+#' @return The result produced by the function.@
+#'
+#' @export
 #'
 stackplots <- function (mystack, features, titles, color.scheme) 
 {

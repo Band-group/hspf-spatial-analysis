@@ -1,6 +1,20 @@
-#' aggregate_to_polygons
-#' @return
+#' Aggregate point observations to polygons and return the polygons joined to the aggregated spatial data.
+#'
+#' @description
+#' Aggregate point observations to polygons and return the polygons joined to the aggregated spatial data.
+#'
+#' @param data Input data object.
+#'
+#' @param countries Character vector of countries whose observations should be aggregated.
+#'
+#' @param polygons An `sf` object containing aggregation polygons.
+#'
+#' @param polygon_id Name of the polygon identifier column.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 aggregate_to_polygons <- function (data, countries, polygons, polygon_id = "NAME_2") 
 {
     result = pf_adm2_agg(data, countries, polygons, polygon_id) %>% 

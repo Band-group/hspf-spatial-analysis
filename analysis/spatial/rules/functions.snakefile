@@ -1,6 +1,13 @@
 def srcdir(x):
 	return x
 
+# Like snakemake expand(), but allow only a subset of parameters by default.
+def partially_expand(
+	x, **kwargs
+):
+	kwargs.update( { "allow_missing": True } )
+	return expand( x, **kwargs )
+
 # dict_product from StackOverflow:
 # https://stackoverflow.com/questions/5228158/cartesian-product-of-a-dictionary-of-lists/40623158#40623158
 import itertools

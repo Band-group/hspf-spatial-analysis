@@ -9,7 +9,9 @@
 #'
 #' @param masked_features List of spatial features to exclude.
 #'
-#' @return A list containing prediction coordinates, the raster mask, and the missing-cell indicator.
+#' @return A list containing prediction coordinates, the raster mask, and the missing-cell indicator.@
+#'
+#' @export
 #'
 get_prediction_locations <- function (alt, study_area, masked_features = list()) 
 {

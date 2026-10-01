@@ -2,10 +2,22 @@
 % Please edit documentation in R/aggregate_to_polygons.R
 \name{aggregate_to_polygons}
 \alias{aggregate_to_polygons}
-\title{aggregate_to_polygons}
+\title{Aggregate point observations to polygons and return the polygons joined to the aggregated spatial data.}
 \usage{
 aggregate_to_polygons(data, countries, polygons, polygon_id = "NAME_2")
 }
+\arguments{
+\item{data}{Input data object.}
+
+\item{countries}{Character vector of countries whose observations should be aggregated.}
+
+\item{polygons}{An `sf` object containing aggregation polygons.}
+
+\item{polygon_id}{Name of the polygon identifier column.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-aggregate_to_polygons
+Aggregate point observations to polygons and return the polygons joined to the aggregated spatial data.
 }

@@ -1,6 +1,12 @@
-#' country.colours
-#' @return
+#' Return the named colour palette used for countries in manuscript figures.
+#'
+#' @description
+#' Return the named colour palette used for countries in manuscript figures.
+#'
+#' @return A named character vector of colours.@
+#'
 #' @export
+#'
 country.colours <- function () 
 {
     return(

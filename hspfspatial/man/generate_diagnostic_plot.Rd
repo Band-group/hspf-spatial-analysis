@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_diagnostic_plot.R
 \name{generate_diagnostic_plot}
 \alias{generate_diagnostic_plot}
-\title{generate_diagnostic_plot}
+\title{Generate spatial prediction and model diagnostic plots, including masked and unmasked prediction summaries.}
 \usage{
 generate_diagnostic_plot(
   xyt,
@@ -20,6 +20,33 @@ generate_diagnostic_plot(
   saverastername = "HbS"
 )
 }
+\arguments{
+\item{xyt}{Spatial observation data.}
+
+\item{modelfit}{Input (result of model fitting) used by the function;}
+
+\item{predictions}{Prediction object containing summary values and prediction-location metadata.}
+
+\item{HbSPiel}{Input (HbS map from Piel et al.);}
+
+\item{features}{Named list of spatial features used for mapping.}
+
+\item{color.scheme}{Colour-scale specification used for plotting.}
+
+\item{titles}{Named list of plot titles.}
+
+\item{prednames}{Names of prediction summaries to include.}
+
+\item{popmask}{Population raster or mask applied to predictions.}
+
+\item{saveraster}{Logical; whether to write raster layers to disk.}
+
+\item{#indicate}{if you want (TRUE) to save or not HbS raster maps
+saverastername Input used by the function;}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-generate_diagnostic_plot
+Generate spatial prediction and model diagnostic plots, including masked and unmasked prediction summaries.
 }

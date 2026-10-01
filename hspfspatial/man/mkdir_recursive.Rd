@@ -2,10 +2,16 @@
 % Please edit documentation in R/mkdir_recursive.R
 \name{mkdir_recursive}
 \alias{mkdir_recursive}
-\title{mkdir_recursive}
+\title{Create a directory and any missing parent directories.}
 \usage{
 mkdir_recursive(path)
 }
+\arguments{
+\item{path}{Directory path to create.}
+}
+\value{
+A logical value returned invisibly by `dir.create()`.@
+}
 \description{
-mkdir_recursive
+Create a directory and any missing parent directories.
 }

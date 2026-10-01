@@ -1,6 +1,29 @@
-#' fig1b.plot
-#' @return
+#Fig1b plot (Pf locations)
+#' Create and save the manuscript map of Plasmodium falciparum sampling locations, prevalence, and sample sizes by continent.
+#'
+#' @description
+#' Create and save the manuscript map of Plasmodium falciparum sampling locations, prevalence, and sample sizes by continent.
+#'
+#' @param pfpt Spatial Plasmodium falciparum sampling-point data.
+#'
+#' @param border Spatial country or continent boundary polygons.
+#'
+#' @param scicopalette Name of the scico colour palette.
+#'
+#' @param savepath Directory in which output files are written.
+#'
+#' @param allele Optional allele name used in labels and output filenames.
+#'
+#' @param myheight Output figure height.
+#'
+#' @param mywidth Output figure width.
+#'
+#' @param myproj Map projection identifier.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 fig1b.plot <- function (pfpt, border, scicopalette, savepath, allele = NULL, 
     myheight = myheight, mywidth = mywidth, myproj = NA) 
 {

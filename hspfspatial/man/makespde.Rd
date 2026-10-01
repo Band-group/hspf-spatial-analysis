@@ -2,10 +2,26 @@
 % Please edit documentation in R/makespde.R
 \name{makespde}
 \alias{makespde}
-\title{makespde}
+\title{Create a Matern SPDE model for an INLA mesh using default or penalised-complexity priors.}
 \usage{
 makespde(mymesh, prior)
 }
+\arguments{
+\item{mymesh}{An INLA mesh object.}
+
+\item{prior}{# list containing pcprior (bool) Input used by the function; see the function description for its role.}
+
+\item{r0}{Spatial range prior parameter recorded with model output.}
+
+\item{Prange}{INLA PC prior parameter on the range (see INLA for more info)}
+
+\item{sigma0}{Spatial standard-deviation prior parameter recorded with model output.}
+
+\item{Psigma}{INLA PC prior parameter on std (see INLA for more info)}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-makespde
+Create a Matern SPDE model for an INLA mesh using default or penalised-complexity priors.
 }

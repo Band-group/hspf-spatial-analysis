@@ -2,7 +2,7 @@
 % Please edit documentation in R/fig1b.plot.R
 \name{fig1b.plot}
 \alias{fig1b.plot}
-\title{fig1b.plot}
+\title{Create and save the manuscript map of Plasmodium falciparum sampling locations, prevalence, and sample sizes by continent.}
 \usage{
 fig1b.plot(
   pfpt,
@@ -15,6 +15,26 @@ fig1b.plot(
   myproj = NA
 )
 }
+\arguments{
+\item{pfpt}{Spatial Plasmodium falciparum sampling-point data.}
+
+\item{border}{Spatial country or continent boundary polygons.}
+
+\item{scicopalette}{Name of the scico colour palette.}
+
+\item{savepath}{Directory in which output files are written.}
+
+\item{allele}{Optional allele name used in labels and output filenames.}
+
+\item{myheight}{Output figure height.}
+
+\item{mywidth}{Output figure width.}
+
+\item{myproj}{Map projection identifier.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-fig1b.plot
+Create and save the manuscript map of Plasmodium falciparum sampling locations, prevalence, and sample sizes by continent.
 }

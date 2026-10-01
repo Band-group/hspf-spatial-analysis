@@ -10,6 +10,9 @@ An object of class \code{list} of length 2.
 \usage{
 viridisoption
 }
+\value{
+@
+}
 \description{
 viridisoption
 }

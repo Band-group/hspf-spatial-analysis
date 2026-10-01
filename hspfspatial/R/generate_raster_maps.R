@@ -11,7 +11,9 @@
 #'
 #' @param savepath Directory in which output files are written.
 #'
-#' @return A named list of raster layers for the prediction summaries.
+#' @return A named list of raster layers for the prediction summaries.@
+#'
+#' @export
 generate_raster_maps <- function (predictions, saveraster = FALSE, saverastername = saverastername, 
     savepath = "output/HbSraster/") 
 {

@@ -2,10 +2,18 @@
 % Please edit documentation in R/load.continent.shapes.terra.R
 \name{load.continent.shapes.terra}
 \alias{load.continent.shapes.terra}
-\title{load.continent.shapes.terra}
+\title{Load and union spatial polygons, optionally restricting them to a specified continent.}
 \usage{
 load.continent.shapes.terra(filename, continent = NA)
 }
+\arguments{
+\item{filename}{Path to an input file.}
+
+\item{continent}{Continent name to retain; where supported, `NA` keeps all polygons.}
+}
+\value{
+The result produced by the function.@
+}
 \description{
-load.continent.shapes.terra
+Load and union spatial polygons, optionally restricting them to a specified continent.
 }

@@ -6,6 +6,9 @@
 \usage{
 pf_adm2_agg(pf_data, countries, polygons, polygon_id_column)
 }
+\value{
+@
+}
 \description{
 pf_adm2_agg
 }

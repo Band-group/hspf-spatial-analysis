@@ -1,6 +1,14 @@
-#' load_HbS_mean
-#' @return
+#' Load an HbS mean prediction raster and prepare it for downstream use.
+#'
+#' @description
+#' Load an HbS mean prediction raster and prepare it for downstream use.
+#'
+#' @param filename Path to an input file.
+#'
+#' @return The result produced by the function.@
+#'
 #' @export
+#'
 load_HbS_mean <- function (filename) 
 {
     library(dplyr)

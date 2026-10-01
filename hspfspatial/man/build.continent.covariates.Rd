@@ -2,10 +2,18 @@
 % Please edit documentation in R/build.continent.covariates.R
 \name{build.continent.covariates}
 \alias{build.continent.covariates}
-\title{build.continent.covariates}
+\title{Create dummy-variable continent covariates for spatial observations, using Europe as the baseline.}
 \usage{
 build.continent.covariates(sf, world_sf)
 }
+\arguments{
+\item{sf}{An `sf` object containing locations for which continent covariates are required.}
+
+\item{world_sf}{World country polygons as an `sf` object.}
+}
+\value{
+A list containing the continent design matrix and indices of missing and non-missing rows.@
+}
 \description{
-build.continent.covariates
+Create dummy-variable continent covariates for spatial observations, using Europe as the baseline.
 }

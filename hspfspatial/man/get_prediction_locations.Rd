@@ -2,10 +2,20 @@
 % Please edit documentation in R/get_prediction_locations.R
 \name{get_prediction_locations}
 \alias{get_prediction_locations}
-\title{get_prediction_locations}
+\title{Create valid raster-cell coordinates for spatial prediction within a study area while excluding optional masked features.}
 \usage{
 get_prediction_locations(alt, study_area, masked_features = list())
 }
+\arguments{
+\item{alt}{Raster used as the target grid or spatial covariate.}
+
+\item{study_area}{Spatial object defining the study area.}
+
+\item{masked_features}{List of spatial features to exclude.}
+}
+\value{
+A list containing prediction coordinates, the raster mask, and the missing-cell indicator.@
+}
 \description{
-get_prediction_locations
+Create valid raster-cell coordinates for spatial prediction within a study area while excluding optional masked features.
 }

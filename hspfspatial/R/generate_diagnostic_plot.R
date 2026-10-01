@@ -26,7 +26,9 @@
 #' @param #indicate if you want (TRUE) to save or not HbS raster maps
 #'    saverastername Input used by the function; 
 #'
-#' @return The result produced by the function.
+#' @return The result produced by the function.@
+#'
+#' @export
 #'
 generate_diagnostic_plot <- function (xyt, modelfit, predictions, HbSPiel, features = list(spatialdomain = africa_sf, 
     rivers = rivaf_sf, lakes = lakaf_sf), color.scheme, titles = list(t1 = "HbS | Predicted mean prevalence", 

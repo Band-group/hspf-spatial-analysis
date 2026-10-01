@@ -9,7 +9,9 @@
 #'
 #' @param boundary Logical; whether to use `extpoly` as a mesh boundary.
 #'
-#' @return The result produced by the function.
+#' @return The result produced by the function.@
+#'
+#' @export
 #'
 makemesh <- function (xyt, extpoly, boundary = TRUE) 
 {

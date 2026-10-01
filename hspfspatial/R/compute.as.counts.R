@@ -1,6 +1,15 @@
-#' compute.as.counts
-#' @return
+#' Compute A- and S-allele counts from genotype or blood-typing observations.
+#'
+#' @description
+#' Compute A- and S-allele counts from genotype or blood-typing observations.
+#' This takes into account the various forms in which the survey data is presented.
+#'
+#' @param data Input data object.
+#'
+#' @return A data frame containing A, S, and total allele counts and the observation source.@
+#'
 #' @export
+#'
 compute.as.counts <- function (data) 
 {
     result = data.frame(A = rep(NA, nrow(data)), S = rep(NA, 

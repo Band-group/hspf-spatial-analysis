@@ -9,7 +9,9 @@
 #'
 #' @param num_yellow_shades Number of yellow shades.
 #'
-#' @return A character vector of colours.
+#' @return A character vector of colours.@
+#'
+#' @export
 #'
 greyredyellowpal <- function (num_red_shades, num_gray_shades, num_yellow_shades) 
 {
