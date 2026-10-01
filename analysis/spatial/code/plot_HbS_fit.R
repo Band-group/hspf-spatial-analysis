@@ -85,29 +85,38 @@ pt$stat <- "mean"
 
 #load.entry.from.Rdata( sprintf( "%s/naturalearthdata.Rdata", args$geodata ), "world_sf" )
 hbs = predictions$prediction_locations
-	hbs$mean = predictions$mean
-	hbs$median = predictions$q50
-	hbs$q25 = predictions$q25
-	hbs$q75 = predictions$q75
-	hbs$sd = predictions$sd
+hbs$mean = predictions$mean
+hbs$median = predictions$q50
+hbs$q25 = predictions$q25
+hbs$q75 = predictions$q75
+hbs$sd = predictions$sd
 
 if( args$continent == "global" ) {
 	region = world	
 	crop_box <- st_as_sfc(
-  	st_bbox(c(xmin = -155, xmax = 155, ymin = -55, ymax = 77)),
-  	crs = st_crs(world)
-)
-# crop geometries
-region <- st_crop(region, crop_box)
+		st_bbox(c(xmin = -155, xmax = 155, ymin = -55, ymax = 77)),
+		crs = st_crs(world)
+	)
+	# crop geometries
+	region <- st_crop(region, crop_box)
 } else {
 	# args$continents should be a continent name
 	echo( "++ restricting to: %s\n", paste( args$continent, collapse = ", " ))
 	continent_cap <- tools::toTitleCase(tolower(args$continent))
 	region <- world %>% filter(continent %in% continent_cap)
 	hbs = sf::st_intersection( hbs, region )
+	pt = sf::st_intersection( pt, region )
 }
 
-colour.breaks <- c(0,0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 1)
+
+if( max( hbs$mean ) > 0.5 ) {
+
+	aesthetic$HbS$breaks = seq( from = 0, to = 0.3, by = 0.05 )
+	aesthetic$HbS$ticks = sprintf( "%.0f%%", aesthetic$HbS$breaks * 100 )
+
+	aesthetic$HbSsd$breaks = seq( from = 0, to = 0.3, by = 0.05 )
+	aesthetic$HbSsd$ticks = sprintf( "%.1f%%", aesthetic$HbSsd$breaks * 100 )
+}
 echo( "++ Plotting...\n" )
 
 hbs_vect <- terra::vect(hbs)
@@ -135,7 +144,9 @@ r_all <- terra::project(r_all, st_crs(region)$wkt)
 # Keep an unprojected (lon/lat) copy for the regional inset panels (c-f), built below
 r_natural <- r_all
 # Reproject raster
-r_all <- terra::project(r_all, map_crs)
+if( args$continent == "global" ) {
+	r_all <- terra::project(r_all, map_crs)
+}
 
 # Convert to data frame first (with geometry dropped)
 r_df <- as.data.frame(r_all, xy = TRUE, na.rm = TRUE)
@@ -148,11 +159,6 @@ r_long <- tidyr::pivot_longer(
 )
 
 # 2) Make bins for ALL stats (factor). We'll ignore them for sd in the plot.
-r_long <- r_long |>
-  dplyr::mutate(
-    value_bin = cut(value, breaks = colour.breaks, include.lowest = TRUE)
-  )
-
 
 facet_labels <- c(
   "mean" = "b",
@@ -160,6 +166,7 @@ facet_labels <- c(
 )
 maxsd <- max(r_long$value[r_long$stat == "sd"], na.rm = TRUE)
 
+(
 p <- ggplot() +
   # Country borders
   geom_sf(data = region, fill = 'grey45', colour = "transparent") +
@@ -167,7 +174,7 @@ p <- ggplot() +
   # add points HbS only in mean facet (can be changed)
   geom_tile(
     data = dplyr::filter(r_long, stat %in% c("mean")),
-    aes(x = x, y = y, fill = value), alpha = 0.5) +
+    aes(x = x, y = y, fill = pmin( value, max( aesthetic$HbS$breaks))), alpha = 0.5) +
 	
 scale_fill_viridis_c(
     alpha = 0.5,
@@ -185,8 +192,8 @@ scale_fill_viridis_c(
         barwidth = unit(4, "cm"),
         barheight = unit(0.4, "cm")
     )
-) +		
-
+)
+		
 # 	scale_fill_viridis_c(option = "magma", direction = 1, 
 # 	name = "<b>Estimated HbS frequency</b><br>median",
 # 	labels = scales::label_number(accuracy = 0.01),
@@ -197,7 +204,7 @@ scale_fill_viridis_c(
 #   )) +
 
 
-
++
   ggnewscale::new_scale_fill() +  # reset fill scale
 
   # CONTINUOUS for sd using another viridis palette
@@ -223,9 +230,9 @@ scale_fill_viridis_c(
         barheight = unit(0.4, "cm")
     )
 ) +
-
 # Facets
 facet_wrap(~ stat, ncol = 2,labeller = labeller(stat = facet_labels)) 
+)
 p <- p + geom_sf(
 		data = region, fill = 'transparent', colour = "gray90",
  		linewidth=0.025) 

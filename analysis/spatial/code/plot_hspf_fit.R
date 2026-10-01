@@ -57,7 +57,8 @@ p = (
 		args$fit,
 		uncertainty = switch( args$show_fit, yes = "simple", no = "none" ),
 		show_fit_line = (args$show_fit == "yes" ),
-		show_tzadf = FALSE
+		show_tzadf = FALSE,
+		show_intervals = TRUE
 	)
 	+ scale_size_area( max_size = 16, guide = "none" )
 	+ theme_minimal( 16, base_family = "sans" )

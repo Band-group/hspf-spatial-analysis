@@ -4,8 +4,7 @@ library( dplyr )
 library( viridis )
 library( gridExtra )
 library( argparse )
-
-source( "code/functions.R" )
+library( hspfspatial )
 source( "code/figures/fig1_impl.R" )
 
 parse_arguments <- function() {

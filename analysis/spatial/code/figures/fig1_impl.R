@@ -187,7 +187,9 @@ hbsrasplot <- function(
 	legendfig1a <- ggpubr::as_ggplot(ggpubr::get_legend(fig1awithlegend))
 	
 	fig1a <- fig1a + coord_sf(crs = flatcrs, expand = FALSE) +
-		theme_void(base_family = "sans") + theme.panelgrid
+		theme_void(base_family = "sans") +  theme(legend.position = "none")
+
+
 	
 	return(list(fig1a, legendfig1a))
 }
@@ -223,7 +225,7 @@ graphabsplot <- function(
 	if (st_crs(world) == st_crs(4326)) {
 		hbsp <- hbsp + xlim(bbox[1], bbox[3]) + ylim(bbox[2], bbox[4])
 	}
-	hbsp <- hbsp + theme_void(base_family = "sans") + theme.panelgrid
+	hbsp <- hbsp + theme_void(base_family = "sans") + theme(legend.position = "none")
 	
 	# Extract and return the legend separately
 	hbsplegend <- hbsp + theme(legend.position = 'bottom', legend.direction = "vertical",
@@ -421,7 +423,7 @@ fig1bplot <- function(
 	
 	hbsp <- hbsp +
 		coord_sf(crs = flatcrs, expand = TRUE) +
-		theme_void(base_family = "sans") + theme.panelgrid
+		theme_void(base_family = "sans") + theme(legend.position = "none")
 	
 	return(list(hbsp, legendfig))
 }
@@ -459,6 +461,7 @@ plot_hspf = function(
 	show_fit_line = TRUE,
 	show_size_legend = TRUE,
 	show_tzadf = TRUE,
+	show_intervals = FALSE,
 	xlim = c( 0, 0.3 ),
 	ylim = c( 0, 1 ),
 	at = list(
@@ -492,8 +495,17 @@ plot_hspf = function(
 			return( pmax( pmin( x, 0.999 ), 0.001 ))
 		}
 	)[[hspf$link]]
-	hspf$data$hbsm = rowMeans( as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] ) )
-	hspf$data = hspf$data %>% mutate( HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm))
+	hbsmatrix = as.matrix( hspf$data[, grep( "posterior_sample", colnames( hspf$data ))] )
+	hspf$data$hbsm = rowMeans( hbsmatrix )
+	hspf$data = hspf$data %>% mutate(
+		HbAS_or_SS = hbsm^2 + 2 * hbsm*(1-hbsm),
+		HbAS_or_SS_lower = sapply( 1:nrow( hbsmatrix ), function(i) {
+			quantile( hbsmatrix[i,]^2 + 2*hbsmatrix[i,]*(1-hbsmatrix[i,]), 0.025 )
+		}),
+		HbAS_or_SS_upper = sapply( 1:nrow( hbsmatrix ), function(i) {
+			quantile( hbsmatrix[i,]^2 + 2*hbsmatrix[i,]*(1-hbsmatrix[i,]), 0.975 )
+		})
+	)
 	hspf$data$country = factor( hspf$data$majority_country, levels = unique(hspf$data$majority_country))
     
 	# Replace long country names with shorter versions
@@ -619,6 +631,16 @@ hspf$data$country = factor( hspf$data$country, levels = unique(hspf$data$country
 				shape = 21
 			) 
 		)
+		if( show_intervals ) {
+			hspf_plot = (
+				hspf_plot
+				+ geom_segment(
+					aes( x = HbAS_or_SS_lower, xend = HbAS_or_SS_upper ),
+					colour = rgb( 0, 0, 0, 0.2 ),
+					linewidth = 0.25
+				)
+			)
+		}
 		if( uncertainty == "lines" ) {
 			hspf_plot = (
 				hspf_plot

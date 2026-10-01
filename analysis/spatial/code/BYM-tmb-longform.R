@@ -21,6 +21,7 @@ suppressPackageStartupMessages({
 	library(igraph)
 	library(Matrix)
 	library(units)
+	library(hspfspatial)
 })
 
 {
@@ -244,8 +245,7 @@ if( 0 ) {#is.null( args )) {
 	# country-split grid versions for this.  (But I quite like the overlaps.)
 	if( !is.null( args$areas )) {
 		echo( "++ Loading world from %s...\n", args$world )
-		source( "code/functions.R" )
-		world_sf = load.entry.from.Rdata( args$world, "world_sf" )
+		world_sf = hspfspatial::load.entry.from.Rdata( args$world, "world_sf" )
 
 		echo( "++ focussing on these areas: %s.\n", paste( args$areas, collapse = ", " ))
 		focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
@@ -427,8 +427,7 @@ get_y_axis_config <- function(data_y, curve_lower, curve_upper,
 	region_title <- area_mapping$Region[ area_mapping$area == area_code ]
 	if( length( region_title ) == 0 ) region_title <- area_code
 
-	source( "code/functions.R" )
-	colours = country.colours()
+	colours = hspfspatial::country.colours()
 
 	xhbs = result$data$posterior_sample_1
 	data_x = xhbs^2 + 2*xhbs*(1-xhbs)

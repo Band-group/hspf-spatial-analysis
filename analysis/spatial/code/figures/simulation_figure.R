@@ -1,5 +1,7 @@
 library( dplyr )
 library( sf )
+library( hspfspatial )
+
 sf::sf_use_s2( FALSE )
 
 echo <- function( message, ... ) {
@@ -122,8 +124,6 @@ read.simulation.snapshots = function( filenames, extent, crs ) {
 
 #	breaks = c( -0.01, seq( from = 0.01, to = 0.05, by = 0.01 ), seq( from = 0.1, to = 1, by = 0.1 ))
 #	break.names = sprintf( "<%.0f%%", breaks[-1] * 100 )
-
-source( "code/functions.R" )
 
 args = list(
 	# we will plot in polygons, for a laugh

@@ -39,7 +39,6 @@ library( inlabru )
 #libraries = c( "INLA", "sf", "geodata", "sn", "inlabru","parallel")
 #lapply( libraries, library, character.only = TRUE, quietly = TRUE )
 #sf::sf_use_s2(FALSE) 
-#install.prerequisites()
 #source( 'code/priors.R' ) # Moved here so there is one definition
 
 world_sf = load.entry.from.Rdata( "geodata/naturalearthdata.Rdata", "world_sf" )
@@ -62,7 +61,7 @@ HbSpmesh <-  ggplot()+
 	xlab("")+ylab("")+
 	ylim(-7470000, 8470000)+ #equivalent in lat/lon proj as ylim(-60,85)
 	coord_sf(crs = flatcrs, expand = F) +
-	theme_void() + theme.panelgrid 
+	theme_void() + theme(legend.position = "none")
 #save plot
 
 if( !is.null( args$output_pdf )) {

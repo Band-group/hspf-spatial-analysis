@@ -2,7 +2,7 @@ library( dplyr )
 library( argparse )
 library( ggplot2)
 library( ggtext) #for formatting
-source( "code/functions.R" )
+library( hspfspatial )
 source( "code/figures/fig1_impl.R" )
 
 ########################

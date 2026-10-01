@@ -6,9 +6,9 @@ library( viridis )
 library( argparse )
 library( ggtext )
 library( ggrepel)
-source( "code/functions.R" )
-source( "code/figures/fig1_impl.R" )
+library( hspfspatial )
 
+source( "code/figures/fig1_impl.R" )
 
 # for testing Andre##################################################################################
 # args <- list()

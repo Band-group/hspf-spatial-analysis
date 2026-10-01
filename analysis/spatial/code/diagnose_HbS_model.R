@@ -90,7 +90,11 @@ source( 'code/Priors.R' )
 
 echo( "++ Welcome to insample_diagnosis.R" )
 echo( "++ Loading packages..." )
-install.prerequisites()
+
+# uncomment if needed, replacing install.prerequisites():
+#libraries = c( "INLA", "sf", "geodata","furrr","ggplot2","openxlsx","terra","forcats","ggdist")
+#lapply( libraries, library, character.only = TRUE, quietly = TRUE )
+#sf::sf_use_s2(FALSE) 
 
 echo( "++ Loading population mask from %s...", args$popmask )
 #load data for prediction 

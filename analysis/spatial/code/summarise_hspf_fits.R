@@ -146,11 +146,13 @@ echo( "++ Forming result...\n" )
 print( paste( fit$areas, collapse = "," ) )
 result = bind_cols(
 	tibble(
+		detail = stringr::str_replace( basename( args$fit ), "_modelfit.rds", "" ),
+		hbs_model_type = stringr::str_extract( args$fit, "fixed|variable" ),
 		celltype = fit$celltype,
 		#cellsize = fit$cellsize, #FIXME
-		cellsize = args$cellsize,
-		HbSr0 = fit$r0,
-		HbSsigma0 = fit$sigma0,
+		cellsize  = args$cellsize,
+		HbSr0     = stringr::str_extract( args$fit, "r0=([^-]*)", group = 1 ),
+		HbSsigma0 = stringr::str_extract( args$fit, "sigma0=([^-]*)", group = 1 ),
 		allele = fit$allele,
 		area = args$area,
 		countries = paste( fit$areas, collapse = "," ),

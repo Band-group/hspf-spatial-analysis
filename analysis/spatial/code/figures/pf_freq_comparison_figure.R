@@ -1,7 +1,6 @@
 library( tibble )
 library( dplyr )
-
-source( "code/functions.R" )
+library( hspfspatial )
 
 blank.plot = function( xlim = c( 0, 1 ), ylim = c( 0, 1 ), xlab = '', ylab = '', ... ) {
 	plot( 0, 0, col = 'white', xaxt = 'n', yaxt = 'n', xlim = xlim, xlab = xlab, ylim = ylim, ylab = ylab, ... )

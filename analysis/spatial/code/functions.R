@@ -101,7 +101,7 @@ generate_raster_maps <- function(
    predictions,saveraster=FALSE,saverastername = saverastername,savepath='output/HbSraster/')
   {
   library(raster)
-  mask <- predictions$prediction_locations$mask
+  mask <- predictions$mask
   pred_val <- raster::getValues(mask)
   w <- is.na(pred_val)
   myraster <- list()
@@ -109,7 +109,7 @@ generate_raster_maps <- function(
     pred_val[!w] <- round( predictions[[j]],9)
     myraster[[j]] <- setValues(mask, pred_val)
     if(saveraster==TRUE){
-    writeRaster(myraster[[j]], paste0(savepath,saverastername,"_",j,'.tif'), overwrite=TRUE)
+      writeRaster(myraster[[j]], paste0(savepath,saverastername,"_",j,'.tif'), overwrite=TRUE)
     }
    }
   message( paste0("++ Raster maps saved as ",savepath,saverastername,"..." ))
@@ -218,7 +218,6 @@ generate_diagnostic_plot <- function(
         mae = round( Metrics::mae( mean, prev ), 4 )
       ) 
   )
-  
   
   library(ggplot2)
   p2 <- (
@@ -469,13 +468,16 @@ makespde <- function(
     return(spde)
   }
 
-makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
+makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL, iid = NULL ){
   effectList = list(
     list( z.field = 1:spde$n.spde ),
     list( z.intercept = rep(1, length(Y)) )
   )
   if(!is.null(covariate)) {
     effectList[[2]]$covariate = covariate
+  } 
+  if(!is.null(iid)) {
+    effectList[[2]]$iid = iid
   } 
   print(dim(A))
   print(length(Y))
@@ -487,7 +489,7 @@ makeinlastack.binomial <- function( Y, n, A, spde, covariate=NULL ){
   return(stk)
 }
 
-makeinlaformula <- function(covariate=NULL){
+makeinlaformula <- function(covariate=NULL, iid = FALSE){
   if(!is.null(covariate)){
     myformula0 <- paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
     myformula <- myformula0
@@ -502,6 +504,9 @@ makeinlaformula <- function(covariate=NULL){
     }
   } else {
     myformula <-paste("Y ~ -1 + z.intercept + f(z.field, model = spde)")
+  }
+  if( iid ) {
+    myformula = sprintf( '%s + f(iid, model="iid")', myformula )
   }
   return(formula(myformula))
 }
@@ -549,6 +554,7 @@ fit_inla_binomial_model <- function(
     extpoly,
     prior,
     covariate = NULL,
+    iid = FALSE,
     verbose = FALSE
 ) {
   # 1. Mesh building
@@ -576,16 +582,27 @@ fit_inla_binomial_model <- function(
       Y = round( xyt$S, 0 )
       N = round( xyt$N, 0 )
   }
-  stk <- makeinlastack.binomial(
-    Y = Y,
-    n = N,
-    A = A,
-    spde = spde,
-    covariate = covariate
-  ) #if covariate [dataframe], add ",covariate=..."
-    #print( summary(stk))
-
-  myformula <- makeinlaformula( covariate = covariate ) #add covariate [dataframe] argument if you want covariates
+  if( iid ) {
+    xyt$iid = 1:nrow(xyt)
+    stk <- makeinlastack.binomial(
+      Y = Y,
+      n = N,
+      A = A,
+      spde = spde,
+      covariate = covariate,
+      iid = 1:nrow(xyt)
+    ) #if covariate [dataframe], add ",covariate=..."
+      #print( summary(stk))
+  } else {
+    stk <- makeinlastack.binomial(
+      Y = Y,
+      n = N,
+      A = A,
+      spde = spde,
+      covariate = covariate
+    ) #if covariate [dataframe], add ",covariate=..."
+  }
+  myformula <- makeinlaformula( covariate = covariate, iid ) #add covariate [dataframe] argument if you want covariates
   modelfit <- runinla.binomial(
     myformula,
     stk,
@@ -2351,6 +2368,8 @@ draw_key_hex_custom <- function(data, params, size) {
 	theta <- pi/6 + (0:5) * (2*pi/6)          # 6 angles, exactly 60° apart
 	r <- grid::unit(1.25, "mm")
 
+  `%||%` = function( a, b ) { if(!is.null(a) & !is.na(a)) { a } else { b } ; }
+  print( "DEFINED" )
 	grid::polygonGrob(
 		x = grid::unit(0.5, "npc") + r * cos(theta),
 		y = grid::unit(0.5, "npc") + r * sin(theta),

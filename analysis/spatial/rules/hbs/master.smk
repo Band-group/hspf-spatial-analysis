@@ -1,0 +1,6 @@
+include: "fit_hbs_map.smk"
+include: "aggregate_HbS.smk"
+include: "aggregate_piel.smk"
+include: "compare_HbS_vs_piel_vs_data.smk"
+include: "plot_hbs_fit.smk"
+include: "summarise_HbS_fits.smk"

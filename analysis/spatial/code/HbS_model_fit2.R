@@ -1,4 +1,5 @@
 library( argparse )
+library( dplyr )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -64,6 +65,13 @@ parse_arguments <- function() {
 		default = 0.8
 	)
 	parser$add_argument(
+		"--model_options",
+		type = "character",
+		nargs = "+",
+		help = "model options, if specified.  Only '+iid' is currently supported.",
+		default = c()
+	)
+	parser$add_argument(
 		"--number_of_posterior_samples",
 		type = "numeric",
 		help = "Number of posterior samples to output.",
@@ -85,7 +93,7 @@ print( args )
 
 #install packages
 source( 'code/functions.R' )
-libraries = c( "INLA", "sf", "geodata", "sn", "inlabru","parallel")
+libraries = c( "INLA", "sf", "geodata", "sn", "parallel") #"inlabru",
 lapply( libraries, library, character.only = TRUE, quietly = TRUE )
 sf::sf_use_s2(FALSE) 
 source( 'code/priors.R' ) # Moved here so there is one definition
@@ -97,12 +105,15 @@ source( 'code/priors.R' ) # Moved here so there is one definition
 #HbS model parameters###########################################################
 ################################################################################
 
+stopifnot( all( args$model_options == '+iid' ))
+
 prior = make.prior(
 	Prange = args$Prange,
 	Psigma = args$Psigma,
 	r0 = args$r0,
 	sigma0 = args$sigma0,
-	covariates = args$fixed_covariates
+	covariates = args$fixed_covariates,
+	iid = '+iid' %in% args$model_options
 )
 prior$covariates = args$covariates
 
@@ -119,9 +130,9 @@ world_sf$CONTINENT[ world_sf$ADMIN == 'Seychelles' ] = "Africa"
 
 echo( "++ Computing HbS map extents....\n" )
 extents = compute.HbS.prediction.extent( world_sf, args$piel )
-echo( "++ Ok, will compute at %d points", nrow( extents ))
+echo( "++ Ok, will compute at %d points\n", nrow( extents ))
 
-echo( "++ Computing prediction area..." )
+echo( "++ Computing prediction area...\n" )
 {
 	prediction_area = load.continent.shapes.terra( args$country_shapes )
 	pred_locs = get_prediction_locations(
@@ -136,13 +147,20 @@ echo( "++ Computing prediction area..." )
 	)
 	prediction_locations = suppressWarnings(suppressMessages(sf::st_filter( 
 		pred_locs$sf, extents )))
-	echo( "++ Ok, there are %d prediction locations.", nrow( prediction_locations ))
+	echo( "++ Ok, there are %d prediction locations.\n", nrow( prediction_locations ))
 }
 
 # load clean HbS data file
 # and subset to africa:
 echo( "++ Loading cleaned HbS data from $%s...\n", args$HbS )
 HbSdata <- read.csv( args$HbS )
+
+# Try this: combine co-localised points
+#HbSdata = (
+#	HbSdata
+#	%>% group_by( latitude, longitude )
+#	%>% summarise( S = sum( S ), N = sum( N ))
+#)
 
 # Convert to spatial frame
 # and check there are no points outside the map value computation extents
@@ -176,8 +194,8 @@ verbose = TRUE
 
 	# TODO: this can be improved for more types of covariate
 	# e.g. ethnic group.
-	print( args$fixed_covariates )
 	if( is.null( args$fixed_covariates )) {
+		echo( "++ No covariates specified...\n" )
 		fit_covariates = list(
 			values = NULL,
 			nonmissing_rows = 1:nrow( xytsf )
@@ -187,6 +205,7 @@ verbose = TRUE
 			nonmissing_rows = 1:nrow( prediction_locations )
 		)
 	} else if( !is.null( args$fixed_covariates )) {
+		echo( "++ Fitting with these covariates: %s...\n", paste( args$ifxed_covariates, collapse = ", " ))
 		if( args$fixed_covariates == 'continent' ) {
 			fit_covariates = build.continent.covariates( xytsf, world_sf )
 			prediction_covariates = build.continent.covariates( prediction_locations, world_sf )
@@ -201,6 +220,7 @@ verbose = TRUE
 		extpoly = as( selected_area, "Spatial" ),#here we set mesh based on where we want to predict
 		prior,
 		covariate = fit_covariates$values,
+		iid = prior$iid,
 		verbose = verbose
 	)
     

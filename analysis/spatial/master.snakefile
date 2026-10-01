@@ -36,10 +36,6 @@ config['areas'] = get_area_definitions(
 	]
 )
 
-# This list details all the hs-pf comparison analyses we really want to run.
-# master_hspf_analyses = dict_product( config['params'] )
-#master_hspf_analyses = list(filter( lambda row: not( row['area'] == 'DRC' and row['locus'] == 'Pfsa4'), master_hspf_analyses ))
-
 localrules: combine_hspf_summaries, hspf_summaries_to_excel, summarise_HbS_fits, create_figure1, create_figure2_and_figureS5, create_summary_list, compile_TMB_code
 
 wildcard_constraints:
@@ -54,23 +50,6 @@ rule all:
 			**config['params']
 		),
 		HbS_fit_summary = "output/HbS/HbS_fit_summary.tsv",
-#		HbS_fit_images = expand(
-#			"output/HbS/images/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}-continents={continent}.pdf",
-#			**config['params'],
-#			continent = [ 'global', 'Africa' ] #, 'Africa' ]
-#		),
-#		HbS_fit_vs_piel = expand(
-#			"output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_piel.{extension}",
-#			**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
-#			area = [ 'global' ],
-#			extension = [ 'pdf', 'tsv.gz' ]
-#		),
-#		HbS_fit_vs_HbSobs = expand(
-#			"output/HbS_vs_piel/grid-type={type}-size={size}-area={area}/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}_vs_HbSobs.{extension}",
-#			**( remove_keys( config['params'], keys_to_remove = [ 'area' ] )),
-#			area = [ 'global' ],
-#			extension = [ 'pdf' ]
-#		),
 		aggregates = expand(
 			"output/pf={pf_data_version}/pf/aggregated/grid-type=hexagon-size=1-area={area}-ld-by={by}.tsv",
 			pf_data_version = config['params']['pf_data_version'],
@@ -90,11 +69,6 @@ rule all:
 				area = [ 'global', 'africa', 'eaf', 'waf' ]
 			)
 		),
-#		hspf_area_plots = expand(
-#			"output/pf={pf_data_version}/hspf/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/Pfsa1/Pfsa1-model={regression_model}+fc={hspf_covariates}-{min_km_to_survey_pt}km-area={area}-areas.pdf",
-#			**( remove_keys( config['params'], keys_to_remove = [ 'locus' ] )),
-#			locus = [ 'Pfsa1' ]
-#		),
 		hspf_summary = expand(
 			"output/pf={pf_data_version}/all_hspf_analyses_summary-analysis={analysis}.{extension}",
 			pf_data_version = config['params']['pf_data_version'],
@@ -109,25 +83,10 @@ rule all:
 			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/forestplot_Africa_regional.pdf",
 			**config['params']
 		),
-# This is not necessary anymore as Fig1 is making also Fig S1 (forests lots etc.)
-#		fig2_SI = expand(
-#			"output/pf={pf_data_version}/SI/fixed-r0={r0}-sigma0={sigma0}-fc={hbs_covariates}/grid-type={type}-size={size}/model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}-forest_plot_SI.{extension}",
-#			**config['params'],
-#			extension = [ 'pdf', 'svg' ]
-#		),	
-#		forest_plot = expand(
-#			"output/pf={pf_data_version}/figures/forest_plot/forest_plot_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
-#			**config['params']
-#		),
 		fig2 = expand(
 			"output/pf={pf_data_version}/figures/figure_2/figure_2_main-size={size}-model={regression_model}-{min_km_to_survey_pt}km-min_N={min_N}.pdf",
 			**config['params']
 		),
-# This wasn't working so commented out for now:
-#		summary_list = expand(
-#			"output/summary/summary.hex-size={size}-{min_km_to_survey_pt}km-min_N={min_N}.rds",
-#			**config['params']
-#		),
 		temporal = expand(
 			"output/pf={pf_data_version}/figures/temporal/{loci}-temporal-area={area}.pdf",
 			pf_data_version = config['params']['pf_data_version'],
@@ -139,8 +98,8 @@ rule all:
 			pf_data_version = config['params']['pf_data_version']
 		)
 
-include: "rules/grid.snakefile"
-include: "rules/hbs.snakefile"
-include: "rules/pf.snakefile"
-include: "rules/hspf.snakefile"
-include: "rules/figures.snakefile"
+include: "rules/grid/master.smk"
+include: "rules/hbs/master.smk"
+include: "rules/pf/master.smk"
+include: "rules/hspf/master.smk"
+include: "rules/figures/master.smk"

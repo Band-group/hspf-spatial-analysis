@@ -4,6 +4,7 @@ library( sf )
 library( ggplot2 )
 library( viridis )
 library( RSQLite )
+library( hspfspatial )
 
 echo <- function( message, ... ) {
 	cat( sprintf( message, ... ))
@@ -79,8 +80,7 @@ pf = (
 echo( "++ Ok, %d points loaded. Converting to sf...\n", nrow(pf) )
 pf = sf::st_as_sf( pf, coords = c("longitude", "latitude"), crs = sf::st_crs(grid) )
 
-source( "code/functions.R" )
-world_sf = load.entry.from.Rdata( args$world, "world_sf" )
+world_sf = hspfspatial::load.entry.from.Rdata( args$world, "world_sf" )
 africa = world_sf[world_sf$CONTINENT == 'Africa', ] 
 
 print( colnames(grid) )
@@ -147,5 +147,6 @@ p = (
 			limits = ylim + c( -0.01, 0.01 ),
 			labels = sprintf( "%.0f%%", at$y * 100 ),
 			expand = c( 0, 0 )#,
+	)
 )
 ggsave( p, file = args$output )

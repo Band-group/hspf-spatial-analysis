@@ -64,5 +64,5 @@ result = tibble::tibble(
 )
 
 echo( "++ Writing summary to %s...\n", args$output )
-readr::write_tsv( result, args$output )
+readr::write_tsv( result, args$output, append = TRUE)
 

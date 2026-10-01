@@ -14,6 +14,7 @@ library(spdep)
 library(INLA)
 library(dplyr)
 library( argparse )
+library( hspfspatial )
 
 options( width = 200 )
 
@@ -389,8 +390,7 @@ print( grid )
 # country-split grid versions for this.  (But I quite like the overlaps.)
 if( !is.null( args$areas )) {
 	echo( "++ Loading world from %s...\n", args$world )
-	source( "code/functions.R" )
-	world_sf = load.entry.from.Rdata( args$world, "world_sf" )
+	world_sf = hspfspatial::load.entry.from.Rdata( args$world, "world_sf" )
 
 	echo( "++ focussing on these areas: %s.\n", paste( args$areas, collapse = ", " ))
 	focus_area = world_sf %>% filter( SOVEREIGNT %in% args$areas )
