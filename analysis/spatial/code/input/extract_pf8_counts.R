@@ -108,5 +108,5 @@ by_sample = (
 )
 
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'MalariaGEN Pf7', args$output )
+output_sample_genotypes_to_db( by_sample, 'MalariaGEN Pf7', args$output )
 echo( "++ Success!  Thanks for using extract_pf8_counts.R.\n" )

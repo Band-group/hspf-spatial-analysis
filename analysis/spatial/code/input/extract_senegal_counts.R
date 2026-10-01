@@ -116,5 +116,5 @@ by_sample = (
 options(width=200)
 print( by_sample, width = 300 )
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'Schaffner et al Senegal 2023', args$output )
+output_sample_genotypes_to_db( by_sample, 'Schaffner et al Senegal 2023', args$output )
 echo( "++ Success!  Thanks for using extract_senegal_counts.R.\n" )

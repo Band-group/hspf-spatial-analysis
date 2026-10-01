@@ -2,7 +2,7 @@ library( tidyverse )
 library( dplyr )
 library( dbplyr )
 library( argparse )
-
+library( hspfspatial )
 source( "code/input/functions.R" )
 
 options(width=200)
@@ -120,7 +120,7 @@ by_sample = (
 )
 
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'GAMCC', args$output )
+output_sample_genotypes_to_db( by_sample, 'GAMCC', args$output )
 echo( "++ Success!  Thanks for using extract_pf7_counts.R.\n" )
 
 

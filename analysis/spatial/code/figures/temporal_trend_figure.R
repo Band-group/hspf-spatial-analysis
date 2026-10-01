@@ -6,7 +6,7 @@ library( viridis )
 library( argparse )
 library( ggtext )
 library( ggrepel)
-source( "code/functions.R" )
+library( hspfspatial )
 source( "code/figures/fig1_impl.R" )
 
 

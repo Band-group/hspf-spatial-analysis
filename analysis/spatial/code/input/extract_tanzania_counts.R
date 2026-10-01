@@ -128,6 +128,6 @@ by_sample = (
 print( by_sample )
 
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'Moser et al 2021', args$output )
+output_sample_genotypes_to_db( by_sample, 'Moser et al 2021', args$output )
 echo( "++ Success!  Thanks for using extract_TZ_counts.R.\n" )
 

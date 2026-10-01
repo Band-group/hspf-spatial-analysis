@@ -121,6 +121,36 @@ for( i in 1:nrow( variants )) {
 	}
 }
 
+generate_long_form_table <- function(
+	samples,
+	variants,
+	dosage
+) {
+	stopifnot( nrow( variants ) == nrow( dosage ))
+	stopifnot( nrow( samples ) == ncol( dosage ))
+	stopifnot( all( colnames(dosage) == samples$ID ))
+	result = tibble()
+	for( i in 1:nrow( variants )) {
+		X = tibble::tibble(
+			ID         = colnames(dosage),
+			locus      = variants$locus[i],
+			chromosome = variants$chromosome[i],
+			position   = variants$position[i],
+			ref_allele = variants$ref_allele[i],
+			alt_allele = variants$alt_allele[i],
+			ref        = as.integer( dosage[i,,drop=F] == 0 ),
+			mixed      = as.integer( dosage[i,,drop=F] == 1 ),
+			nonref     = as.integer( dosage[i,,drop=F] == 2 )
+		)
+		result = dplyr::bind_rows(
+			result,
+			samples %>% inner_join( X, by = "ID" )
+		)
+	}
+	return( result )
+}
+
+
 by_sample = generate_long_form_table(
 	samples,
 	variants,
@@ -132,6 +162,6 @@ by_sample = generate_long_form_table(
 )
 
 echo( "++ Outputting to %s...\n", args$output )
-output_to_db( by_sample, 'Uganda UCSF EppiCenter', args$output )
+output_sample_genotypes_to_db( by_sample, 'Uganda UCSF EppiCenter', args$output )
 echo( "++ Success!  Thanks for using extract_uganda_counts.R.\n" )
 
