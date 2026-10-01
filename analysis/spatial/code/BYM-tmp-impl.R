@@ -317,9 +317,11 @@ fitbym_to_posterior_samples <- function(
 			bind_cols(
 				hbs.sample = sample,
 				model = model,
-				intercept = posterior.parameters[,'intercept'],
-				beta = posterior.parameters[,'beta'],
-				log_nu = posterior.parameters[,'log_nu']
+				intercept   = posterior.parameters[,'intercept'],
+				beta        = posterior.parameters[,'beta'],
+				log_nu      = posterior.parameters[,'log_nu'],
+				logodds_phi = posterior.parameters[,'logodds_phi'],
+				log_tau     = posterior.parameters[,'log_tau']
 			)
 		)
 	}
