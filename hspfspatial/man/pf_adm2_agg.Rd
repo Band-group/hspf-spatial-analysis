@@ -2,13 +2,22 @@
 % Please edit documentation in R/pf_adm2_agg.R
 \name{pf_adm2_agg}
 \alias{pf_adm2_agg}
-\title{pf_adm2_agg}
+\title{Aggregate Plasmodium falciparum observations within selected administrative polygons and combine them with unaggregated observations elsewhere.}
 \usage{
 pf_adm2_agg(pf_data, countries, polygons, polygon_id_column)
 }
+\arguments{
+\item{pf_data}{Plasmodium falciparum observation data.}
+
+\item{countries}{Character vector of countries whose observations should be aggregated.}
+
+\item{polygons}{An `sf` object containing aggregation polygons.}
+
+\item{polygon_id_column}{Name of the polygon identifier column.}
+}
 \value{
-@
+The result produced by the function.
 }
 \description{
-pf_adm2_agg
+Aggregate Plasmodium falciparum observations within selected administrative polygons and combine them with unaggregated observations elsewhere.
 }
